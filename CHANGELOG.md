@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.8.0] - 2026-09-02
+### Added
+- Phase 8 fixture end-to-end check (`personalAgent/tests/test_v0_e2e.py`): one task from the board through plan, implement, validate, simulated pull request, and notices.
+
 ## [0.7.0] - 2026-09-02
 ### Added
 - Phase 7 implementation: durable overlay snapshots, automatic interrupted-run reclaim, workspace recovery, and duplicate-worker prevention.

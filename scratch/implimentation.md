@@ -2027,6 +2027,10 @@ no second task store; no new Telegram kind
 
 ## Phase 8 — Full V0 E2E
 
+**Captured** as a pytest fixture path (not a new product feature): `personalAgent/tests/test_v0_e2e.py`.
+
+**Implemented** (2026-09-02): one disposable fixture task goes board → discover → plan → implement → validate → simulated push/PR → Telegram `task_start` + `pr_created`. Interrupt/reclaim uses the same execution identity (no live Docker kill). Live `docker compose restart`, github.com SSH, and a real Telegram chat remain operator proof, not this gate.
+
 Run the complete fixture scenario.
 
 Only declare V0 complete after the entire flow succeeds.
