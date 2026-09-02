@@ -1,5 +1,23 @@
 # Changelog
 
+## [0.7.0] - 2026-09-02
+### Added
+- Phase 7 implementation: durable overlay snapshots, automatic interrupted-run reclaim, workspace recovery, and duplicate-worker prevention.
+### Changed
+- Kept operational state in one atomic overlay document with no second task store or Phase 8 work.
+
+## [0.6.0] - 2026-09-02
+### Added
+- Implementation task list for Phase 7 restart recovery (`specs/009-restart-recovery/tasks.md`): persist overlay, automatic reclaim, workspace recover, duplicate prevention.
+
+## [0.5.0] - 2026-09-02
+### Added
+- Implementation plan and design artifacts for Phase 7 restart recovery (`specs/009-restart-recovery`: plan, research, data model, contract, quickstart). No application code in this version.
+
+## [0.4.0] - 2026-09-02
+### Added
+- Feature spec for Phase 7 persistence and restart recovery (`specs/009-restart-recovery`): survive control-plane restart, reclaim one interrupted run, recover the working copy and branch, and prevent duplicate workers.
+
 ## [0.3.1] - 2026-09-02
 ### Added
 - Expanded Telegram contract coverage for recovery, blocked, failure, retry, idempotency, status, and chat-resume behavior.

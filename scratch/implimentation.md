@@ -1995,6 +1995,10 @@ Do not duplicate the existing Telegram transport.
 
 ## Phase 7 — Persistence / Restart Recovery
 
+**Captured** in Spec Kit `specs/009-restart-recovery/` (`spec.md`, `plan.md`, `research.md`, `data-model.md`, `contracts/restart-recovery.md`, `quickstart.md`, `tasks.md`). Implement from those artifacts, not from this outline alone.
+
+**Implemented** (converge 2026-09-02): T001–T033 done. Atomic `overlay.json` + 60s `alive` under `execution.overlay_dir`; `become_ready()` reclaims one interrupted run; `recover_workspace` (dirty OK, no fetch); `SlotHeldError` vs `WorkflowBusyError`. Contract: `personalAgent/tests/test_restart_recovery.py`. Live Docker kill remains Phase 8.
+
 Verify:
 
 ```text
@@ -2003,6 +2007,20 @@ worker interruption
 task recovery
 workspace recovery
 duplicate prevention
+```
+
+Decided contract (pytest, not live Docker kill):
+
+```text
+execution.overlay_dir → overlay.json (atomic os.replace) + alive (60s silence = dead)
+become_ready() at start-up, before any new start; no Resume press
+reclaim grain = whole phase (resume next if complete; else safe-restart once)
+same execution_id / workspace_id; recover_workspace not prepare_workspace
+no git fetch; dirty copy of this task is allowed; missing copy+branch → BLOCKED
+fresh alive → SlotHeldError (second copy must refuse)
+occupied slot → WorkflowBusyError
+crash does not bump Phase 4 attempt or open a second PR
+no second task store; no new Telegram kind
 ```
 
 ---
@@ -2066,10 +2084,10 @@ V0 is complete only when all of the following are true.
 
 ## Reliability
 
-* [ ] Hermes restart does not corrupt task state.
-* [ ] Interrupted execution can recover.
-* [ ] Worktrees remain isolated.
-* [ ] Duplicate execution is prevented.
+* [x] Hermes restart does not corrupt task state.
+* [x] Interrupted execution can recover.
+* [x] Worktrees remain isolated.
+* [x] Duplicate execution is prevented.
 
 ## Learning
 
