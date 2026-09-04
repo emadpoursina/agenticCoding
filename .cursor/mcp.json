@@ -1,0 +1,18 @@
+{
+  "mcpServers": {
+    "hermes": {
+      "command": "docker",
+      "args": [
+        "compose",
+        "--project-directory",
+        "${workspaceFolder}/personalAgent",
+        "exec",
+        "-T",
+        "hermes-agent",
+        "hermes",
+        "mcp",
+        "serve"
+      ]
+    }
+  }
+}

@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.8.3] - 2026-09-04
+### Added
+- Project-scoped Hermes MCP configuration using the running `hermes-agent` Docker Compose service.
+
 ## [0.8.0] - 2026-09-02
 ### Added
 - Phase 8 fixture end-to-end check (`personalAgent/tests/test_v0_e2e.py`): one task from the board through plan, implement, validate, simulated pull request, and notices.
