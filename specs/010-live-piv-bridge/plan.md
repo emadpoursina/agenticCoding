@@ -1,0 +1,122 @@
+# Implementation Plan: Live Hermes PIV Bridge
+
+**Branch**: `010-live-piv-bridge` | **Date**: 2026-09-05 | **Spec**: [spec.md](./spec.md)
+
+**Input**: Feature specification from `/specs/010-live-piv-bridge/spec.md`
+
+**Note**: This template is filled in by the `/speckit-plan` command; its definition describes the execution workflow.
+
+## Summary
+
+Phases 1–7 plus the fixture end-to-end path already run PIV in-process with an in-memory board. This slice is the **first live vertical**: inspect existing contracts and the installed Hermes Kanban/dispatcher surface, then connect native `kanban.db` to `PivOrchestrator` through read-only `SqliteTaskBoard` and one runtime entry the Hermes worker and CLI both call. Kanban stays the only task source of truth. `MemoryTaskBoard` stays checks-only. No second task database. No AiNative edits. One live task loads project context, uses `feature/task-<id>`, runs discovery → planning → implementation → validation, recover-or-block, commits only on that branch, publishes via `LiveGitHost`, records `PR_CREATED`, and emits the existing Telegram `pr_created` event. Smoke requires an explicit disposable `owner/name` that matches both GitHub and enrolled project name before any push.
+
+Technical approach: stdlib SQLite `mode=ro` against `{HERMES_HOME}/kanban.db`; map installed statuses `todo`/`ready`; thin `runtime` module; pytest on temp Kanban fixtures + `MemoryGitHost`. See [research.md](./research.md).
+
+## Technical Context
+
+**Language/Version**: Python 3.12 (`>=3.12,<3.14`) via uv — already pinned in `personalAgent/pyproject.toml`
+
+**Primary Dependencies**: None new. Stdlib `sqlite3` (read-only URI) + existing orchestrator, workspace, GitHost, messaging, persist. Dev: pytest, ruff (already listed)
+
+**Storage**: Existing Hermes `kanban.db` (read-only). Existing `execution.overlay_dir` overlay. No second task DB. Isolated git worktrees unchanged in policy (`feature/task-<id>`)
+
+**Testing**: pytest + ruff; new `personalAgent/tests/test_live_piv_bridge.py`; temp SQLite/Kanban fixtures; stand-in `ModelService` + `MemoryGitHost`; existing 001–009 modules stay green. Live github.com / Telegram / operator board are not the pytest gate
+
+**Target Platform**: Host pytest (macOS/Linux). Production entry inside `hermes-personal-agent` with `HERMES_HOME=/opt/data`. Package must be importable in that container (compose mount or equivalent)
+
+**Project Type**: Library + one CLI/worker entry in existing `hermes_kanban`
+
+**Performance Goals**: One blocking start/resume; no throughput target
+
+**Constraints**: No new third-party libraries. No `$HOME/.hermes` default for the board path. No `MemoryTaskBoard` on the live entry. No second scheduler, Telegram-only start, merge, deploy, secrets in records, or AiNative writes. Smoke empty-by-default
+
+**Scale/Scope**: One V0 slot; one native board file; live bridge slice only (not concurrent workers, Obsidian, learning, daily reports)
+
+## Constitution Check
+
+*GATE: Must pass before Phase 0 research. Re-check after Phase 1 design.*
+
+### Pre-research (PASS)
+
+| Principle / constraint | Verdict | Notes |
+|---|---|---|
+| I. Spec-first | PASS | `spec.md` complete; clarify 2026-09-05 recorded; no `[NEEDS CLARIFICATION]` |
+| II. Least Code | PASS | Reuse orchestrator/GitHost/messaging; add read-only adapter + thin runtime; no second workflow engine |
+| III. Platform-native | PASS | Native `kanban.db`; Hermes dispatcher/worker env; existing Telegram transport; no second task store; AiNative read-only |
+| IV. Trust-boundary tests | PASS | Board path, column, completeness, smoke name at boundary; one new pytest module; temp fixtures |
+| V. Human Authority | PASS | No merge/deploy/main push; smoke requires explicit disposable identity |
+| Python 3.12 + uv | PASS | Existing package |
+| No new deps without approval | PASS | sqlite3 stdlib |
+| Secrets / isolated Hermes home | PASS | `HERMES_HOME` only; never `~/.hermes` root; secrets stay outside git |
+| Model routing | PASS | Unchanged slots |
+| Out-of-scope list | PASS | Later milestones, second bot, methodology edits: not in this plan |
+| Surgical edits | PASS | New `board.py` + `runtime.py`; small orchestrator eligibility delta; do not rewrite adapter/registry/executor |
+
+### Post-design (PASS)
+
+Design stays on the live-board + runtime contract. Overlay remains execution state. Kanban stays read-only. `from_config` still accepts injected `MemoryTaskBoard` for checks; only the live entry refuses it. Gates still pass. Complexity Tracking remains empty (`column=""` on fixtures is backward compatible, not a constitution violation). `ponytail:` INTEGER Hermes priority is not auto-mapped; upgrade if a later spec defines a native P0–P3 column.
+
+## Project Structure
+
+### Documentation (this feature)
+
+```text
+specs/010-live-piv-bridge/
+├── plan.md
+├── spec.md
+├── research.md
+├── data-model.md
+├── quickstart.md
+├── contracts/
+│   └── live-piv-bridge.md
+├── checklists/
+│   └── requirements.md
+└── tasks.md             # generated by /speckit-tasks — NOT created by /speckit-plan
+```
+
+### Source Code (repository)
+
+```text
+personalAgent/
+├── src/hermes_kanban/
+│   ├── board.py             # NEW: SqliteTaskBoard (read-only)
+│   ├── runtime.py           # NEW: build_live_orchestrator + main
+│   ├── orchestrator.py      # column eligibility; allow_running_task_id; BoardTask.column
+│   ├── __init__.py          # re-export SqliteTaskBoard + runtime helpers
+│   ├── github.py            # unchanged LiveGitHost / MemoryGitHost
+│   ├── messaging.py         # unchanged pr_created
+│   └── persist.py           # unchanged overlay
+├── tests/
+│   └── test_live_piv_bridge.py
+├── docker-compose.yml       # mount/install package for worker import
+├── README.md                # dispatcher, checks, smoke, credentials-outside-git
+└── CHANGELOG.md             # bumped at implement, not this plan-only version
+```
+
+**Structure Decision**: Keep `MemoryTaskBoard` in `orchestrator.py` (existing tests). Add `board.py` for SQLite. Add `runtime.py` for the single entry. Do not add `execution.db`. Do not edit `AiNative/`. Do not fork Hermes sources.
+
+## Complexity Tracking
+
+> No constitution violations requiring justification.
+
+## Phase 0 / Phase 1 outputs
+
+| Artifact | Path |
+|---|---|
+| Research | [research.md](./research.md) |
+| Data Model | [data-model.md](./data-model.md) |
+| Contracts | [contracts/live-piv-bridge.md](./contracts/live-piv-bridge.md) |
+| Quickstart | [quickstart.md](./quickstart.md) |
+
+## Implementation notes (for `/speckit-tasks`, not this command)
+
+- Inspected image: `hermes_cli` 0.21.0 on `hermes-agent:local`; statuses include `todo`/`ready`/`running`.
+- `SqliteTaskBoard`: `file:{path}?mode=ro`; parse body headings; do not map INTEGER priority 0 to P0.
+- Live entry: `{HERMES_HOME}/kanban.db` only.
+- Orchestrator: skip/refuse columns not `todo`/`ready` unless worker `allow_running_task_id`.
+- Next-ready: no poll, no triage fallback.
+- Smoke: `requested == github owner/name == ProjectRecord.name`.
+- Tests: temp DB + `MemoryGitHost`; never the operator board as the only gate.
+- Preserve `uv run pytest` and `uv run ruff check src tests`.
+- Report files changed, test results, runtime commands, remaining external credentials at implement.
+- Stop after this live-bridge slice; do not start concurrent workers / Obsidian / learning.

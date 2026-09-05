@@ -1,5 +1,33 @@
 # Changelog
 
+## [0.13.0] - 2026-09-05
+### Fixed
+- Constrained smoke `--next-ready` to the validated disposable project.
+- Required smoke to run a named-task or project-scoped next-ready publish path.
+- Added a `main`-entry refusal check proving blank smoke targets perform no pushes or pull requests.
+
+## [0.12.0] - 2026-09-05
+### Added
+- Delivered the live Hermes PIV bridge: read-only native Kanban adapter, one dispatcher/CLI entry, focused hermetic checks, and named-repository smoke guard.
+### Changed
+- Mounted `personalAgent` into the Hermes worker without adding a second task store, worker, scheduler, or AiNative write path.
+
+## [0.11.0] - 2026-09-05
+### Added
+- Implementation task list for the live Hermes PIV bridge (`specs/010-live-piv-bridge/tasks.md`): read-only native board, one dispatcher/CLI entry, hermetic checks and named-repo smoke, Hermes wiring without rewriting methodology. No application code in this version.
+
+## [0.10.0] - 2026-09-05
+### Added
+- Implementation plan and design artifacts for the live Hermes PIV bridge (`specs/010-live-piv-bridge`: plan, research, data model, contract, quickstart). No application code in this version.
+
+## [0.9.0] - 2026-09-05
+### Added
+- Feature spec for the live Hermes PIV bridge (`specs/010-live-piv-bridge`): native Kanban as the only live task board, read-only live adapter, dispatcher entry through the existing orchestrator, feature-branch publish and existing pull-request-created notice, focused fixture checks, and a smoke path that refuses to push until a disposable repository is named.
+
+## [0.8.5] - 2026-09-05
+### Added
+- Enrolled the disposable quiz project `ich-mag-dich` as the live managed project.
+
 ## [0.8.4] - 2026-09-05
 ### Removed
 - Unenrolled `hermes-v0-sandbox` from the live project list, deleted the local workspace copy, and deleted the GitHub repository.
