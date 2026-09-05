@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.8.4] - 2026-09-05
+### Removed
+- Unenrolled `hermes-v0-sandbox` from the live project list, deleted the local workspace copy, and deleted the GitHub repository.
+
 ## [0.8.3] - 2026-09-04
 ### Added
 - Project-scoped Hermes MCP configuration using the running `hermes-agent` Docker Compose service.
