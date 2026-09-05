@@ -4,6 +4,14 @@
 ### Added
 - Project-scoped Hermes MCP configuration using the running `hermes-agent` Docker Compose service.
 
+## [0.8.2] - 2026-09-03
+### Fixed
+- Rebuilt the local Hermes Docker image from the official image so live Kanban workers can start.
+
+## [0.8.1] - 2026-09-02
+### Fixed
+- Enroll the live sandbox at `/workspaces/hermes-v0-sandbox` so the control plane matches the cloned repo folder.
+
 ## [0.8.0] - 2026-09-02
 ### Added
 - Phase 8 fixture end-to-end check (`personalAgent/tests/test_v0_e2e.py`): one task from the board through plan, implement, validate, simulated pull request, and notices.
