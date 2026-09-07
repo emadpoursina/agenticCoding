@@ -5,6 +5,8 @@
 > **Execution mode:** Hands-off. The implementation agent should inspect, implement, test, debug, and iterate without asking the user for routine decisions.
 >
 > **Human escalation:** Stop and ask the user only when a genuinely consequential architectural/product/security decision cannot be resolved from this document, the existing repositories, or safe local experimentation.
+>
+> **Current system (2026-09-07):** Phases 1–8 plus the external-framework planning adapter are delivered in `personalAgent/` and specified in `specs/011-external-framework-planning/`. Live planning no longer uses an AiNative `specs-planner`. It uses one pinned external framework (GitHub Spec Kit) after AiNative `scout`. Building through Spec Kit is the next slice. Prefer those specs over older sections of this scratch file when they conflict.
 
 ---
 
@@ -23,11 +25,15 @@ Project Registry
     ↓
 Project Context
     ↓
-AiNative Adapter
+Isolated worktree
     ↓
-Plan
+AiNative scout (discovery)
     ↓
-Implement
+Active external framework (Spec Kit) plan + task list
+    ↓
+PLANNING_COMPLETE (slot freed)
+    ↓
+[later slice] Implement
     ↓
 Validate
     ↓
@@ -44,7 +50,7 @@ Telegram Report
 Human Review
 ```
 
-The system must preserve the existing AiNative methodology rather than replacing it.
+The system must preserve AiNative as read-only methodology for the operator’s own agents. It must **not** copy external-framework planners or builders into live AiNative. Planning and later building come from **one** active external framework at a time, plus AiNative agents such as `scout` and `tester`.
 
 ---
 
@@ -117,17 +123,17 @@ These are non-negotiable.
 
 AiNative owns:
 
-* global engineering methodology
-* reusable agents
+* global engineering methodology for the operator’s own agents
+* reusable AiNative agents (live roster may include `scout` and `tester` and omit `specs-planner` / `builder`)
 * skills
 * rules
-* workflows
-* planning methodology
-* implementation methodology
-* validation methodology
+* workflows that belong to AiNative
 * reusable engineering knowledge
 
-Hermes must not become the owner of this methodology.
+AiNative does **not** have to own the active planning or implementation framework.
+
+Hermes must not become the owner of AiNative methodology.
+Hermes must not add framework agents into live AiNative to fill missing planner/builder folders.
 
 ---
 
@@ -166,6 +172,8 @@ Hermes owns:
 * notifications
 * cross-project operational visibility
 * GitHub workflow orchestration
+* which **one** external framework is active, and the adapter that runs it
+* workflow sequencing across AiNative steps, framework steps, and project validation
 
 ---
 
@@ -221,6 +229,8 @@ It MUST NOT:
 
 * rewrite Hermes unnecessarily
 * fork AiNative methodology into a second system
+* copy Spec Kit, specs.md, or other framework agents into live AiNative
+* run two external frameworks at the same time
 * create a custom Kanban database if Hermes already provides the required functionality
 * introduce Obsidian into V0
 * introduce production deployment
@@ -293,10 +303,10 @@ docs/8. agents/plan-reviewer/
 docs/8. agents/pr-reviewer/
 docs/8. agents/project-bootstrapper/
 docs/8. agents/scout/
-docs/8. agents/specs-planner/
-docs/8. agents/task-groomer/
 docs/8. agents/tester/
 ```
+
+Also inspect whatever else is actually present. `specs-planner` / `builder` may be absent in live AiNative; that is expected.
 
 Also discover:
 
@@ -314,36 +324,43 @@ task conventions
 
 Do not assume the directory structure is exactly as expected. Discover it.
 
+Live AiNative is **not** required to contain `specs-planner` or `builder`. Those names exist in **test fixtures**, not as a requirement of the live methodology tree. Do not create them in live AiNative.
+
 ---
 
 # 8. Existing AiNative Agent Roles
 
-Current reusable roles include:
+The live reusable roles that V0 actually runs from AiNative are:
+
+```text
+scout   → discovery
+tester  → validation (when the later implement slice resumes PIV)
+```
+
+Other documented AiNative roles may exist in the methodology repo:
 
 ```text
 critic
 plan-reviewer
 pr-reviewer
 project-bootstrapper
-scout
-specs-planner
 task-groomer
-tester
 ```
+
+They are **not** the live planner or builder. Missing `specs-planner` / `builder` in live AiNative is expected.
 
 The existing agent template defines:
 
 ```text
-agent.md
+AGENTS.md
 rule.md
-skill.md
+SKILL.md
 ```
 
-and associates agents with Cursor commands where applicable.
-
-Preserve this structure.
+Preserve this structure for AiNative agents.
 
 Do not convert every AiNative agent into Hermes-specific prompts.
+Do not copy Spec Kit or specs.md agents into `docs/8-agents/`.
 
 ---
 
@@ -357,20 +374,19 @@ Conceptually:
 Hermes
    │
    ▼
-AiNative Adapter
+AiNative Adapter   (methodology only — not the generic executor)
    │
    ├── discover agents
    ├── load agent definition
    ├── load supporting rules
    ├── load skills
-   ├── load workflow instructions
    └── construct execution context
 ```
 
 The adapter should be responsible for translating:
 
 ```text
-Hermes worker request
+Hermes worker request for an AiNative role
         ↓
 AiNative agent execution contract
 ```
@@ -384,10 +400,56 @@ list_agents()
 get_agent(name)
 resolve_agent_dependencies(name)
 build_execution_context(...)
-execute_agent(...)
 ```
 
+`execute_agent` / `execute_role` belong to the executor. The executor calls AiNative **or** the active external-framework adapter depending on the workflow step.
+
 The exact implementation is up to the agent after inspecting both systems.
+
+---
+
+# 9a. External Framework Adapter
+
+**Captured and implemented** in `specs/011-external-framework-planning/` and `personalAgent/` (`external_framework.py`, `speckit.py`).
+
+Conceptually:
+
+```text
+Hermes orchestrator
+   │
+   ▼
+External-framework adapter  (one active provider)
+   │
+   ├── github-spec-kit   (current)
+   ├── [future] specs.md / other  (replace, never run two at once)
+   └── never AiNativeAdapter as the generic framework adapter
+```
+
+Rules:
+
+```text
+exactly one active external framework
+pinned version in the Hermes image/environment
+HERMES_SPECKIT_RUNTIME points at the preinstalled runtime
+bootstrap only inside the isolated task worktree
+keep Spec Kit native plan/task files (do not invent PLAN.md / TASKS.md as source of truth)
+keep bootstrap/setup files in that worktree
+use Hermes’s existing model service
+reject missing / two-active / unsupported / mismatched runtime before any model call
+```
+
+V0 live sequence with Spec Kit selected:
+
+```text
+scout (AiNative)
+  ↓
+Spec Kit plan
+  ↓
+Spec Kit tasks
+  ↓
+PLANNING_COMPLETE
+  (slot free; no implement, validate, or GitHub publish)
+```
 
 ---
 
@@ -685,15 +747,14 @@ Build an execution abstraction:
 ```text
 Hermes Worker
       ↓
-Agent Executor
+Agent Executor / PIV orchestrator
       ↓
-AiNative Adapter
+      ├── AiNative Adapter (scout, tester, other AiNative roles)
+      └── External-framework adapter (Spec Kit plan + tasks; later implement)
       ↓
-Agent definition
+Model provider (existing Hermes / OpenAI-compatible service)
       ↓
-Model provider
-      ↓
-Workspace
+Isolated workspace
 ```
 
 The executor must provide the agent with:
@@ -768,7 +829,7 @@ The routing interface should be designed so that better routing can be added lat
 
 # 21. PIV Workflow
 
-Implement the core workflow:
+The orchestrator still owns the long-term workflow:
 
 ```text
 PLAN
@@ -778,9 +839,22 @@ IMPLEMENT
 VALIDATE
 ```
 
-The orchestrator controls the workflow.
+**Current delivered live slice** stops after plan + task list:
 
-Agents perform the actual role-specific work.
+```text
+discovery (scout)
+  ↓
+plan (Spec Kit)
+  ↓
+tasks (Spec Kit)
+  ↓
+PLANNING_COMPLETE
+```
+
+Do not start implementation, validation, or GitHub publish from this slice.
+The later implement slice should consume Spec Kit native artifact paths, not a Hermes `PLAN.md`.
+
+Agents / the active framework perform the role-specific work. Hermes sequences them.
 
 ---
 
@@ -793,27 +867,18 @@ Task
  ↓
 Project discovery
  ↓
-Scout/context gathering
+Scout/context gathering   (AiNative)
  ↓
-Specs planner
+Spec Kit plan + task list (active external framework)
  ↓
-Plan
+PLANNING_COMPLETE
 ```
 
-The planner must produce a structured artifact containing:
+Do **not** look up `specs-planner` in live AiNative.
 
-```text
-problem understanding
-scope
-files/components likely affected
-implementation approach
-acceptance criteria mapping
-validation strategy
-risks
-open questions
-```
+The planner (Spec Kit) must produce its **native** implementation plan and task list inside the isolated worktree. Hermes records those paths plus provider name, pinned version, and framework revision.
 
-If discovery identifies a genuinely consequential architectural/product decision:
+If discovery or the framework identifies a genuinely consequential architectural/product decision:
 
 ```text
 pause
@@ -821,7 +886,7 @@ pause
 → human decision
 ```
 
-Otherwise continue automatically.
+Otherwise finish the planning slice automatically. Do not wait for plan approval. Do not start building yet.
 
 ---
 
@@ -836,14 +901,18 @@ Discovery questions
       ↓
 Human answers when required
       ↓
-Plan
+Spec Kit plan + tasks
       ↓
-automatic implementation
+PLANNING_COMPLETE (current slice)
+      ↓
+[later] automatic implementation from native artifacts
 ```
 
 Do not add a plan approval gate.
 
 The only pause should be for unresolved consequential decisions.
+
+Stopping at `PLANNING_COMPLETE` is **not** a plan-approval gate. It is a slice boundary until Spec Kit implementation is wired.
 
 ---
 
@@ -854,14 +923,17 @@ The builder should receive:
 ```text
 original task
 project context
-plan
+native Spec Kit plan path
+native Spec Kit task-list path
 acceptance criteria
 workspace
 branch
-relevant AiNative instructions
+relevant AiNative instructions when that step is AiNative
 ```
 
-The builder should:
+**Not yet live.** Implementation through the active framework is the next product slice. Until then, do not invent an AiNative `builder` folder and do not auto-run implementation after `PLANNING_COMPLETE`.
+
+When implementation is wired:
 
 ```text
 inspect
@@ -871,7 +943,7 @@ review diff
 commit
 ```
 
-Do not allow the builder to push directly.
+Do not allow the builder/framework implement step to push directly.
 
 The orchestrator owns the GitHub boundary.
 
@@ -916,10 +988,13 @@ BLOCKED
 RETRYABLE_FAILURE
 FAILED
 VALIDATING
+PLANNING_COMPLETE
 COMPLETED
 PR_CREATED
 HUMAN_DECISION_REQUIRED
 ```
+
+`PLANNING_COMPLETE` means Spec Kit plan + task list succeeded, the slot is free, and implementation has not started. It is not PIV-complete and not `PR_CREATED`.
 
 Do not rely solely on free-form text to determine execution state.
 
@@ -1003,7 +1078,23 @@ Do not blindly retry all failures.
 
 # 29. Task Completion
 
-A task is complete only when:
+**Planning slice (delivered):** a planning run is done when:
+
+```text
+discovery succeeded
+AND
+native Spec Kit plan exists in the isolated worktree
+AND
+native Spec Kit task list exists in the isolated worktree
+AND
+state is PLANNING_COMPLETE
+AND
+the single-task slot is free
+AND
+implementation, validation, and GitHub publish did not run
+```
+
+**Full V0 task (later):** a task is complete only when:
 
 ```text
 implementation exists
@@ -1021,7 +1112,7 @@ AND
 PR exists
 ```
 
-Only then should Hermes transition the task to the completed/PR state.
+Only then should Hermes transition the task to the completed/PR state. Do not treat `PLANNING_COMPLETE` as that state.
 
 ---
 
@@ -1269,8 +1360,8 @@ Execution state should track:
 execution:
   state: running
   workflow: piv
-  current_phase: implementation
-  current_worker: builder
+  current_phase: planning
+  current_worker: github-spec-kit
   attempt: 1
 
 workspace:
@@ -1428,6 +1519,7 @@ AiNative → read-only
 project/workspace root → writable
 configuration → writable/configurable
 credentials → secure runtime mechanism
+pinned Spec Kit runtime → read-only (HERMES_SPECKIT_RUNTIME)
 ```
 
 Do not add infrastructure unless required.
@@ -1526,7 +1618,7 @@ The purpose is to verify recovery rather than only happy-path execution.
 
 # 49. End-to-End V0 Test
 
-The final automated/integration scenario must demonstrate:
+The final automated/integration scenario for **full** V0 must still demonstrate the later implement slice. Until then, the live automated scenario is:
 
 ```text
 Task enters Kanban
@@ -1539,28 +1631,18 @@ Workspace created
       ↓
 Feature branch created
       ↓
-AiNative loaded
+AiNative scout
       ↓
-Planner executes
+Spec Kit bootstrapped in worktree if needed
       ↓
-Builder executes
+Spec Kit plan + task list
       ↓
-Tester executes
+PLANNING_COMPLETE
       ↓
-Validation passes
-      ↓
-Commit
-      ↓
-Push
-      ↓
-PR creation
-      ↓
-Telegram notification
-      ↓
-Task state updated
+Slot free for another task
 ```
 
-Record every state transition.
+The older full chain (builder → tester → push → PR → Telegram) remains the **later** target, using Spec Kit implement rather than an AiNative builder.
 
 ---
 
@@ -1649,6 +1731,14 @@ execution:
 workflow:
   default: piv
 
+external_framework:
+  providers:
+    - id: github-spec-kit
+      version: 1.0.1
+      active: true
+  runtime:
+    path_env: HERMES_SPECKIT_RUNTIME
+
 learning:
   enabled: true
   auto_modify_ainative: false
@@ -1725,8 +1815,11 @@ workflow:
 
 previous_outputs:
   plan:
+  tasks:
   validation:
 ```
+
+For Spec Kit, `plan` and `tasks` are native file paths in the worktree, not Hermes `PLAN.md` / `TASKS.md`.
 
 This should be implemented through the adapter/executor rather than duplicated manually in every agent.
 
@@ -1752,52 +1845,49 @@ validation:
 next_action: validate
 
 questions: []
+
+provider:
+  name: github-spec-kit
+  version: ...
+  revision: ...
 ```
 
 Use free-form Markdown for human-readable artifacts, but machine-readable execution status must be explicit.
 
 ---
 
-# 56. Agent Mapping
+# 56. Agent / Provider Mapping
 
-Initial mapping should be approximately:
+Initial mapping:
 
 ```text
-scout
+scout (AiNative)
     → discovery/context
 
-specs-planner
+github-spec-kit (active external framework)
     → planning
+    → task-list generation
+    → [later] implementation
 
-critic / plan-reviewer
-    → optional plan quality/reasoning support
-
-builder
-    → implementation
-```
-
-If no dedicated builder exists in AiNative yet, create the adapter contract for a builder profile rather than inventing a large new methodology.
-
-```text
-tester
+tester (AiNative or project validation commands)
     → validation
-
-debugger
-    → recovery
 ```
 
-If a debugger agent does not currently exist, implement recovery around the executor first and add a dedicated AiNative debugger only when justified.
+Do **not** map live planning to AiNative `specs-planner`.
+Do **not** add `builder` to live AiNative. Implementation is a later Spec Kit lifecycle step (or a future replacement framework), not a methodology folder.
+
+Optional AiNative-only roles remain out of the standard V0 execution path:
 
 ```text
+critic / plan-reviewer
 pr-reviewer
-    → later human/automated PR review phase
-
 task-groomer
-    → task preparation, not V0 execution
-
 project-bootstrapper
-    → project onboarding, not standard task execution
 ```
+
+If a debugger agent does not currently exist, implement recovery around the executor first.
+
+Never configure two external frameworks as active at once. Replacing Spec Kit later means switching the one active provider, not combining Spec Kit with specs.md.
 
 ---
 
@@ -1814,15 +1904,15 @@ Cursor commands
 +
 symlinked AiNative references
 +
-specs.md agents
+one external framework at a time (Spec Kit in Hermes; Cursor Spec Kit skills in this repo)
 ```
 
-Therefore do not assume that an AiNative `agent.md` is itself an executable process.
+Therefore do not assume that an AiNative `AGENTS.md` is itself an executable process.
 
 The adapter must bridge:
 
 ```text
-agent definition
+agent definition or framework lifecycle step
 → execution instructions
 → Hermes worker/model
 ```
@@ -1831,17 +1921,25 @@ rather than attempting to "run Markdown."
 
 ---
 
-# 58. Specs.md Compatibility
+# 58. External Framework Compatibility
 
-The existing `specs-planner` workflow uses the specs.md framework.
+**Do not** install specs.md into the control plane or copy it into AiNative.
 
-Investigate exactly how it is currently invoked.
+The live planner is GitHub Spec Kit, pinned in the Hermes environment.
 
-The adapter should preserve compatibility with that workflow where practical.
+If a better framework appears later:
 
-Do not rewrite specs.md into a Hermes-specific implementation.
+```text
+deactivate Spec Kit
+activate the new provider
+keep AiNative agents
+```
 
-If direct execution is impossible from Hermes, create a compatibility wrapper.
+Multiple adapters may exist in code. Only one external framework may be selected at runtime.
+
+Do not rewrite Spec Kit into a Hermes-specific planning language. Pass native artifacts through.
+
+If the project is not Spec Kit-enabled, bootstrap inside the isolated worktree only and keep those setup files with the plan and tasks.
 
 ---
 
@@ -1906,39 +2004,38 @@ Test each independently.
 
 ## Phase 2 — Agent Execution
 
-Implement:
+**Implemented.** Executor + model seam exist. Planning integration is the Spec Kit adapter (`specs/011-external-framework-planning/`), not `specs-planner` in live AiNative. Implementation integration is **not** in this slice.
 
 ```text
 agent executor
 model provider adapter
 agent context
 agent output contract
-specs-planner integration
-implementation integration
-tester integration
+Spec Kit plan + tasks adapter
+tester integration (existing)
 ```
 
-Use fixture tasks.
+Use fixture tasks. Focused checks: `personalAgent/tests/test_external_framework_planning.py`.
 
 ---
 
 ## Phase 3 — PIV Orchestrator
 
-Implement:
+**Implemented, then narrowed for live planning.** The orchestrator still knows the full PIV chain. With Spec Kit selected, a live start currently does:
 
 ```text
 task
  ↓
-discovery
+discovery (scout)
  ↓
-plan
+plan (Spec Kit)
  ↓
-implementation
+tasks (Spec Kit)
  ↓
-validation
+PLANNING_COMPLETE
 ```
 
-Add explicit state transitions.
+Do not auto-continue to implementation until the next slice.
 
 ---
 
@@ -2029,11 +2126,32 @@ no second task store; no new Telegram kind
 
 **Captured** as a pytest fixture path (not a new product feature): `personalAgent/tests/test_v0_e2e.py`.
 
-**Implemented** (2026-09-02): one disposable fixture task goes board → discover → plan → implement → validate → simulated push/PR → Telegram `task_start` + `pr_created`. Interrupt/reclaim uses the same execution identity (no live Docker kill). Live `docker compose restart`, github.com SSH, and a real Telegram chat remain operator proof, not this gate.
+**Implemented** (2026-09-02): one disposable fixture task can still exercise board → discover → plan → implement → validate → simulated push/PR → Telegram on **fixture methodology that includes planner/builder names**. That is not the live AiNative roster.
 
-Run the complete fixture scenario.
+**Live path after 011:** board → discover (`scout`) → Spec Kit plan/tasks → `PLANNING_COMPLETE`. No implement/PR on that path yet.
 
-Only declare V0 complete after the entire flow succeeds.
+Live `docker compose restart`, github.com SSH, and a real Telegram chat remain operator proof, not the offline fixture gate.
+
+Run the complete fixture scenario for the slice under test.
+
+Do not declare full V0 complete until Spec Kit implementation, validation, and PR work again on the live (scout-only) methodology.
+
+---
+
+## Phase 9 — Spec Kit implementation (next)
+
+Do not copy a builder into AiNative.
+
+Wire the already-stable external-framework contract for Spec Kit **implement** (and then existing validation + GitHub publish), consuming native plan/task paths left in the isolated worktree.
+
+Keep:
+
+```text
+one active framework
+isolated worktree only
+builder-never-publish
+PLANNING_COMPLETE is not PIV-complete
+```
 
 ---
 
@@ -2043,22 +2161,24 @@ V0 is complete only when all of the following are true.
 
 ## Architecture
 
-* [ ] AiNative remains an external read-only dependency.
-* [ ] Project knowledge remains in project repositories.
-* [ ] Hermes owns operational state.
-* [ ] Hermes Kanban remains the task source of truth.
-* [ ] No duplicate task database exists.
+* [x] AiNative remains an external read-only dependency.
+* [x] Project knowledge remains in project repositories.
+* [x] Hermes owns operational state.
+* [x] Hermes Kanban remains the task source of truth.
+* [x] No duplicate task database exists.
+* [x] Exactly one external framework is active (GitHub Spec Kit).
+* [x] Live AiNative is not required to contain `specs-planner` or `builder`.
 
 ## Execution
 
-* [ ] Hermes can discover a project.
-* [ ] Hermes can load project context.
-* [ ] Hermes can load AiNative.
-* [ ] Hermes can identify the AiNative revision.
-* [ ] Hermes can create an isolated worktree.
-* [ ] Hermes can execute a planner.
-* [ ] Hermes can execute implementation.
-* [ ] Hermes can execute validation.
+* [x] Hermes can discover a project.
+* [x] Hermes can load project context.
+* [x] Hermes can load AiNative.
+* [x] Hermes can identify the AiNative revision.
+* [x] Hermes can create an isolated worktree.
+* [x] Hermes can execute planning via the active Spec Kit adapter (after scout).
+* [ ] Hermes can execute implementation via the active framework (Phase 9).
+* [x] Hermes can execute validation (fixture / existing tester path; not on the live planning-complete path).
 
 ## Recovery
 
@@ -2287,7 +2407,11 @@ The implementation must preserve this separation:
 ```text
 AiNative
     =
-How agents should work
+How the operator’s own agents should work
+
+Active external framework (Spec Kit today)
+    =
+How planning (and later building) is performed
 
 Project
     =
@@ -2366,15 +2490,18 @@ The implementation should result in:
              │
              └────────────┬────────────┘
                           │
-                       AiNative
-                          │
-                reusable methodology
+              ┌───────────┴───────────┐
+              ▼                       ▼
+          AiNative              Spec Kit
+     (scout / tester /        (plan + tasks;
+      operator agents)         later implement)
+              │                       │
+              └───────────┬───────────┘
+                          ▼
+                 Hermes adapters
                           │
                           ▼
-                    Agent Adapter
-                          │
-                          ▼
-                 Plan → Build → Test
+          Discover → Plan/Tasks → [later Build → Test]
                           │
                     Debug / Recover
                           │
@@ -2389,9 +2516,9 @@ The implementation should result in:
 
 The goal is **not** to make Hermes contain all intelligence.
 
-The goal is to make Hermes a reliable operational control plane that can continuously execute the reusable engineering system defined by AiNative across independent project repositories.
+The goal is to make Hermes a reliable operational control plane that runs **one** external framework plus AiNative agents across independent project repositories.
 
-The first milestone is deliberately narrow:
+The **current** live milestone:
 
 ```text
 ONE TASK
@@ -2400,9 +2527,17 @@ ONE PROJECT
    ↓
 ONE WORKTREE
    ↓
-PLAN
+SCOUT
    ↓
-IMPLEMENT
+SPEC KIT PLAN + TASKS
+   ↓
+PLANNING_COMPLETE
+```
+
+The **remaining** V0 milestone (Phase 9, then existing GitHub/Telegram):
+
+```text
+IMPLEMENT (Spec Kit)
    ↓
 VALIDATE
    ↓
@@ -2413,5 +2548,5 @@ PR
 TELEGRAM
 ```
 
-Make this path extremely reliable before expanding the system.
+Make the current planning path extremely reliable, then extend the same adapter into implement. Do not put framework agents into AiNative.
 

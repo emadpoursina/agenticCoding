@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.14.2] - 2026-09-07
+### Changed
+- Updated the scratch V0 plan so live planning uses one Spec Kit adapter after scout, stops at planning complete, and does not copy framework agents into AiNative.
+
 ## [0.14.1] - 2026-09-07
 ### Fixed
 - Fail closed when the live external-framework provider or pinned runtime is missing or mismatched.
