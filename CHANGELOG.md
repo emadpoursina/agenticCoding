@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.17.1] - 2026-09-07
+### Fixed
+- Live Spec Kit image manifests now include implement so Docker matches the delivered runtime pin.
+
 ## [0.17.0] - 2026-09-07
 ### Added
 - Delivered Spec Kit implementation, native handoff continuation, validation/recovery routing, and publish gating.
