@@ -1,5 +1,24 @@
 # Changelog
 
+## [0.17.0] - 2026-09-07
+### Added
+- Delivered Spec Kit implementation, native handoff continuation, validation/recovery routing, and publish gating.
+### Changed
+- Kept `PLANNING_COMPLETE` as an intermediate checkpoint and documented the full `PR_CREATED` live path.
+- Marked Phase 9 complete in the scratch V0 plan.
+
+## [0.16.0] - 2026-09-07
+### Added
+- Implementation plan and design artifacts for Spec Kit implementation, existing validation/recovery, and orchestrator-owned GitHub publish.
+### Changed
+- Defined strict native handoff resume semantics so `PLANNING_COMPLETE` remains distinct from PIV completion.
+
+## [0.15.0] - 2026-09-07
+### Added
+- Feature specification for the next live Hermes slice: Spec Kit implementation from native plan/task artifacts, existing validation/recovery, and orchestrator-owned GitHub publish.
+### Changed
+- Recorded that `PLANNING_COMPLETE` remains a planning checkpoint rather than PIV-complete, with implementation continuing in the same isolated worktree.
+
 ## [0.14.2] - 2026-09-07
 ### Changed
 - Updated the scratch V0 plan so live planning uses one Spec Kit adapter after scout, stops at planning complete, and does not copy framework agents into AiNative.

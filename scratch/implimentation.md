@@ -447,8 +447,13 @@ Spec Kit plan
   ↓
 Spec Kit tasks
   ↓
-PLANNING_COMPLETE
-  (slot free; no implement, validate, or GitHub publish)
+PLANNING_COMPLETE (checkpoint; not PIV-complete)
+  ↓
+Spec Kit implement
+  ↓
+validate / recover
+  ↓
+GitHub publish (`PR_CREATED`)
 ```
 
 ---
@@ -2128,21 +2133,19 @@ no second task store; no new Telegram kind
 
 **Implemented** (2026-09-02): one disposable fixture task can still exercise board → discover → plan → implement → validate → simulated push/PR → Telegram on **fixture methodology that includes planner/builder names**. That is not the live AiNative roster.
 
-**Live path after 011:** board → discover (`scout`) → Spec Kit plan/tasks → `PLANNING_COMPLETE`. No implement/PR on that path yet.
+**Live path after 012:** board → discover (`scout`) → Spec Kit plan/tasks → `PLANNING_COMPLETE` checkpoint → Spec Kit implement → existing validation/recovery → orchestrator GitHub publish (`PR_CREATED`).
 
 Live `docker compose restart`, github.com SSH, and a real Telegram chat remain operator proof, not the offline fixture gate.
 
 Run the complete fixture scenario for the slice under test.
 
-Do not declare full V0 complete until Spec Kit implementation, validation, and PR work again on the live (scout-only) methodology.
-
 ---
 
-## Phase 9 — Spec Kit implementation (next)
+## Phase 9 — Spec Kit implementation
 
-Do not copy a builder into AiNative.
+**Captured and implemented** (2026-09-07) in `specs/012-speckit-implementation-publish/` and `personalAgent/` (`external_framework.py`, `speckit.py`, `orchestrator.py`).
 
-Wire the already-stable external-framework contract for Spec Kit **implement** (and then existing validation + GitHub publish), consuming native plan/task paths left in the isolated worktree.
+Do not copy a builder into AiNative. Spec Kit **implement** consumes native plan/task paths in the isolated worktree, then reuses existing validation/recovery and orchestrator-owned GitHub publish.
 
 Keep:
 
@@ -2177,8 +2180,8 @@ V0 is complete only when all of the following are true.
 * [x] Hermes can identify the AiNative revision.
 * [x] Hermes can create an isolated worktree.
 * [x] Hermes can execute planning via the active Spec Kit adapter (after scout).
-* [ ] Hermes can execute implementation via the active framework (Phase 9).
-* [x] Hermes can execute validation (fixture / existing tester path; not on the live planning-complete path).
+* [x] Hermes can execute implementation via the active framework (Phase 9).
+* [x] Hermes can execute validation (fixture / existing tester path after Spec Kit implement).
 
 ## Recovery
 
@@ -2518,7 +2521,7 @@ The goal is **not** to make Hermes contain all intelligence.
 
 The goal is to make Hermes a reliable operational control plane that runs **one** external framework plus AiNative agents across independent project repositories.
 
-The **current** live milestone:
+The **current** live milestone (Phase 9 delivered):
 
 ```text
 ONE TASK
@@ -2531,12 +2534,8 @@ SCOUT
    ↓
 SPEC KIT PLAN + TASKS
    ↓
-PLANNING_COMPLETE
-```
-
-The **remaining** V0 milestone (Phase 9, then existing GitHub/Telegram):
-
-```text
+PLANNING_COMPLETE (checkpoint)
+   ↓
 IMPLEMENT (Spec Kit)
    ↓
 VALIDATE
@@ -2544,9 +2543,7 @@ VALIDATE
 RECOVER IF NEEDED
    ↓
 PR
-   ↓
-TELEGRAM
 ```
 
-Make the current planning path extremely reliable, then extend the same adapter into implement. Do not put framework agents into AiNative.
+Telegram notices and live Docker/GitHub/Telegram proof remain operator concerns. Do not put framework agents into AiNative.
 
