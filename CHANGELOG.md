@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.14.1] - 2026-09-07
+### Fixed
+- Fail closed when the live external-framework provider or pinned runtime is missing or mismatched.
+- Added live-style isolation and scout-only planning checks for the external framework path.
+
+## [0.14.0] - 2026-09-07
+### Added
+- Delivered the offline external-framework planning adapter with pinned Spec Kit runtime metadata and native plan/task artifact handling.
+### Changed
+- Documented the single-provider planning path, isolated setup retention, and planning-complete workflow outcome.
+
 ## [0.13.6] - 2026-09-07
 ### Added
 - Verified github.com SSH host keys that persist across container recreate (no ssh-keyscan, no accept-new).
