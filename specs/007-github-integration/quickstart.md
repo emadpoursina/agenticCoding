@@ -58,10 +58,10 @@ Also required (same file is fine):
 
 Requires an operator-named **non-critical** or disposable github.com repository. MUST NOT silently use a production remote.
 
-1. Compose already mounts `${SSH_AUTH_SOCK}` and sets `SSH_AUTH_SOCK` in `hermes-personal-agent`. Set `SSH_AUTH_SOCK` in `.env` (Docker Desktop `/run/host-services/ssh-auth.sock` vs Linux host socket). Do not copy private keys into the image.
-2. Recreate the control-plane container (`docker compose up -d`).
+1. Compose already mounts `${SSH_AUTH_SOCK}` and sets `SSH_AUTH_SOCK` in `hermes-personal-agent`. Set `SSH_AUTH_SOCK` in `.env` (Docker Desktop `/run/host-services/ssh-auth.sock` vs Linux host socket). Do not copy private keys into the image. Optional: set `GH_TOKEN` on the host or in local `.env` (never in git) so the boot script can log `gh` in.
+2. Recreate the control-plane container (`docker compose up -d`). Rebuild `hermes-agent:local` after Dockerfile or boot-script changes so verified github.com host keys are present.
 3. Inside the container: `ssh -T git@github.com` (handshake), `git fetch` on the disposable remote, feature-branch `git push` (not `main`/`master`).
-4. Confirm 0 private keys in the image layers / Dockerfile.
+4. Confirm 0 private keys in the image layers / Dockerfile. Host keys in `docker/ssh/github_known_hosts` are public GitHub keys, not credentials.
 
 Contract pytest MUST still pass when this socket is absent.
 

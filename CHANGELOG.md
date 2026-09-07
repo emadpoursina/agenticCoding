@@ -1,5 +1,35 @@
 # Changelog
 
+## [0.13.6] - 2026-09-07
+### Added
+- Verified github.com SSH host keys that persist across container recreate (no ssh-keyscan, no accept-new).
+- Optional runtime `GH_TOKEN` passthrough so the boot script can log the GitHub CLI in without storing a token in git.
+### Changed
+- GitHub CLI config is kept under the persisted Hermes home.
+
+## [0.13.5] - 2026-09-07
+### Changed
+- Spec Kit orchestration now falls back to inheriting the current chat model when the required worker model is unavailable but exactly matches it.
+
+## [0.13.4] - 2026-09-07
+### Fixed
+- Hardened the live bridge against comment-bearing config files and non-streaming/fenced model responses.
+- Routine, fully specified tasks no longer needlessly ask for clarification.
+- Dispatcher failures now return a non-zero result for failed or blocked workflows.
+- The Hermes image now includes the `gh` CLI required for pull-request operations.
+
+## [0.13.3] - 2026-09-07
+### Fixed
+- Live model calls now send the OpenCode session header the gateway requires.
+
+## [0.13.2] - 2026-09-05
+### Fixed
+- Live model calls no longer hit a doubled `/v1/v1` URL that returned an empty answer.
+
+## [0.13.1] - 2026-09-05
+### Fixed
+- Live discovery can read the quiz project files (read-only) so the first step does not stall asking whether `index.html` exists.
+
 ## [0.13.0] - 2026-09-05
 ### Fixed
 - Constrained smoke `--next-ready` to the validated disposable project.
