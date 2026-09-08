@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.18.0] - 2026-09-08
+### Changed
+- Locked the next-step harness plan: Pi runs the full Spec Kit orchestrate pipeline; Hermes no longer owns the short plan/tasks/implement path.
+
 ## [0.17.1] - 2026-09-07
 ### Fixed
 - Live Spec Kit image manifests now include implement so Docker matches the delivered runtime pin.
