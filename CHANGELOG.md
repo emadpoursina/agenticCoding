@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.24.0] - 2026-09-08
+### Added
+- Delivered the live Pi RPC process boundary, strict timeout loading, and
+  acknowledged legacy-work restart recovery.
+
+## [0.23.0] - 2026-09-08
+### Added
+- Implementation plan and design artifacts for closing the live Pi process,
+  timeout configuration, and acknowledged legacy-restart harness gaps.
+
 ## [0.22.0] - 2026-09-08
 ### Added
 - Focused Pi playbook fixtures for conditional analyze omission and repeated
