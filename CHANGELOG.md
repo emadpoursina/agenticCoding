@@ -1,5 +1,43 @@
 # Changelog
 
+## [0.22.0] - 2026-09-08
+### Added
+- Focused Pi playbook fixtures for conditional analyze omission and repeated
+  implement/converge cycles.
+
+## [0.21.0] - 2026-09-08
+### Fixed
+- Skip now records its assumptions and choice report before one continuation
+  confirmation, while human parking fixtures cover implementation and later
+  question batches.
+### Added
+- Focused isolation snapshots for the enrolled project, AiNative fixture,
+  control-plane state, and sibling worktree.
+### Removed
+- Deleted the leftover empty legacy Spec Kit fixture tree.
+
+## [0.20.0] - 2026-09-08
+### Added
+- Delivered the provider-neutral Harness Adapter boundary with Pi as the
+  first execution harness.
+### Changed
+- Moved the full Spec Kit playbook behind Pi and kept Hermes responsible for
+  human decisions, validation, and pull-request publication.
+### Removed
+- Removed the legacy Hermes Spec Kit stage machine from the live path.
+
+## [0.19.0] - 2026-09-08
+### Added
+- Feature specification for a generic Harness Adapter with Pi as the first
+  execution harness.
+### Changed
+- Defined full Spec Kit playbook ownership in Pi, human decision handling in
+  Hermes, and removal of the legacy Hermes stage machine.
+
+## [0.18.1] - 2026-09-08
+### Added
+- Agent brief for starting Harness Adapter work through the global `/speckit-orchestrate` skill.
+
 ## [0.18.0] - 2026-09-08
 ### Changed
 - Locked the next-step harness plan: Pi runs the full Spec Kit orchestrate pipeline; Hermes no longer owns the short plan/tasks/implement path.
