@@ -34,9 +34,10 @@ uv run ruff check src tests
 These checks must prove:
 
 1. The fake runtime still receives one generic request and returns one result.
-2. The production-shaped process transport sends one JSON job and rejects
-   malformed, extra, unsafe, or unknown output.
-3. A child is stopped after its first result and after timeout.
+2. The production-shaped process transport sends one JSON `prompt` command,
+   privately consumes Pi JSONL events, and rejects malformed, extra, unsafe,
+   or unknown results.
+3. A child is stopped after settlement/result and after timeout.
 4. The checked-in default timeout loads as `1800.0`; numeric strings are
    accepted and invalid values are rejected before start.
 5. An unacknowledged legacy record remains parked without starting Pi.
@@ -89,7 +90,8 @@ The proof is successful only when logs and the retained task worktree show:
 
 - one separate `pi --mode rpc` child;
 - the child working directory is the task worktree;
-- exactly one JSON job entered Pi and exactly one JSON result returned;
+- exactly one JSON `prompt` command entered Pi and exactly one structured
+  result was extracted after Pi settlement;
 - the result mapped to the existing generic status;
 - no Pi child remained running after result or timeout;
 - native worktree files remain inspectable;

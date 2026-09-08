@@ -4,7 +4,8 @@
 
 This feature keeps the existing generic harness entities and adds only the
 process/runtime and legacy-acknowledgement data needed to close the live gaps.
-No queue, event stream, task database, or second harness record is added.
+No queue, Hermes event channel, task database, or second harness record is
+added.
 
 ## Pi runtime
 
@@ -39,8 +40,9 @@ One private transport document sent to the Pi process.
 | `operator_flags` | tuple of `str` | Bounded optional flags such as `skip`. |
 | `resume_context` | `ResumeContext \| None` | Safe answers, assumptions, confirmation, and diagnostics. |
 
-Hermes sends exactly one JSON document for an attempt. The process does not
-receive a live event channel or a Hermes-owned Spec Kit stage sequence.
+Hermes sends exactly one JSON `prompt` command for an attempt. Pi's JSONL
+response/event stream remains private to the adapter; the process does not
+receive a Hermes-owned Spec Kit stage sequence or operator chat channel.
 
 ## Pi RPC result
 
@@ -58,9 +60,10 @@ One private transport document returned by the Pi process.
 | `questions` | sequence | Required and safe when status maps to `needs_human`. |
 | `resume_context` | `ResumeContext \| None` | Safe data needed for a later whole-run request. |
 
-Hermes accepts one result document only. Extra stdout, a second JSON value,
-mixed non-JSON output, malformed fields, unknown status, unsafe paths, or
-secret-bearing metadata becomes a visible `failed` result and cannot reach
+Hermes extracts one structured result from the final assistant message only.
+A rejected prompt, malformed RPC event, second structured result, missing
+final result, unknown status, unsafe paths, or secret-bearing metadata becomes
+a visible `failed` result and cannot reach
 validation or publication.
 
 ## Harness attempt

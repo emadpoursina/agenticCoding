@@ -57,7 +57,7 @@ The Python package lives under `personalAgent/`. Source is in `personalAgent/src
 
 ## Phase 3: User Story 1 - Start a real Pi process for one task (Priority: P1) 🎯 MVP
 
-**Goal**: Hermes starts one container-runnable `pi --mode rpc` child in the task worktree, sends one generic JSON job, receives one result, maps it through `HarnessResult`, and always stops the child after a result or timeout.
+**Goal**: Hermes starts one container-runnable `pi --mode rpc` child in the task worktree, sends one JSON `prompt` command, consumes Pi's private JSONL run to settlement, extracts one structured result, maps it through `HarnessResult`, and always stops the child after settlement or timeout.
 
 **Independent Test**: Run the process-backed adapter with a disposable task worktree and a container-visible Pi launcher; verify exact arguments, `cwd`, one request, one result, normalized statuses, cleanup, safe paths, and marker-only startup failure. The Docker proof must use the real project Pi program.
 
@@ -66,12 +66,12 @@ The Python package lives under `personalAgent/`. Source is in `personalAgent/src
 > **NOTE: Write these tests FIRST, ensure they FAIL before implementation.**
 
 - [X] T008 [P] [US1] Extend the controlled Pi fixture in `personalAgent/tests/fixtures/pi-runtime/runtime.py` to record argv/cwd/input count and support completed, failed, needs-human, stuck, malformed, extra-output, timeout, early-exit, and still-running-after-result cases without requiring live credentials
-- [X] T009 [US1] Add failing adapter checks in `personalAgent/tests/test_harness_adapter.py` for one `pi --mode rpc` child, task-worktree `cwd`, exactly one JSON job/result, all four status mappings, marker-only/missing/non-executable startup failure, malformed/extra/unknown/unsafe output rejection, timeout failure, and leftover-process termination
+- [X] T009 [US1] Add failing adapter checks in `personalAgent/tests/test_harness_adapter.py` for one `pi --mode rpc` child, task-worktree `cwd`, exactly one JSON `prompt` command/result extraction, all four status mappings, marker-only/missing/non-executable startup failure, malformed/extra/unknown/unsafe output rejection, timeout failure, and leftover-process termination
 
 ### Implementation for User Story 1
 
-- [X] T010 [US1] Implement the private one-shot subprocess transport behind `PiHarnessAdapter` in `personalAgent/src/hermes_kanban/pi.py`: start the configured executable as `[pi, "--mode", "rpc"]` with `cwd=request.workspace_path`, send one JSON document, accept one complete JSON result, and terminate/kill/wait after the first result or timeout
-- [X] T011 [US1] Build the bounded provider-neutral job from `HarnessStartRequest` and route startup/transport/result validation failures to one normalized `HarnessResult` without exposing Pi SDK types, transcripts, secrets, stage scripts, or a legacy fallback in `personalAgent/src/hermes_kanban/pi.py` and `personalAgent/src/hermes_kanban/executor.py`
+- [X] T010 [US1] Implement the private one-shot subprocess transport behind `PiHarnessAdapter` in `personalAgent/src/hermes_kanban/pi.py`: start the configured executable as `[pi, "--mode", "rpc"]` with `cwd=request.workspace_path`, send one JSON `prompt` command, consume JSONL responses/events until settlement, extract one structured result, and terminate/kill/wait after settlement or timeout
+- [X] T011 [US1] Build the bounded provider-neutral job and structured-result prompt from `HarnessStartRequest`, then route startup/transport/result validation failures to one normalized `HarnessResult` without exposing Pi SDK types, transcripts, secrets, stage scripts, or a legacy fallback in `personalAgent/src/hermes_kanban/pi.py` and `personalAgent/src/hermes_kanban/executor.py`
 - [X] T012 [US1] Provision a container-runnable real project Pi executable beside its matching marker, with a read-only runtime mount or image installation and no host-only assumption, in `personalAgent/docker/Dockerfile`, `personalAgent/docker-compose.yml`, and `personalAgent/config/default.yaml`
 
 **Checkpoint**: A disposable task can reach a real container-visible Pi process through the existing generic adapter boundary and leaves no running child.
@@ -250,6 +250,6 @@ Task T018: Implement acknowledged-record startup reclaim in personalAgent/src/he
 - Every task uses the required `- [ ] T###` checklist format.
 - `[P]` marks work that can proceed in parallel without editing an unfinished dependency.
 - `[US#]` labels map tasks to the corresponding specification story.
-- The existing generic harness boundary remains canonical; no second harness, queue, event stream, task database, SDK import, or Hermes stage machine is added.
+- The existing generic harness boundary remains canonical; Pi's private RPC event stream does not become a Hermes event channel, and no second harness, queue, task database, SDK import, or Hermes stage machine is added.
 - The Docker proof must execute the real project Pi program; a protocol-only stub is valid only for isolated offline transport tests.
 - No task authorizes GitHub publication, protected-branch writes, AiNative writes, production access, or live credentials.

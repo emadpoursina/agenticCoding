@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.25.0] - 2026-09-08
+### Fixed
+- Updated the live Pi harness contract and implementation to use Pi's JSONL
+  `prompt` command and private settlement events, extracting one normalized
+  Hermes result without exposing the event stream.
+
 ## [0.24.0] - 2026-09-08
 ### Added
 - Delivered the live Pi RPC process boundary, strict timeout loading, and

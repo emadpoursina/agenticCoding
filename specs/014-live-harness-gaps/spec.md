@@ -26,9 +26,9 @@ defaults used instead of asking clarification questions.
 ### Session 2026-09-08
 
 - Q: Should Hermes reject a timeout that is merely large, or accept any positive finite timeout including the checked-in 1800? → A: Accept any positive finite timeout; do not add a new upper cap.
-- Q: After Pi returns one JSON result, what if the Pi process is still running? → A: End the harness attempt and stop the leftover process so it cannot keep writing.
+- Q: After Pi settles with one structured result, what if the Pi process is still running? → A: End the harness attempt and stop the leftover process so it cannot keep writing.
 - Q: Must the Docker live proof run the real project Pi program, or is a protocol stub in the container enough? → A: Live Docker proof must exec the real project `pi --mode rpc`; offline tests keep the fake Pi.
-- Q: Is `pi --mode rpc` a one-shot JSON document exchange or a multi-turn session? → A: One JSON job in, one JSON result out; no live event stream or multi-turn session.
+- Q: Is `pi --mode rpc` a one-shot JSON document exchange or a multi-turn session? → A: Hermes sends one prompt command for one job, privately consumes Pi's JSONL event stream until settlement, and extracts one final result; Hermes exposes no operator event stream or multi-turn harness session.
 - Q: Does putting Pi in the Hermes image, or mounting the same container-runnable binary, both count as done? → A: Either image or mount satisfies availability; Pi only on the Mac host does not.
 
 ## User Scenarios & Testing *(mandatory)*
@@ -38,8 +38,10 @@ defaults used instead of asking clarification questions.
 An operator starts an eligible task through Hermes. Hermes starts the Pi program
 already available to the Hermes container as a separate process using
 `pi --mode rpc`, with the task worktree as its working folder. Hermes sends one
-JSON job containing the task and any skip/resume notes, waits for one JSON
-result, and maps that result to the existing generic harness contract.
+JSON `prompt` command containing the task and any skip/resume notes, privately
+consumes Pi's JSONL responses and events until the run settles, extracts one
+structured final result, and maps that result to the existing generic harness
+contract.
 
 Pi owns the Spec Kit playbook and does not chat with the operator. If Pi needs
 a person, it stops and Hermes parks the task. A marker file alone is not
@@ -168,12 +170,12 @@ slugs, and embedded Spec Kit stage scripts.
   paths: Hermes rejects the result and does not validate or publish it.
 - Pi times out or is terminated: Hermes returns `failed`, retains inspectable
   worktree artifacts, and does not report `completed`.
-- Pi returns one valid JSON result but the process is still running: Hermes
-  ends the harness attempt, maps that one result, and stops the leftover
-  process so it cannot keep writing in the worktree.
-- Extra JSON, a second result, mixed non-JSON output, or a multi-turn
-  session: Hermes rejects the result as malformed and does not treat the run
-  as `completed`.
+- Pi settles with one valid structured result but the process is still running:
+  Hermes ends the harness attempt, maps that one result, and stops the
+  leftover process so it cannot keep writing in the worktree.
+- A rejected prompt, malformed RPC event, second structured result, missing
+  final result, or mixed non-JSON output: Hermes rejects the run as malformed
+  and does not treat it as `completed`.
 - The timeout is a boolean, blank string, whitespace-only string, decimal with
   invalid content, zero, negative, infinite, or non-numeric: Hermes rejects it
   before process start. A positive finite timeout, including the checked-in
@@ -200,11 +202,12 @@ slugs, and embedded Spec Kit stage scripts.
   task work attempt. The task worktree MUST be the process working folder. Pi
   MAY be baked into the Hermes image or mounted as the same container-runnable
   binary. A Mac-host-only Pi program MUST NOT be treated as available.
-- **FR-002**: Hermes MUST send exactly one JSON job document per harness
+- **FR-002**: Hermes MUST send exactly one JSON `prompt` command per harness
   attempt, containing the task context, task worktree context, execution
-  constraints, and optional skip/resume notes, and MUST wait for exactly one
-  JSON result document. The live path MUST NOT open a multi-turn Pi session
-  or event stream.
+  constraints, and optional skip/resume notes. Hermes MUST privately consume
+  Pi's JSONL responses/events until settlement and extract exactly one
+  structured final result. The live path MUST NOT expose a Pi event stream or
+  operator chat channel.
 - **FR-003**: Hermes MUST map one valid Pi result to exactly one existing
   generic `HarnessResult` status: `completed`, `failed`, `needs_human`, or
   `stuck`. The generic result MUST retain the existing contract's safe reason,
@@ -246,12 +249,12 @@ slugs, and embedded Spec Kit stage scripts.
   script.
 - **FR-013**: The feature MUST reuse the existing `HarnessStartRequest`,
   `HarnessResult`, and `PiHarnessAdapter` boundary. It MUST NOT add a second
-  harness, queue, event stream, task database, or Hermes fork.
+  harness, queue, Hermes event channel, task database, or Hermes fork.
 - **FR-014**: A successful live Pi result MUST remain only harness/playbook
   completion. Hermes MUST continue to own existing validation and any later
   commit, push, and pull-request workflow.
-- **FR-015**: Focused checks MUST cover the live process proof, one-job/
-  one-result mapping, leftover-process stop after one result, marker-only
+- **FR-015**: Focused checks MUST cover the live process proof, one-prompt/
+  one-result mapping, leftover-process stop after settlement, marker-only
   runtime failure, accepted and rejected timeout forms, default-config
   loading, legacy park/ack/restart behavior, fake-Pi offline execution, and
   contract leakage restrictions.
@@ -259,16 +262,16 @@ slugs, and embedded Spec Kit stage scripts.
   with `pi --mode rpc`. Offline pytest MUST keep using the fake Pi and MUST NOT
   require live model credentials. A protocol-only stub in Docker does not
   satisfy the live proof.
-- **FR-017**: After Hermes receives the one JSON result, or when the attempt
-  times out, Hermes MUST end the harness attempt and stop a still-running Pi
-  child process so it cannot keep writing.
+- **FR-017**: After Hermes extracts the one structured result from Pi's settled
+  run, or when the attempt times out, Hermes MUST end the harness attempt and
+  stop a still-running Pi child process so it cannot keep writing.
 
 ### Key Entities
 
 - **Pi runtime**: The runnable program and its container-visible execution
   location. A metadata marker describes it but cannot replace it.
 - **Harness attempt**: One Hermes start-to-result interaction for one task
-  worktree, with one JSON job and one JSON result.
+  worktree, with one JSON prompt command and one extracted structured result.
 - **Generic harness result**: The existing normalized result with one closed
   status, safe diagnostics, and optional worktree-relative outputs.
 - **Harness timeout**: The positive execution limit loaded from the checked-in
@@ -285,8 +288,8 @@ slugs, and embedded Spec Kit stage scripts.
   `013-harness-adapter-pi`.
 - Cursor Hermes MCP registration or `.cursor/mcp.json` transport choices.
 - SQLite WAL errors caused by multiple gateway database writers.
-- A second harness implementation, a second task database, a queue, or a live
-  event stream.
+- A second harness implementation, a second task database, a queue, or a
+  Hermes-visible live event stream.
 - Importing `@mariozechner/pi-coding-agent` or any TypeScript/Pi SDK into
   Hermes Python.
 - Rebuilding Telegram, Kanban, GitHub, validation, or the existing publication
@@ -302,8 +305,9 @@ slugs, and embedded Spec Kit stage scripts.
 
 - **SC-001**: In the Docker live-path proof, 100% of valid task starts launch
   one real project `pi --mode rpc` process in the task worktree, send one JSON
-  job document, receive one JSON result document, produce one matching generic
-  harness result, and leave no still-running leftover Pi process.
+  prompt command, privately consume Pi's JSONL run to settlement, extract one
+  structured result, produce one matching generic harness result, and leave no
+  still-running leftover Pi process.
 - **SC-002**: In 100% of marker-only runtime fixtures, Hermes fails visibly
   before execution and never invokes the removed legacy short path.
 - **SC-003**: The checked-in default configuration loads successfully in the
@@ -333,12 +337,14 @@ slugs, and embedded Spec Kit stage scripts.
 - There is no new maximum `timeout_seconds` in this feature. Positive finite
   values are accepted; invalid values are missing, blank, zero, negative,
   non-numeric, or non-finite.
-- `pi --mode rpc` is a one-shot JSON document exchange. After one result or a
-  timeout, Hermes stops a leftover Pi process.
+- `pi --mode rpc` is one prompt command followed by a private JSONL response/
+  event run. After settlement/result or a timeout, Hermes stops a leftover Pi
+  process.
 - The Docker live proof uses the real project Pi program. Offline tests keep
   the fake Pi.
-- The available Pi program accepts one JSON job and returns one JSON result for
-  `pi --mode rpc`; a live event stream is not needed for this feature.
+- The available Pi program accepts one JSON `prompt` command and emits the
+  documented JSONL response/event stream for `pi --mode rpc`; Hermes keeps that
+  stream private and extracts one final structured result.
 - The current `personalAgent` subset YAML reader may return an unquoted scalar
   such as `1800` as text. Numeric strings are therefore treated as valid
   configuration values after strict validation.

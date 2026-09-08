@@ -35,8 +35,8 @@ pi --mode rpc
 The child:
 
 - runs with `cwd` equal to the validated task worktree;
-- receives one JSON job document on stdin;
-- returns one JSON result document on stdout;
+- receives one JSON `prompt` command on stdin containing the bounded job;
+- emits Pi JSONL responses/events on stdout, which remain private to the adapter;
 - owns the complete Spec Kit playbook internally;
 - has no Hermes operator chat channel;
 - cannot publish, push, merge, deploy, write AiNative, or write another
@@ -48,8 +48,9 @@ and optional resume context. It does not contain a Pi SDK object, provider
 credential, Cursor model slug, transcript, private reasoning, or a Hermes
 stage list.
 
-The transport accepts exactly one complete JSON result. A second result,
-additional non-whitespace output, malformed JSON, early process exit, unknown
+The transport accepts exactly one structured harness result from the final
+assistant message after Pi settles. A rejected prompt, malformed RPC event,
+multiple structured results, missing final result, early process exit, unknown
 status, unsafe path, secret, or invalid human-question shape is rejected as a
 failed run.
 
@@ -110,7 +111,7 @@ Replaying the acknowledgement is safe and does not start another run.
 Focused checks must cover:
 
 - real process invocation, exact `pi --mode rpc` arguments, task-worktree cwd,
-  one JSON job, one JSON result, and leftover-process cleanup;
+  one JSON prompt command, one extracted result, and leftover-process cleanup;
 - marker-only runtime failure and missing/non-executable Pi;
 - malformed, extra, unsafe, unknown, timeout, and human-needed results;
 - numeric and numeric-string timeout loading, checked-in default loading, and

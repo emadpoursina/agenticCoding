@@ -18,10 +18,10 @@ visible Pi program as:
 pi --mode rpc
 ```
 
-with the task worktree as `cwd`. The transport writes exactly one JSON job
-document to stdin and accepts exactly one JSON result document from stdout.
-Offline tests continue injecting the existing fake runtime through the same
-adapter port.
+with the task worktree as `cwd`. The transport writes exactly one JSON `prompt`
+command containing the job, privately consumes Pi's JSONL responses/events
+until settlement, and extracts exactly one structured result. Offline tests
+continue injecting the existing fake runtime through the same adapter port.
 
 The runtime marker remains useful for version/revision identity, but it is not
 itself executable. Runtime loading must resolve and verify an executable
@@ -122,7 +122,7 @@ human-authorized transition to the new generic path.
 ## 5. Prove the live path in Docker without changing offline tests
 
 **Decision**: Keep the fake `PiFixtureRuntime` for pytest. Add process-backed
-fixture coverage for one job/result, cwd, cleanup, malformed output, timeout,
+fixture coverage for one prompt/result, cwd, cleanup, malformed output, timeout,
 and marker-only failure. Update Docker provisioning/compose documentation so
 the Hermes container receives a container-runnable real `pi` executable and
 matching manifest, either from the image or a read-only runtime mount. The

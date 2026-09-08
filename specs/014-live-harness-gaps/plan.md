@@ -13,15 +13,16 @@
 
 Close the live wiring gaps without changing the generic Hermes-to-harness
 boundary. `PiHarnessAdapter` will run the container-visible project Pi program
-as a separate `pi --mode rpc` child in the task worktree, exchange one JSON job
-and one JSON result, and stop the child after a result or timeout. The existing
-fake Pi remains the offline test double.
+as a separate `pi --mode rpc` child in the task worktree, send one JSON
+`prompt` command, privately consume Pi's JSONL run to settlement, extract one
+structured result, and stop the child after settlement or timeout. The
+existing fake Pi remains the offline test double.
 
 The plan also centralizes strict timeout parsing so the checked-in `1800`
 configuration loads, and adds a durable acknowledgement transition for parked
 legacy short-path records. Acknowledgement clears the legacy marker without
 starting Pi; the next Hermes process then reclaims the task through the generic
-harness path. No second harness, database, queue, event stream, SDK import, or
+harness path. No second harness, database, Hermes event channel, SDK import, or
 legacy fallback is introduced.
 
 ## Technical Context
@@ -51,9 +52,10 @@ inside the container; host-only availability is invalid.
 dispatcher/worker, with one external child process used as the execution
 harness.
 
-**Performance Goals**: One blocking child per work attempt, one JSON request,
-one JSON result, and bounded wall-clock timeout. No event stream or
-concurrency change.
+**Performance Goals**: One blocking child per work attempt, one JSON prompt
+command, one extracted result, and bounded wall-clock timeout. Pi's internal
+event stream does not cross the Hermes boundary and concurrency does not
+change.
 
 **Constraints**: Reuse the existing generic boundary and adapter. Keep writes
 inside the current task worktree and feature branch. Reject marker-only
@@ -147,13 +149,16 @@ container-runnable Pi executable beside its identity marker.
 - Add a private process-backed implementation of the existing runtime port in
   `pi.py`; do not expose subprocess or Pi-specific types through the generic
   records.
-- Build one JSON job from the existing request, including task/worktree
-  context, constraints, operator flags, and resume context.
+- Build one JSON `prompt` command from the existing request, including
+  task/worktree context, constraints, operator flags, resume context, and the
+  structured-result instruction.
 - Start `[pi, "--mode", "rpc"]` with `cwd=request.workspace_path`, write one
-  document, and read one complete result.
-- Reject extra output, malformed JSON, unknown statuses, unsafe paths, and
-  secret-bearing metadata through the existing result validator.
-- On first result or timeout, terminate/kill and wait for the child. Map
+  prompt command, consume JSONL responses/events until settlement, and extract
+  one structured assistant result.
+- Reject rejected prompts, malformed RPC events, multiple/missing results,
+  unknown statuses, unsafe paths, and secret-bearing metadata through the
+  existing result validator.
+- On settlement/result or timeout, terminate/kill and wait for the child. Map
   timeout and startup/transport failures to `failed`. Leave retry decisions to
   Hermes.
 - Keep injected fake runtime behavior unchanged for offline tests.
