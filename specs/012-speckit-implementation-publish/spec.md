@@ -4,7 +4,13 @@
 
 **Created**: 2026-09-07
 
-**Status**: Draft
+**Status**: Superseded as the live implementation path (kept for history)
+
+> **Live path:** Do not continue from `PLANNING_COMPLETE` through a Hermes
+> Spec Kit `implement` step. Pi owns specify → plan → tasks → implement.
+> Hermes still validates and opens the pull request after Pi completes.
+> See `013-harness-adapter-pi` and `014-live-harness-gaps`. Do not keep
+> the old path as a fallback.
 
 **Input**: User description: "Wire the next Hermes Kanban slice from scratch/implimentation.md Phase 9: use the existing external-framework contract to run GitHub Spec Kit implement after the native plan and task files have been created in the isolated task worktree, then continue through the existing validation/recovery and GitHub publish paths. Do not copy a builder into live AiNative. Keep one active framework, isolated worktrees, builder-never-publish, and distinguish PLANNING_COMPLETE from PIV-complete."
 

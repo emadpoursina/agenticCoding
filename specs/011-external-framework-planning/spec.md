@@ -4,7 +4,12 @@
 
 **Created**: 2026-09-07
 
-**Status**: Draft
+**Status**: Superseded as the live planning path (kept for history)
+
+> **Live path:** Do not run Spec Kit plan/tasks from Hermes, and do not
+> use `PLANNING_COMPLETE` as a live success state. Pi owns the Spec Kit
+> playbook. See `013-harness-adapter-pi` and `014-live-harness-gaps`.
+> Leftover old-path tasks are parked until a person acknowledges them.
 
 **Input**: User description: "Fill the live gap where AiNative does not contain the required planning or builder agents. Hermes must run external planning frameworks through adapters instead of copying framework agents into the read-only AiNative methodology. V0 selects one pinned external framework, initially GitHub Spec Kit, and uses it to generate the implementation plan and task list inside the isolated task worktree. Building remains a later slice. The existing Hermes model service performs the work, native framework artifacts remain the source of truth, and control-plane safety, worktree isolation, retries, GitHub, and existing PIV rules remain in force."
 

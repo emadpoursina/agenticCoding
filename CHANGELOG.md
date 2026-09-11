@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.25.3] - 2026-09-09
+### Fixed
+- Give the Hermes overlay folder to the hermes user at container start so
+  named Docker volumes are writable and live tasks can begin.
+
+## [0.25.2] - 2026-09-09
+### Added
+- Added an explicit Hermes Kanban worker contract so claimed workers
+  delegate implementation to the Pi harness instead of editing managed
+  projects directly.
+
+## [0.25.1] - 2026-09-09
+### Changed
+- Marked the old Hermes Spec Kit stage specs as historical so the live
+  path stays Pi-owned, with leftover old-path work parked for a person.
+
 ## [0.25.0] - 2026-09-08
 ### Fixed
 - Updated the live Pi harness contract and implementation to use Pi's JSONL

@@ -4,7 +4,12 @@
 
 **Created**: 2026-08-31
 
-**Status**: Draft
+**Status**: Historical (orchestration rules still apply; live stage order does not)
+
+> **Live path:** Hermes no longer runs discovery → plan → implement itself.
+> Pi runs the Spec Kit playbook. Hermes still owns task start, parking,
+> validation, and pull requests. See `013-harness-adapter-pi` and
+> `014-live-harness-gaps`. Do not restore the old Hermes stage list.
 
 **Input**: User description: "based on scratch/implimentation.md, detect next step and specify it"
 
