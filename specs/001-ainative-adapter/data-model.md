@@ -12,7 +12,7 @@ Loaded from operational config; never inferred from the developer machine.
 
 | Field | Type | Rules |
 |---|---|---|
-| `path` | `Path` | Non-empty. Must exist and be a directory. Must contain `docs/8-agents/` as a directory. Not a file. |
+| `path` | `Path` | Non-empty. Must exist and be a directory. Must contain `docs/agents/` as a directory. Not a file. |
 | `read_only` | `bool` | Must be `true`. `false` or missing → construction fails. |
 
 **Validation**: Runs at adapter construction (`from_config` / `__init__`). Failure → `InvalidMethodologyError`. No fallback path.
@@ -23,7 +23,7 @@ Loaded from operational config; never inferred from the developer machine.
 
 **Entity**: `AgentDefinition`
 
-A named folder under `{methodology}/docs/8-agents/{name}/`. Not a process.
+A named folder under `{methodology}/docs/agents/{name}/`. Not a process.
 
 | Field | Type | Rules |
 |---|---|---|
@@ -104,7 +104,7 @@ Stable bundle for a later executor. This phase does not run the agent.
 Not stored. The configured directory is the entity. Invariants:
 
 - Read in place.
-- Must contain `docs/8-agents/`; do not scan the rest of the tree for agents.
+- Must contain `docs/agents/`; do not scan the rest of the tree for agents.
 - Symlinks: follow the configured path as given.
 - Concurrent readers allowed; no writer in this adapter.
 
@@ -115,7 +115,7 @@ None. The adapter does not own Kanban or workflow state. `workflow_phase` is an 
 ## Roster rules (derived)
 
 ```text
-docs/8-agents/
+docs/agents/
 ├── scout/                 # agent
 ├── tester/                # agent
 ├── critic/                # agent

@@ -12,7 +12,7 @@ Types and signatures: [data-model.md](./data-model.md), [contracts/ainative-adap
 - `git` on `PATH` (revision capture)
 - This repo’s `personalAgent` checkout
 
-A live AiNative mount is **not** required. Contract tests use `personalAgent/tests/fixtures/ainative/` (copied into a temp git repo at test time).
+A live AiNative mount is **not** required. Contract tests use `personalAgent/tests/fixtures/ainative-full/` (copied into a temp git repo at test time) with agents under `docs/agents/`.
 
 ## Setup
 
@@ -44,7 +44,7 @@ The pytest file MUST fail if any of these break:
 | Load scout | `get_agent("scout")` has `name == "scout"` and separate `purpose` / `howto` / `constraints` text for files that exist; no concatenated blob |
 | Capture revision | Context/revision has configured path, non-empty `sha`, `repository`, `branch` or `"detached"`, and a `dirty` bool; dirty fixture still succeeds with `dirty=True` |
 | Refused write | `write_file` / `copy_tree` raise `ReadOnlyError`; fixture tree unchanged |
-| Invalid path | Missing/empty/non-dir/`read_only: false` / missing `docs/8-agents/` raises `InvalidMethodologyError`; no substitute path |
+| Invalid path | Missing/empty/non-dir/`read_only: false` / missing `docs/agents/` raises `InvalidMethodologyError`; no substitute path |
 
 Also required by the spec (same test file is fine):
 

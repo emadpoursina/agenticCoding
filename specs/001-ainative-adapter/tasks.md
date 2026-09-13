@@ -22,14 +22,14 @@ description: "Task list for AiNative Adapter implementation"
 
 - Control-plane package: `personalAgent/src/hermes_kanban/`
 - Checks: `personalAgent/tests/`
-- Fixture methodology (documents only): `personalAgent/tests/fixtures/ainative/`
+- Fixture methodology (documents only): `personalAgent/tests/fixtures/ainative-full/docs/agents/`
 - Operational config already has `ainative.path` / `ainative.read_only` in `personalAgent/config/default.yaml` — do not hardcode host paths
 
 ## Phase 1: Setup (Shared Infrastructure)
 
 **Purpose**: Committed fixture methodology so tests never depend on a live AiNative mount
 
-- [X] T001 Create fixture methodology tree in `personalAgent/tests/fixtures/ainative/docs/8-agents/` with `scout/`, `tester/`, `critic/` (each `AGENTS.md`, `SKILL.md`, `rule.md`; scout `SKILL.md` contains `<!-- source: _skills/research-first/SKILL.md -->`), reserved `template/`, `_skills/research-first/SKILL.md`, `broken-deps/` (how-to references `_skills/missing-skill/SKILL.md`), and `empty-agent/` (no instruction files)
+- [X] T001 Create fixture methodology tree in `personalAgent/tests/fixtures/ainative-full/docs/agents/` with `scout/`, `tester/`, `critic/` (each `AGENTS.md`, `SKILL.md`, `rule.md`; scout `SKILL.md` contains `<!-- source: _skills/research-first/SKILL.md -->`), reserved `template/`, `_skills/research-first/SKILL.md`, `broken-deps/` (how-to references `_skills/missing-skill/SKILL.md`), and `empty-agent/` (no instruction files)
 
 ---
 
@@ -41,7 +41,7 @@ description: "Task list for AiNative Adapter implementation"
 
 - [X] T002 Add `AiNativeAdapterError` and subclasses (`InvalidMethodologyError`, `UnknownAgentError`, `IncompleteAgentError`, `UnresolvedDependencyError`, `RevisionError`, `ReadOnlyError`) in `personalAgent/src/hermes_kanban/ainative.py`
 - [X] T003 Implement `AiNativeSettings` and `load_ainative_settings` (stdlib line scan of the `ainative:` block only: `path`, `read_only`; `ponytail:` two-scalar YAML subset) in `personalAgent/src/hermes_kanban/ainative.py`
-- [X] T004 Implement `AiNativeAdapter.__init__` and `from_config` in `personalAgent/src/hermes_kanban/ainative.py` so missing/empty/non-dir path, missing `docs/8-agents/`, unreadable config, and `read_only` not true raise `InvalidMethodologyError` with no fallback path
+- [X] T004 Implement `AiNativeAdapter.__init__` and `from_config` in `personalAgent/src/hermes_kanban/ainative.py` so missing/empty/non-dir path, missing `docs/agents/`, unreadable config, and `read_only` not true raise `InvalidMethodologyError` with no fallback path
 
 **Checkpoint**: Foundation ready — a valid fixture path with `read_only=True` constructs; invalid settings fail at the boundary
 
@@ -62,7 +62,7 @@ description: "Task list for AiNative Adapter implementation"
 
 ### Implementation for User Story 1
 
-- [X] T007 [US1] Implement `AgentDefinition` and `list_agents` (sorted immediate subdirs of `docs/8-agents/`, skip `template` / `_skills` / non-directories) in `personalAgent/src/hermes_kanban/ainative.py`
+- [X] T007 [US1] Implement `AgentDefinition` and `list_agents` (sorted immediate subdirs of `docs/agents/`, skip `template` / `_skills` / non-directories) in `personalAgent/src/hermes_kanban/ainative.py`
 - [X] T008 [US1] Implement `get_agent` in `personalAgent/src/hermes_kanban/ainative.py`: allowlist name against `list_agents()` before any path join; map `AGENTS.md`/`SKILL.md`/`rule.md` to optional path + `purpose`/`howto`/`constraints` raw text; none present or unreadable → `IncompleteAgentError`
 - [X] T009 [US1] Implement `AgentDependency` and `resolve_agent_dependencies` in `personalAgent/src/hermes_kanban/ainative.py`: include `rule.md` as `kind="rule"` when present; unique `<!-- source: _skills/<name>/SKILL.md -->` from how-to as `kind="skill"`; missing/unreadable skill → `UnresolvedDependencyError` (no partial list)
 
@@ -94,12 +94,12 @@ description: "Task list for AiNative Adapter implementation"
 
 **Goal**: Construction already fails on invalid location (Phase 2). This story adds testable write refusal and the remaining trust-boundary checks so SC-004 / SC-005 / SC-006 hold.
 
-**Independent Test**: Construct with missing/empty/non-dir/`read_only: false`/missing `docs/8-agents/` and confirm `InvalidMethodologyError` with no substitute path. On a valid adapter, `write_file` and `copy_tree` raise `ReadOnlyError`; fixture tree unchanged.
+**Independent Test**: Construct with missing/empty/non-dir/`read_only: false`/missing `docs/agents/` and confirm `InvalidMethodologyError` with no substitute path. On a valid adapter, `write_file` and `copy_tree` raise `ReadOnlyError`; fixture tree unchanged.
 
 ### Tests for User Story 3 ⚠️
 
-- [X] T014 [US3] Add contract tests for `InvalidMethodologyError` at construction/`from_config` in `personalAgent/tests/test_ainative_adapter.py` (missing path, empty path, file-not-dir, missing `docs/8-agents/`, `read_only: false`, unreadable config; assert no substitute location)
-- [X] T015 [US3] Add contract tests that `write_file` and `copy_tree` raise `ReadOnlyError` and leave `personalAgent/tests/fixtures/ainative/` (and the tmp copy) unchanged in `personalAgent/tests/test_ainative_adapter.py`
+- [X] T014 [US3] Add contract tests for `InvalidMethodologyError` at construction/`from_config` in `personalAgent/tests/test_ainative_adapter.py` (missing path, empty path, file-not-dir, missing `docs/agents/`, `read_only: false`, unreadable config; assert no substitute location)
+- [X] T015 [US3] Add contract tests that `write_file` and `copy_tree` raise `ReadOnlyError` and leave `personalAgent/tests/fixtures/ainative-full/` (and the tmp copy) unchanged in `personalAgent/tests/test_ainative_adapter.py`
 
 ### Implementation for User Story 3
 
@@ -115,7 +115,7 @@ description: "Task list for AiNative Adapter implementation"
 
 - [X] T017 Re-export public types (`AiNativeSettings`, `load_ainative_settings`, `AiNativeAdapter`, `AgentDefinition`, `AgentDependency`, `Revision`, `ExecutionContext`, errors) from `personalAgent/src/hermes_kanban/__init__.py`
 - [X] T018 Add optional live-mount `list_agents` test in `personalAgent/tests/test_ainative_adapter.py` (skip if `/ainative` and `AINATIVE_PATH` are absent; if present, listed names MUST be a subset of real folders; do not require `specs-planner`)
-- [X] T019 Confirm `personalAgent/tests/test_import.py` still passes and no methodology copies exist under `personalAgent/` outside `personalAgent/tests/fixtures/ainative/`
+- [X] T019 Confirm `personalAgent/tests/test_import.py` still passes and no methodology copies exist under `personalAgent/` outside `personalAgent/tests/fixtures/ainative-full/`
 - [X] T020 Run quickstart.md validation in `personalAgent/`: `uv run pytest tests/test_ainative_adapter.py tests/test_import.py` and `uv run ruff check src tests`
 
 ---
@@ -203,4 +203,4 @@ Not applicable: one production file, one test file. One implementer, sequential 
 ## Phase 7: Convergence
 
 - [X] T021 CRITICAL Mark the two-scalar YAML subset in `load_ainative_settings` with a `ponytail:` comment naming the ceiling (two scalars; no nested YAML, quotes, or aliases) and the PyYAML upgrade path in `personalAgent/src/hermes_kanban/ainative.py` per Constitution II (missing)
-- [X] T022 Reject empty and whitespace-only methodology paths at the trust boundary in `personalAgent/src/hermes_kanban/ainative.py` before `Path` resolution so they cannot bind to cwd; extend `personalAgent/tests/test_ainative_adapter.py` so empty path still raises `InvalidMethodologyError` when cwd contains `docs/8-agents/` per FR-002 (contradicts)
+- [X] T022 Reject empty and whitespace-only methodology paths at the trust boundary in `personalAgent/src/hermes_kanban/ainative.py` before `Path` resolution so they cannot bind to cwd; extend `personalAgent/tests/test_ainative_adapter.py` so empty path still raises `InvalidMethodologyError` when cwd contains `docs/agents/` per FR-002 (contradicts)

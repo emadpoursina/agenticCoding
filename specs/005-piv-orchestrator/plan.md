@@ -94,7 +94,7 @@ personalAgent/
 │   ├── test_workspace_manager.py
 │   ├── test_agent_executor.py
 │   └── test_piv_orchestrator.py
-├── tests/fixtures/ainative/     # existing four role agents; do not add to live AiNative
+├── tests/fixtures/ainative-full/docs/agents/ # existing four role agents; do not add to live AiNative
 ├── tests/fixtures/projects/standard/  # existing; validation commands already declared
 ├── config/default.yaml          # unchanged; still projects: [] and no live model name literals
 └── docker-compose.yml           # unchanged

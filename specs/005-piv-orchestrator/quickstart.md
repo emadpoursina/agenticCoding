@@ -24,7 +24,7 @@ uv sync --extra dev
 
 Tests construct:
 
-1. A temp methodology (copy `tests/fixtures/ainative/`, which includes fixture `scout`, `specs-planner`, `builder`, `tester`).
+1. A temp methodology (copy `tests/fixtures/ainative-full/`, whose current agent root is `docs/agents/` and includes fixture `scout`, `specs-planner`, `builder`, and `tester`).
 2. A temp enrolled git project (copy `tests/fixtures/projects/standard/`, `git init` + commit). Override validation commands in that copy when the check needs a cheap `true` / `false`.
 3. A temp `workspace.root` and operational YAML with role map + **test** model assignment strings (not production model names).
 4. A `MemoryTaskBoard` with fixture tasks (identity, project, problem, expected result, acceptance criteria, priority, `created_at`, optional dependencies).

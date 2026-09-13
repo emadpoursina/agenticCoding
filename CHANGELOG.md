@@ -1,5 +1,25 @@
 # Changelog
 
+## [0.28.0] - 2026-09-13
+### Added
+- Delivered the AiNative four-layer alignment across the Hermes adapter,
+  disposable fixtures, live setup projection, guidance, active specifications,
+  and migration verification.
+### Changed
+- Made `docs/agents/` the only accepted adapter root and removed obsolete
+  simple-roster, manifest, and top-level-agent fallback behavior.
+
+## [0.27.0] - 2026-09-13
+### Added
+- Actionable task list for implementing and verifying the AiNative
+  four-layer structure alignment across the Hermes consumer, fixtures,
+  live setup projection, guidance, and active specifications.
+
+## [0.26.0] - 2026-09-13
+### Added
+- Implementation plan and design artifacts for aligning the Hermes consumer
+  and live test app with AiNative's four-layer documentation structure.
+
 ## [0.25.3] - 2026-09-09
 ### Fixed
 - Give the Hermes overlay folder to the hermes user at container start so

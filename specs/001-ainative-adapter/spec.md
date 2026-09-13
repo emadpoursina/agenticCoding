@@ -18,6 +18,11 @@
 - Q: What should the adapter return for each supporting rule or skill when resolving an agent’s dependencies? → A: List of items with kind, name, path, and raw text (constraint when present, plus each referenced shared skill)
 - Q: How should the three instruction documents appear on a loaded agent so a later executor can tell purpose, how-to, and constraints apart? → A: Three optional raw-text fields (purpose, howto, constraints); no concatenated blob
 
+AiNative's current documentation vocabulary is the four semantic layers
+`systems/`, `agents/`, `knowledge/`, and `records/`, with snippets and record
+types nested under their owning layers. This adapter reads only the
+`docs/agents/` layer; it does not add runtime readers for the other layers.
+
 ## User Scenarios & Testing *(mandatory)*
 
 Hermes needs reusable engineering methodology without owning or copying it. AiNative is that methodology: a read-only collection of agent folders (purpose, how-to, and constraints), not runnable programs. This feature is the translator: given a configured methodology location, Hermes can discover agents, load their instructions, attach supporting rules and skills, and stamp the exact methodology revision onto a stable execution context.
@@ -34,7 +39,7 @@ An operator (or a later Hermes worker) asks: “which agents exist, and what are
 
 **Acceptance Scenarios**:
 
-1. **Given** a valid methodology location containing agent folders under `docs/8-agents/`, **When** the caller lists agents, **Then** the result includes known agent names (scout, tester, critic, and other real agent folders) and excludes `template` and `_skills`.
+1. **Given** a valid methodology location containing agent folders under `docs/agents/`, **When** the caller lists agents, **Then** the result includes known agent names (scout, tester, critic, and other real agent folders) and excludes `template` and `_skills`.
 2. **Given** a valid methodology location with a scout agent, **When** the caller loads agent `scout`, **Then** the definition includes the name `scout`, paths to the purpose / how-to / constraint documents when those files exist, and optional `purpose`, `howto`, and `constraints` text fields holding the raw contents of those files (omitted when a file does not exist). The definition MUST NOT include a concatenated instruction blob.
 3. **Given** a valid methodology location, **When** the caller loads an agent name that does not exist, **Then** the adapter fails with a distinct, visible error (not an empty definition and not a generic crash).
 4. **Given** a valid methodology location, **When** the caller loads or resolves `template`, `_skills`, a nested path, or a `../` name, **Then** the adapter fails with the same unknown-agent error as (3) and does not read outside the agents roster.
@@ -86,7 +91,7 @@ AiNative is a read-only methodology mount. The adapter must not copy it into wor
 - **Unknown agent name**: Distinct error; not an empty definition. Reserved names and path-like names use this same error.
 - **Missing or unreadable skill reference**: If a listed agent’s how-to document references a shared skill that does not exist or cannot be read, `resolve_agent_dependencies` fails clearly. It MUST NOT skip the broken reference or return only the skills that exist. `get_agent` MAY still succeed (the agent’s own `purpose` / `howto` / `constraints` fields come from its documents). Any later assembly that requires resolved dependencies inherits this failure.
 - **Path is a file, not a directory**: Treated as invalid location (same as missing).
-- **Path exists but has no `docs/8-agents/` directory**: Fail clearly at the trust boundary. Do not scan the rest of the methodology tree for agent folders.
+- **Path exists but has no `docs/agents/` directory**: Fail clearly at the trust boundary. Do not scan the rest of the methodology tree for agent folders.
 - **Revision without a remote**: Repository identity falls back to the configured path; commit identity is still required.
 - **Detached commit**: Commit identity is still non-empty; branch/ref records the current ref or an explicit detached indicator rather than a fake branch name.
 - **Dirty working tree**: Revision capture still succeeds. Commit identity remains the current HEAD; the dirty indicator is set. Document text continues to be read from the working tree (not reconstructed from HEAD blobs).
@@ -100,7 +105,7 @@ AiNative is a read-only methodology mount. The adapter must not copy it into wor
 - **FR-001**: The adapter MUST load the methodology location and read-only flag from operational configuration. It MUST NOT hardcode a workstation path.
 - **FR-002**: The adapter MUST validate the methodology path at the trust boundary (construction or first use). Missing, empty, or non-directory values MUST fail. The adapter MUST NOT silently default to another path.
 - **FR-003**: The adapter MUST require the methodology to be configured read-only. A writable configuration MUST fail at the trust boundary.
-- **FR-004**: The adapter MUST discover agents as folders under `docs/8-agents/` at the configured location. If that agents root is missing, the adapter MUST fail clearly (it MUST NOT scan the rest of the methodology tree). It MUST skip `template` and `_skills` unless they are pulled in as dependencies of a named agent.
+- **FR-004**: The adapter MUST discover agents as folders under `docs/agents/` at the configured location. If that agents root is missing, the adapter MUST fail clearly (it MUST NOT scan the rest of the methodology tree). It MUST skip `template` and `_skills` unless they are pulled in as dependencies of a named agent.
 - **FR-005**: The adapter MUST expose `list_agents()` returning the discovered agent names.
 - **FR-006**: The adapter MUST expose `get_agent(name)` returning an agent definition with: name; paths to the purpose document (`AGENTS.md`), how-to document (`SKILL.md`), and constraint document (`rule.md`) when present; and optional raw-text fields `purpose`, `howto`, and `constraints` (each the unmodified file contents when that file exists, omitted when it does not). The definition MUST NOT include a concatenated instruction blob. `name` MUST be an exact name from `list_agents()` (a single folder name). Unknown names, reserved folders (`template`, `_skills`), nested paths, and `../` names MUST fail with the same clean unknown-agent error. The adapter MUST NOT join a caller-supplied name onto the agents path.
 - **FR-007**: The adapter MUST expose `resolve_agent_dependencies(name)` returning a list of supporting rules and skills for that agent. Each item MUST include: kind (`rule` or `skill`), name, path, and raw file text. The list MUST include the agent’s own constraint document when that file exists (`kind: rule`) plus each shared skill the how-to document references (`kind: skill`). `name` MUST follow the same identity rules as FR-006. It MUST NOT treat the skill library as an agent roster. If any referenced shared skill is missing or unreadable, the call MUST fail with a visible error; it MUST NOT return a partial list.
@@ -114,7 +119,7 @@ AiNative is a read-only methodology mount. The adapter must not copy it into wor
 ### Key Entities
 
 - **Methodology location**: Configured path to the read-only AiNative checkout/mount. Source of truth for agent folders. Never inferred from the developer’s machine layout.
-- **Agent definition**: A named folder under `docs/8-agents/` with optional purpose, how-to, and constraint documents, plus optional raw-text fields `purpose`, `howto`, and `constraints` (omitted when the corresponding file does not exist). Not a concatenated blob. Not a process.
+- **Agent definition**: A named folder under `docs/agents/` with optional purpose, how-to, and constraint documents, plus optional raw-text fields `purpose`, `howto`, and `constraints` (omitted when the corresponding file does not exist). Not a concatenated blob. Not a process.
 - **Agent dependency**: One supporting rule or skill attached to a named agent: kind (`rule` or `skill`), name, path, and raw file text. Typically the agent’s own constraint document plus each referenced shared skill. Used when assembling context; not a separate agent in the roster.
 - **Revision**: Repository identity, commit identity, branch/ref, and dirty indicator of the methodology location. Required on every execution context. Dirty means uncommitted local changes exist; the commit identity is still HEAD.
 - **Execution context**: Stable bundle for a later executor: methodology path, revision, agent definition, optional workflow phase, optional task/project/workspace (empty in this phase).

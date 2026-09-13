@@ -6,7 +6,7 @@ Phase 0 resolves every Technical Context choice against the spec, constitution, 
 
 ## 1. Where the adapter lives
 
-**Decision**: One module in the existing control-plane package: `personalAgent/src/hermes_kanban/ainative.py`. Re-export the public types from `hermes_kanban/__init__.py`. Checks in `personalAgent/tests/test_ainative_adapter.py` plus a fixture tree under `personalAgent/tests/fixtures/ainative/`.
+**Decision**: One module in the existing control-plane package: `personalAgent/src/hermes_kanban/ainative.py`. Re-export the public types from `hermes_kanban/__init__.py`. Checks in `personalAgent/tests/test_ainative_adapter.py` plus the current fixture tree under `personalAgent/tests/fixtures/ainative-full/`.
 
 **Rationale**: `src/hermes_kanban/` is already the control-plane package (scaffold only: `__version__`). Constitution III forbids a second control plane and forbids duplicating AiNative. The V0 plan’s `hermes/adapters/ainative/` tree is conceptual; AGENTS.md already names `src/hermes_kanban/`. One module until the file is no longer readable — do not pre-split into types/config/git files.
 
@@ -43,9 +43,9 @@ Parse those two keys with a line-oriented scan of the `ainative:` block (stdlib)
 
 ## 4. Agent roster and name identity
 
-**Decision**: Agents are immediate subdirectories of `{methodology}/docs/8-agents/`. Skip `template` and `_skills` (and non-directories). `list_agents()` returns those folder names, sorted, for determinism. `get_agent` / `resolve_agent_dependencies` accept a name only if it is **exactly** in that list (single path segment, no `/`, `\`, or `..`). Unknown, reserved, and path-like names share `UnknownAgentError`. Never `join` a caller-supplied name onto the agents root before the allowlist check.
+**Decision**: Agents are immediate subdirectories of `{methodology}/docs/agents/`. Skip `template` and `_skills` (and non-directories). `list_agents()` returns those folder names, sorted, for determinism. `get_agent` / `resolve_agent_dependencies` accept a name only if it is **exactly** in that list (single path segment, no `/`, `\`, or `..`). Unknown, reserved, and path-like names share `UnknownAgentError`. Never `join` a caller-supplied name onto the agents root before the allowlist check.
 
-File contract (already in AiNative `docs/8-agents/README.md`): `AGENTS.md` (purpose), `SKILL.md` (how-to), `rule.md` (constraints). Each becomes an optional path **and** a raw-text field (`purpose` / `howto` / `constraints`) when the file exists; omit both when it does not. No concatenated blob. If a listed folder has none of the three files, `get_agent` fails (`IncompleteAgentError`). An existing file that cannot be read is a failure, not an omit (omit would claim the file is absent).
+File contract (already in AiNative `docs/agents/README.md`): `AGENTS.md` (purpose), `SKILL.md` (how-to), `rule.md` (constraints). Each becomes an optional path **and** a raw-text field (`purpose` / `howto` / `constraints`) when the file exists; omit both when it does not. No concatenated blob. If a listed folder has none of the three files, `get_agent` fails (`IncompleteAgentError`). An existing file that cannot be read is a failure, not an omit (omit would claim the file is absent).
 
 **Rationale**: FR-004–FR-006 and clarifications (exact names; reserved folders). Live tree currently has critic, plan-reviewer, pr-reviewer, prd-writer, project-bootstrapper, scout, task-groomer, tester — plus reserved `template` and `_skills`. Discovery once listed `specs-planner`; it is not in the current tree. Tests MUST use a fixture, not the live mount’s roster.
 
@@ -98,7 +98,7 @@ Not a work tree → `RevisionError`. Dirty tree still succeeds; `sha` stays HEAD
 
 ## 8. Read-only enforcement
 
-**Decision**: Construction requires `read_only is True` and a real directory containing `docs/8-agents/`. Public mutating methods `write_file(relative_path, content)` and `copy_tree(destination)` always raise `ReadOnlyError` **before** any filesystem write, copy, or mkdir. No other adapter method creates, modifies, or deletes under the methodology path. Reads use `Path.read_text` only.
+**Decision**: Construction requires `read_only is True` and a real directory containing `docs/agents/`. Public mutating methods `write_file(relative_path, content)` and `copy_tree(destination)` always raise `ReadOnlyError` **before** any filesystem write, copy, or mkdir. No other adapter method creates, modifies, or deletes under the methodology path. Reads use `Path.read_text` only.
 
 **Rationale**: FR-010–FR-011, US3, SC-004. The contract check needs a callable write attempt; adding silent no-op writes would swallow failure.
 
@@ -112,7 +112,7 @@ Not a work tree → `RevisionError`. Dirty tree still succeeds; `sha` stays HEAD
 
 | Type | When |
 |---|---|
-| `InvalidMethodologyError` | Missing/empty/non-dir path, missing `docs/8-agents/`, `read_only` not true, unreadable config |
+| `InvalidMethodologyError` | Missing/empty/non-dir path, missing `docs/agents/`, `read_only` not true, unreadable config |
 | `UnknownAgentError` | Name not in `list_agents()`, including reserved and path-like names |
 | `IncompleteAgentError` | Listed folder with none of the three instruction files |
 | `UnresolvedDependencyError` | Referenced shared skill missing or unreadable |

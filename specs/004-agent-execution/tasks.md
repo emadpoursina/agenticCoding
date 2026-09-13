@@ -9,7 +9,7 @@ description: "Task list for Agent Execution implementation"
 
 **Prerequisites**: [plan.md](./plan.md), [spec.md](./spec.md), [research.md](./research.md), [data-model.md](./data-model.md), [contracts/](./contracts/)
 
-**Tests**: Requested by spec SC-007, constitution IV, and [quickstart.md](./quickstart.md). One contract module only: `personalAgent/tests/test_agent_executor.py`. Stand-in `ModelService`. Disposable git + methodology fixtures in pytest `tmp_path` (copy `personalAgent/tests/fixtures/ainative/` and `personalAgent/tests/fixtures/projects/standard/`, then `git init` + commit; tests call `prepare_workspace` then `execute_*`). Tests MUST NOT require a live model account, production repo, GitHub account, or `OPENAI_API_KEY`.
+**Tests**: Requested by spec SC-007, constitution IV, and [quickstart.md](./quickstart.md). One contract module only: `personalAgent/tests/test_agent_executor.py`. Stand-in `ModelService`. Disposable git + methodology fixtures in pytest `tmp_path` (copy `personalAgent/tests/fixtures/ainative-full/` and `personalAgent/tests/fixtures/projects/standard/`, then `git init` + commit; tests call `prepare_workspace` then `execute_*`). Tests MUST NOT require a live model account, production repo, GitHub account, or `OPENAI_API_KEY`.
 
 **Organization**: Tasks are grouped by user story. All three stories are P1. US1 (execute + context + payload + identity) is sequenced first because it is the MVP remaining gap after Phase 1. US2 adds planning artifact, implementation writes/commit isolation, validation-from-commands, and result shape on top of that execute. US3 adds per-role model assignment tagging, missing-assignment failure, methodology-write refuse, missing-workspace refuse, and protected-branch/no-publish.
 
@@ -21,16 +21,16 @@ description: "Task list for Agent Execution implementation"
 
 ## Path Conventions
 
-Implementation lands in the existing `personalAgent/` package (not playground root, not live AiNative). Public API lives in one module until that file is unreadable — do not pre-split into `executor/` or context/model/result packages. Do not add dependencies. Do not edit `personalAgent/src/hermes_kanban/ainative.py`, `personalAgent/src/hermes_kanban/projects.py`, or `personalAgent/src/hermes_kanban/workspace.py` except importing their existing public APIs (and `projects._parse_document` / `_path_like_id` as [research.md](./research.md) allows). Do not add agents to live AiNative — only fixture folders under `personalAgent/tests/fixtures/ainative/`. Do not edit `personalAgent/docker-compose.yml`.
+Implementation lands in the existing `personalAgent/` package (not playground root, not live AiNative). Public API lives in one module until that file is unreadable — do not pre-split into `executor/` or context/model/result packages. Do not add dependencies. Do not edit `personalAgent/src/hermes_kanban/ainative.py`, `personalAgent/src/hermes_kanban/projects.py`, or `personalAgent/src/hermes_kanban/workspace.py` except importing their existing public APIs (and `projects._parse_document` / `_path_like_id` as [research.md](./research.md) allows). Do not add agents to live AiNative — only fixture folders under `personalAgent/tests/fixtures/ainative-full/docs/agents/`. Do not edit `personalAgent/docker-compose.yml`.
 
 ```text
 personalAgent/src/hermes_kanban/executor.py
 personalAgent/src/hermes_kanban/__init__.py
 personalAgent/tests/test_agent_executor.py
-personalAgent/tests/fixtures/ainative/docs/8-agents/specs-planner/   # add; fixture only
-personalAgent/tests/fixtures/ainative/docs/8-agents/builder/         # add; fixture only
-personalAgent/tests/fixtures/ainative/docs/8-agents/scout/          # existing
-personalAgent/tests/fixtures/ainative/docs/8-agents/tester/         # existing
+personalAgent/tests/fixtures/ainative-full/docs/agents/specs-planner/ # fixture only
+personalAgent/tests/fixtures/ainative-full/docs/agents/builder/       # fixture only
+personalAgent/tests/fixtures/ainative-full/docs/agents/scout/         # existing
+personalAgent/tests/fixtures/ainative-full/docs/agents/tester/        # existing
 personalAgent/tests/fixtures/projects/standard/                      # existing; copy into tmp_path then git init
 personalAgent/config/default.yaml                                   # optional commented role/model slots; no live model names
 ```
@@ -41,7 +41,7 @@ personalAgent/config/default.yaml                                   # optional c
 
 **Purpose**: Fixture roster includes all four default role agents. Production config still has no live model literals and no enrolled projects.
 
-- [X] T001 [P] Add fixture-only agents `specs-planner` and `builder` as `personalAgent/tests/fixtures/ainative/docs/8-agents/specs-planner/{AGENTS.md,SKILL.md}` and `personalAgent/tests/fixtures/ainative/docs/8-agents/builder/{AGENTS.md,SKILL.md}`. Minimal purpose + how-to (match `scout`/`tester`: a short AGENTS.md title/purpose and a SKILL.md how-to). Do not name a provider or model. Do not add `rule.md` unless needed for adapter completeness. Do not reference unresolved skills. Do not copy these folders into live `AiNative/`. Do not change `personalAgent/docker-compose.yml`.
+- [X] T001 [P] Confirm fixture-only agents `specs-planner` and `builder` exist under `personalAgent/tests/fixtures/ainative-full/docs/agents/`. Minimal purpose + how-to (match `scout`/`tester`: a short AGENTS.md title/purpose and a SKILL.md how-to). Do not name a provider or model. Do not add `rule.md` unless needed for adapter completeness. Do not reference unresolved skills. Do not copy these folders into live `AiNative/`. Do not change `personalAgent/docker-compose.yml`.
 - [X] T002 [P] Confirm `personalAgent/config/default.yaml` keeps `projects: []`, `workspace.root: /workspaces`, `workflow.default: piv`, and `model.openai_compatible.base_url_env` / `api_key_env` as env **names** only. MAY add commented `roles:` / `model.roles:` slots. MUST NOT write a live provider or model id as a required value. Do not hardcode `$HOME`, `WORKSPACE_ROOT`, or a workstation path. Do not edit `personalAgent/docker-compose.yml`.
 
 ---
@@ -72,7 +72,7 @@ personalAgent/config/default.yaml                                   # optional c
 
 > **NOTE: Write these tests FIRST, ensure they FAIL before implementation**
 
-- [X] T008 [US1] Add contract tests in `personalAgent/tests/test_agent_executor.py` with helpers that: copy `tests/fixtures/ainative/` into `tmp_path` and `git init` + commit; copy `tests/fixtures/projects/standard/` into `tmp_path`, `git init`, set local `user.email`/`user.name`, commit; write operational YAML (`workspace.root` = a temp dir, `ainative.path` = the temp methodology, `projects:` listing the enrolled fixture, `model.roles.planning` / `implementation` / `validation` = **test** id strings such as `test-planning-model`, not production names); construct `WorkspaceManager` + `prepare_workspace` for task `123`; construct `AgentExecutor(..., model_service=stand_in)` where the stand-in is an in-test class returning a predetermined `ModelResponse` (no network, no env). Cover: `execute_agent("scout", ...)` returns a result; assembled context has non-empty `task.id`, `project_id`, `workspace_path`, `workspace_branch` (`feature/task-123`, not `main`/`master`/default), methodology path, non-empty `revision.sha`, and scout `agent`; `identity.worker_id == "scout"`; `identity.workspace_id == "ws-{project_id}-123"`; `identity.execution_id` is a new UUID hex (this execute, not prepare); omitted payload → `previous_plan` / `previous_validation` are `None` and optional task fields are `""`; supplied `payload.plan` is present unchanged; scout supporting skills match `resolve_agent_dependencies` (not a second copy of methodology on disk); result dataclass has no reasoning/transcript/secret attributes. Tests MUST NOT set `OPENAI_API_KEY`, MUST NOT bind a hardcoded workstation path, and MUST NOT use a live production repo. Stand-in without env MUST succeed.
+- [X] T008 [US1] Add contract tests in `personalAgent/tests/test_agent_executor.py` with helpers that: copy `tests/fixtures/ainative-full/` into `tmp_path` and `git init` + commit; copy `tests/fixtures/projects/standard/` into `tmp_path`, `git init`, set local `user.email`/`user.name`, commit; write operational YAML (`workspace.root` = a temp dir, `ainative.path` = the temp methodology, `projects:` listing the enrolled fixture, `model.roles.planning` / `implementation` / `validation` = **test** id strings such as `test-planning-model`, not production names); construct `WorkspaceManager` + `prepare_workspace` for task `123`; construct `AgentExecutor(..., model_service=stand_in)` where the stand-in is an in-test class returning a predetermined `ModelResponse` (no network, no env). Cover: `execute_agent("scout", ...)` returns a result; assembled context has non-empty `task.id`, `project_id`, `workspace_path`, `workspace_branch` (`feature/task-123`, not `main`/`master`/default), methodology path, non-empty `revision.sha`, and scout `agent`; `identity.worker_id == "scout"`; `identity.workspace_id == "ws-{project_id}-123"`; `identity.execution_id` is a new UUID hex (this execute, not prepare); omitted payload → `previous_plan` / `previous_validation` are `None` and optional task fields are `""`; supplied `payload.plan` is present unchanged; scout supporting skills match `resolve_agent_dependencies` (not a second copy of methodology on disk); result dataclass has no reasoning/transcript/secret attributes. Tests MUST NOT set `OPENAI_API_KEY`, MUST NOT bind a hardcoded workstation path, and MUST NOT use a live production repo. Stand-in without env MUST succeed.
 
 ### Implementation for User Story 1
 

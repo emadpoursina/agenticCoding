@@ -88,7 +88,7 @@ personalAgent/
 ├── tests/
 │   ├── test_piv_orchestrator.py   # extend SC-007 recovery checks
 │   └── test_agent_executor.py     # cannot-start encoding; model_slot
-├── tests/fixtures/ainative/       # existing four agents; do not add debugger
+├── tests/fixtures/ainative-full/docs/agents/ # existing four agents; do not add debugger
 ├── tests/fixtures/projects/standard/
 ├── config/default.yaml            # unchanged; projects: []
 └── docker-compose.yml             # unchanged

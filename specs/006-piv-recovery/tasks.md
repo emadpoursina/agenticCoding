@@ -27,7 +27,7 @@ personalAgent/src/hermes_kanban/executor.py
 personalAgent/src/hermes_kanban/__init__.py
 personalAgent/tests/test_piv_orchestrator.py
 personalAgent/tests/test_agent_executor.py
-personalAgent/tests/fixtures/ainative/          # existing; do not add debugger
+personalAgent/tests/fixtures/ainative-full/    # existing; do not add debugger
 personalAgent/tests/fixtures/projects/standard/
 personalAgent/config/default.yaml               # unchanged
 ```
@@ -41,7 +41,7 @@ Do not add `recovery.py`. Do not write native Kanban retry columns. Do not edit 
 **Purpose**: Confirm the existing control-plane layout; no new package or methodology agents.
 
 - [X] T001 Confirm `personalAgent/config/default.yaml` keeps `projects: []`, env **names** only for model credentials, and no `kanban.db` / `$HOME` / `HERMES_HOME` path. Do not edit `personalAgent/docker-compose.yml`.
-- [X] T002 [P] Confirm fixture agents `scout`, `specs-planner`, `builder`, and `tester` already exist under `personalAgent/tests/fixtures/ainative/docs/8-agents/`. Do not add a debugger folder. Do not copy fixtures into live `AiNative/`.
+- [X] T002 [P] Confirm fixture agents `scout`, `specs-planner`, `builder`, and `tester` already exist under `personalAgent/tests/fixtures/ainative-full/docs/agents/`. Do not add a debugger folder. Do not copy fixtures into live `AiNative/`.
 
 ---
 

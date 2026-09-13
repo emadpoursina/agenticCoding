@@ -8,7 +8,16 @@
 
 ## Summary
 
-Hermes needs reusable AiNative methodology without owning or copying it. This phase implements a **read-only in-process adapter** in the existing `hermes_kanban` package: load `ainative.path` / `ainative.read_only` from operational config, discover agent folders under `docs/8-agents/`, load purpose/how-to/constraints as separate raw-text fields, resolve referenced `_skills` plus the agent’s `rule.md`, stamp git revision (`repository`, `sha`, `branch`, `dirty`) onto an execution context, and refuse writes. No PIV, worktrees, GitHub, Telegram, model calls, or `execute_agent`.
+Hermes needs reusable AiNative methodology without owning or copying it. The
+current AiNative documentation vocabulary is `systems/`, `agents/`,
+`knowledge/`, and `records/`; this adapter reads only `docs/agents/`.
+This phase implements a **read-only in-process adapter** in the existing
+`hermes_kanban` package: load `ainative.path` / `ainative.read_only` from
+operational config, discover agent folders under `docs/agents/`, load
+purpose/how-to/constraints as separate raw-text fields, resolve referenced
+`_skills` plus the agent’s `rule.md`, stamp git revision (`repository`, `sha`,
+`branch`, `dirty`) onto an execution context, and refuse writes. No PIV,
+worktrees, GitHub, Telegram, model calls, or `execute_agent`.
 
 Technical approach: one Python 3.12 module, stdlib + `git` CLI, pytest contract file against a fixture methodology tree. See [research.md](./research.md).
 
@@ -20,7 +29,7 @@ Technical approach: one Python 3.12 module, stdlib + `git` CLI, pytest contract 
 
 **Storage**: N/A (read-only files + git metadata). No database. Hermes `kanban.db` / `projects.db` untouched
 
-**Testing**: pytest + ruff; one contract module `personalAgent/tests/test_ainative_adapter.py` + fixture tree under `personalAgent/tests/fixtures/ainative/`
+**Testing**: pytest + ruff; one contract module `personalAgent/tests/test_ainative_adapter.py` + current fixture tree under `personalAgent/tests/fixtures/ainative-full/`
 
 **Target Platform**: Host pytest (macOS/Linux with git) and the existing Docker Compose service (`hermes-agent:local`, methodology mounted `/ainative:ro`)
 

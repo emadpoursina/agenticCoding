@@ -1,7 +1,7 @@
-# Specification Quality Checklist: AiNative Adapter
+# Specification Quality Checklist: AiNative Structure Alignment
 
 **Purpose**: Validate specification completeness and quality before proceeding to planning
-**Created**: 2026-08-28
+**Created**: 2026-09-13
 **Feature**: [spec.md](../spec.md)
 
 ## Content Quality
@@ -31,7 +31,9 @@
 
 ## Notes
 
-- Validation iteration 1 (2026-08-28): All items pass.
-- Named operations (`list_agents`, `get_agent`, `resolve_agent_dependencies`, `build_execution_context`, `capture_revision`) are the product contract from the implementation plan, not a language or framework choice. Methodology paths (`docs/agents/`, purpose/how-to/constraint documents) are AiNative domain language the adapter must honor, not control-plane implementation.
-- No `[NEEDS CLARIFICATION]` markers. Defaults that would otherwise be questions are recorded in Assumptions (discovered roster vs hardcoded names, revision field fallbacks, fixture tests, always-refuse writes).
-- Items marked incomplete require spec updates before `/speckit-clarify` or `/speckit-plan`
+- The specification uses AiNative's accepted four-layer structure as the
+  baseline and treats the nested checkout as read-only reference material.
+- The clean break is explicit: consuming projects rerun setup and do not keep
+  aliases or fallback lookup for retired numbered paths.
+- The validation pass found no unresolved markers, placeholder text, or
+  unbounded scope.

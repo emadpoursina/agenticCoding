@@ -26,7 +26,7 @@ class AiNativeAdapter:
 
 - `config_path` is missing or unreadable (for `from_config` / `load_ainative_settings`)
 - `ainative.path` or `ainative.read_only` is absent from config
-- `path` is empty, missing, not a directory, or lacks `docs/8-agents/`
+- `path` is empty, missing, not a directory, or lacks `docs/agents/`
 - `read_only` is not `true`
 
 They MUST NOT substitute another location. Callers never receive an instance bound to a guessed path.
@@ -39,7 +39,7 @@ They MUST NOT substitute another location. Callers never receive an instance bou
 def list_agents(self) -> list[str]: ...
 ```
 
-- Returns sorted names of agent folders under `{path}/docs/8-agents/`.
+- Returns sorted names of agent folders under `{path}/docs/agents/`.
 - Excludes `template`, `_skills`, and non-directories.
 - Empty roster is allowed (still a valid location).
 

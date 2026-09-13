@@ -6,7 +6,7 @@ Phase 0 resolves every Technical Context choice against the spec, constitution, 
 
 ## 1. Where the executor lives
 
-**Decision**: One module in the existing control-plane package: `personalAgent/src/hermes_kanban/executor.py`. Re-export public types from `hermes_kanban/__init__.py`. Checks in `personalAgent/tests/test_agent_executor.py`. Fixture agents `specs-planner` and `builder` are added under `personalAgent/tests/fixtures/ainative/` only.
+**Decision**: One module in the existing control-plane package: `personalAgent/src/hermes_kanban/executor.py`. Re-export public types from `hermes_kanban/__init__.py`. Checks in `personalAgent/tests/test_agent_executor.py`. Fixture agents `specs-planner` and `builder` live under `personalAgent/tests/fixtures/ainative-full/docs/agents/` only.
 
 **Rationale**: `src/hermes_kanban/` already holds `ainative.py`, `projects.py`, and `workspace.py`. Constitution III forbids a second control plane. Spec FR-016 / assumptions: reuse the existing package; do not add a second task store. One module until the file is no longer readable — do not pre-split into context/model/result files.
 
@@ -283,7 +283,7 @@ Reuse: `UnknownAgentError`, `UnresolvedDependencyError`, `IncompleteAgentError`,
 
 **Decision**: One pytest file covering the seven SC-007 contract behaviors plus: payload omit vs supply, discovery without `PLAN.md`, remap to unknown agent, missing model assignment, missing credentials on live client, methodology write refuse, missing workspace does not prepare, enrolled location unchanged, no publish, validation from fixture commands, planning sections required for success, `worker_id` equals agent name, secrets absent from result.
 
-Fixture methodology: copy existing `tests/fixtures/ainative/` and add `docs/8-agents/specs-planner/` and `docs/8-agents/builder/` (minimal AGENTS.md + SKILL.md). Do not modify live AiNative.
+Fixture methodology: copy existing `tests/fixtures/ainative-full/`, whose current agent root is `docs/agents/` and already includes `specs-planner/` and `builder/` (minimal AGENTS.md + SKILL.md). Do not modify live AiNative.
 
 Fixture project: existing `tests/fixtures/projects/standard/` git-inited in `tmp_path`; prepare via `WorkspaceManager` **in the test**, then execute. Validation command in the fixture is `uv run pytest` — tests MAY override the enrolled copy’s manifest to a cheap command (`true` / `false` / missing binary) so the contract does not require the fixture to be a Python package.
 

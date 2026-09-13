@@ -92,7 +92,7 @@ personalAgent/
 │   ├── test_project_registry.py
 │   ├── test_workspace_manager.py
 │   └── test_agent_executor.py
-├── tests/fixtures/ainative/docs/8-agents/
+├── tests/fixtures/ainative-full/docs/agents/
 │   ├── scout/               # existing
 │   ├── tester/              # existing
 │   ├── specs-planner/       # add (fixture only; do not add to live AiNative)
