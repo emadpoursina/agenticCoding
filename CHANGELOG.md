@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.32.1] - 2026-09-14
+### Added
+- Added a filled, non-secret Hermes `SYSTEM.md` reference in
+  `personalAgent/docs/context/` (Pacific time `America/Los_Angeles`)
+  while keeping the blank example template and the private live file.
+
 ## [0.28.0] - 2026-09-13
 ### Added
 - Delivered the AiNative four-layer alignment across the Hermes adapter,
