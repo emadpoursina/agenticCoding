@@ -6,6 +6,34 @@
   `personalAgent/docs/context/` (Pacific time `America/Los_Angeles`)
   while keeping the blank example template and the private live file.
 
+## [0.32.0] - 2026-09-14
+### Added
+- Implemented Hermes startup context loading, exact-path validation,
+  revision-only metadata, precedence resolution, safe templates, and
+  secret-safe `--doctor` diagnostics.
+### Changed
+- Added focused startup and live-boundary checks while keeping registered
+  context text out of coding-job and operational-record payloads.
+
+## [0.31.0] - 2026-09-14
+### Added
+- Actionable, dependency-ordered implementation tasks for Hermes startup
+  context loading, exact paths, revision metadata, precedence, isolation,
+  diagnostics, and safe placeholder instructions.
+
+## [0.30.0] - 2026-09-14
+### Added
+- Implementation plan and design artifacts for Hermes startup context
+  registration, exact container-path validation, revision-only diagnostics,
+  precedence, coding-job isolation, and safe placeholder templates.
+
+## [0.29.0] - 2026-09-14
+### Added
+- Feature specification and requirements checklist for registering Hermes
+  `AGENTS.md`, persistent `SYSTEM.md`, and persistent `USER.md` as startup
+  context with exact-path validation, precedence, revision-only records, and
+  safe first-delivery placeholders.
+
 ## [0.28.0] - 2026-09-13
 ### Added
 - Delivered the AiNative four-layer alignment across the Hermes adapter,
