@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.32.2] - 2026-09-14
+### Added
+- Added a filled, non-secret Hermes `USER.md` reference in
+  `personalAgent/docs/context/` while keeping the blank example template
+  and the private live file.
+
 ## [0.32.1] - 2026-09-14
 ### Added
 - Added a filled, non-secret Hermes `SYSTEM.md` reference in
