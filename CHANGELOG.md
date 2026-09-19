@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.33.0] - 2026-09-17
+### Added
+- Feature specification, plan, research, data model, quickstart, tasks, and
+  contract for mapping native Hermes Kanban project ids to operational
+  enrolled project ids (`specs/017-kanban-project-identity/`).
+### Fixed
+- Declared native project ids with `kanban_project_ids` and canonicalized
+  them at the read-only board boundary so cards created with the config id
+  run the enrolled project, worktrees and records keep the operational id,
+  resume/reclaim accept either form, and unmapped ids are named instead of
+  silently reporting "no ready task".
+
 ## [0.32.2] - 2026-09-14
 ### Added
 - Added a filled, non-secret Hermes `USER.md` reference in
