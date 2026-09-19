@@ -20,3 +20,4 @@ personalAgent/
 # Working notes (do not commit)
 scratch/*
 !scratch/README.md
+.agent/
