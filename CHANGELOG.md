@@ -11,6 +11,13 @@
   run the enrolled project, worktrees and records keep the operational id,
   resume/reclaim accept either form, and unmapped ids are named instead of
   silently reporting "no ready task".
+- Resolved the native Kanban database per enrolled project (Hermes 0.21
+  per-board layout) so project-board cards are visible to the worker, and
+  sanitized drifted advisory harness-result paths so model schema drift no
+  longer discards finished Pi runs.
+- Proved the full pipeline live: `--doctor` with the declared alias, card
+  selection, a completed Pi run, validation pass, feature-branch push, and
+  PR #2 on the disposable practice repo.
 
 ## [0.32.2] - 2026-09-14
 ### Added

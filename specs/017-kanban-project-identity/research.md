@@ -73,6 +73,34 @@ visibility. Collecting the skipped card project ids and naming them in the
 `NoReadyTaskError` keeps the same control flow and error type while removing
 the "no ready task" dead end.
 
+## Live-verification findings (2026-09-20)
+
+### 7. Hermes 0.21 stores one database per board
+
+The 0.20 discovery assumed a single `kanban.db`. On the 0.21 install the
+enrolled project's board database lives at
+`kanban/boards/<board-slug>/kanban.db`; `HERMES_HOME/kanban.db` is the
+(empty) `default` board. Cards created on the project board were therefore
+invisible to the bridge. The live board now resolves per enrolled project
+first, with the legacy single-database layout as fallback and
+`HERMES_KANBAN_DB` still overriding both.
+
+### 8. Live project id is already reconciled
+
+A 2026-09-17 session rewrote `projects.id` `p_f1577341` → `ich-mag-dich`
+directly (the original diagnosis's first option, done outside this code).
+The declared alias is dormant but kept: if the project is ever recreated,
+Hermes assigns a fresh `p_…` id and the alias mechanism covers it without
+another manual state write.
+
+### 9. Model schema drift on harness results
+
+Live Pi runs returned `artifacts` as bare path strings and
+`changes`/`output_reference` as descriptive text, so two otherwise
+successful runs were discarded at the strict result gates. Advisory paths
+are now sanitized (validated, invalid entries dropped) instead of rejecting
+the run; status, reason, and questions stay strict.
+
 ## Decisions
 
 1. Mapping source: `kanban_project_ids` alias list on each project entry.

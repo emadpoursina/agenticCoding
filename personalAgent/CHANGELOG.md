@@ -23,8 +23,15 @@
 - Translated a card's native Kanban `project_id` to the operational id at
   the read-only board boundary, so cards created with the config id no
   longer fail as `UnknownProjectError` or silently report "no ready task".
+- Resolved the native Kanban database per enrolled project
+  (`kanban/boards/<id>/kanban.db`) with the legacy single-`kanban.db`
+  layout as fallback, so project-board cards are no longer invisible to
+  the worker on Hermes 0.21.
 - Canonicalized resume input and legacy overlay records so either id form
   resumes and reclaims the same workflow.
+- Tolerated model-drifted harness result shapes: bare-path artifacts, and
+  advisory `changes`/`output_reference` entries are sanitized instead of
+  discarding a finished Pi run.
 - Named unmapped native project ids in the `--next-ready` error and listed
   declared aliases in `--doctor`.
 

@@ -24,6 +24,7 @@ from .external_framework import (
     HarnessStartRequest,
     HarnessValidationError,
     ResumeContext,
+    _safe_relative_path,
     contains_secret,
     validate_harness_request,
     validate_harness_result,
@@ -172,6 +173,39 @@ def _failed(reason: str, *, next_action: str = "inspect the harness failure") ->
     )
 
 
+def _usable_path(relative: str, workspace: Path, *, require_file: bool) -> str | None:
+    """Return an advisory path only when it validates against the worktree."""
+    try:
+        return _safe_relative_path(relative, workspace, "advisory path", require_file=require_file)
+    except HarnessValidationError:
+        return None
+
+
+def _sanitize_advisory_paths(
+    response: PiRunResponse, workspace: Path
+) -> tuple[tuple[HarnessArtifact, ...], tuple[str, ...], str | None]:
+    """Drop drifted advisory paths instead of rejecting a finished run.
+
+    ponytail: models drift from the documented result schema; status, reason,
+    and questions stay strict while advisory paths are sanitized. Upgrade is a
+    pinned playbook output schema enforced inside the Pi runtime.
+    """
+    artifacts = tuple(
+        HarnessArtifact(artifact.kind, kept)
+        for artifact in response.artifacts
+        if (kept := _usable_path(artifact.relative_path, workspace, require_file=True)) is not None
+    )
+    changes = tuple(
+        kept
+        for change in response.changes
+        if (kept := _usable_path(change, workspace, require_file=False)) is not None
+    )
+    output = response.output_reference
+    if output is not None:
+        output = _usable_path(output, workspace, require_file=True)
+    return artifacts, changes, output
+
+
 def _coerce_artifacts(raw: object) -> tuple[HarnessArtifact, ...]:
     if raw is None:
         return ()
@@ -185,10 +219,16 @@ def _coerce_artifacts(raw: object) -> tuple[HarnessArtifact, ...]:
     for item in raw:
         if isinstance(item, HarnessArtifact):
             result.append(item)
+        elif isinstance(item, str):
+            # ponytail: models emit bare paths despite the documented object
+            # schema; kind is descriptive and paths stay validated downstream.
+            if not item.strip():
+                raise HarnessValidationError("Pi artifact is malformed")
+            result.append(HarnessArtifact("file", item))
         elif isinstance(item, dict):
-            kind = item.get("kind")
+            kind = item.get("kind", "file")
             path = item.get("relative_path")
-            if not isinstance(kind, str) or not isinstance(path, str):
+            if not isinstance(kind, str) or not isinstance(path, str) or not path.strip():
                 raise HarnessValidationError("Pi artifact is malformed")
             result.append(HarnessArtifact(kind, path))
         else:
@@ -607,14 +647,17 @@ class PiHarnessAdapter:
             status = "failed"
         if status not in {"completed", "failed", "needs_human", "stuck"}:
             return _failed("Pi runtime returned an unknown status")
+        artifacts, changes, output_reference = _sanitize_advisory_paths(
+            response, request.workspace_path
+        )
         result = HarnessResult(
             status=status,
             reason=response.reason or "Pi run finished without a reason",
             next_action=response.next_action
             or ("answer the harness questions" if status == "needs_human" else ""),
-            artifacts=response.artifacts or self._discover_artifacts(request),
-            changes=response.changes,
-            output_reference=response.output_reference,
+            artifacts=artifacts or self._discover_artifacts(request),
+            changes=changes,
+            output_reference=output_reference,
             retryable=response.retryable,
             questions=response.questions,
             resume_context=response.resume_context,

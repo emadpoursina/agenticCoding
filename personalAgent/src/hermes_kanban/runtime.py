@@ -141,6 +141,19 @@ def validate_smoke_target(orchestrator: PivOrchestrator, requested: str | None) 
     return project
 
 
+def _native_board_path(hermes_home: Path, registry: ProjectRegistry) -> Path:
+    """Resolve the native Kanban database for the enrolled project set."""
+    candidates = [
+        hermes_home / "kanban" / "boards" / project.id / "kanban.db"
+        for project in registry.list_projects()
+    ]
+    candidates.append(hermes_home / "kanban.db")
+    for candidate in candidates:
+        if candidate.is_file():
+            return candidate
+    return candidates[-1]
+
+
 def build_live_orchestrator(
     config_path: Path,
     *,
@@ -161,7 +174,8 @@ def build_live_orchestrator(
     if task_board is not None:
         raise MissingTaskBoardError("live entry owns the native Kanban board")
     load_harness_config(config_path)
-    resolver = _project_resolver(ProjectRegistry.from_config(config_path))
+    registry = ProjectRegistry.from_config(config_path)
+    resolver = _project_resolver(registry)
     kanban_db = os.environ.get("HERMES_KANBAN_DB", "").strip()
     if kanban_db:
         board = SqliteTaskBoard(Path(kanban_db), resolve_project_id=resolver)
@@ -170,7 +184,7 @@ def build_live_orchestrator(
         if not hermes_home:
             raise MissingTaskBoardError("HERMES_HOME is required for the live Kanban board")
         board = SqliteTaskBoard(
-            Path(hermes_home) / "kanban.db",
+            _native_board_path(Path(hermes_home), registry),
             resolve_project_id=resolver,
         )
     worker_task = allow_running_task_id

@@ -54,11 +54,14 @@ docker exec hermes-personal-agent \
   sqlite3 /opt/data/projects.db "select id, slug from projects;"
 ```
 
-The bridge reads `kanban.db` read-only, translates a card's native id to the
-operational id at the board boundary, and never writes `projects.db` or
-`kanban.db`. An undeclared id stays fail-closed: `--task` reports it, and
-`--next-ready` names it instead of returning a bare "no ready task".
-`--doctor` lists each project's declared aliases.
+The bridge reads the native Kanban database read-only, translates a card's
+native id to the operational id at the board boundary, and never writes
+`projects.db` or `kanban.db`. On Hermes 0.21 the database is resolved per
+enrolled project (`kanban/boards/<id>/kanban.db`), falling back to the
+legacy single-`kanban.db` layout; `HERMES_KANBAN_DB` overrides both. An
+undeclared id stays fail-closed: `--task` reports it, and `--next-ready`
+names it instead of returning a bare "no ready task". `--doctor` lists each
+project's declared aliases.
 
 ## Layout
 

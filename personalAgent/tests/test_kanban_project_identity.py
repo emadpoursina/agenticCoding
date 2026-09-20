@@ -10,6 +10,8 @@ import pytest
 
 from hermes_kanban.board import SqliteTaskBoard
 from hermes_kanban.orchestrator import NoReadyTaskError
+from hermes_kanban.projects import ProjectRegistry
+from hermes_kanban.runtime import _native_board_path
 from test_piv_orchestrator import _runtime_class, environment
 
 _ALIAS = "    kanban_project_ids:\n      - p_fixture\n"
@@ -74,6 +76,44 @@ def test_board_without_a_resolver_keeps_the_row_value(tmp_path: Path) -> None:
     board = SqliteTaskBoard(db_path)
 
     assert board.get("123").project_id == "p_fixture"
+
+
+def _registry_for(tmp_path: Path) -> ProjectRegistry:
+    config = tmp_path / "config.yaml"
+    config.write_text(
+        "projects:\n"
+        "  - id: fixture\n"
+        "    name: Fixture\n"
+        "    repository: repo\n"
+        f"    location: {tmp_path / 'missing'}\n",
+        encoding="utf-8",
+    )
+    return ProjectRegistry.from_config(config)
+
+
+def test_board_path_prefers_the_per_board_database(tmp_path: Path) -> None:
+    registry = _registry_for(tmp_path)
+    board_db = tmp_path / "kanban" / "boards" / "fixture" / "kanban.db"
+    board_db.parent.mkdir(parents=True)
+    board_db.write_bytes(b"stub")
+
+    assert _native_board_path(tmp_path, registry) == board_db
+
+
+def test_board_path_falls_back_to_the_legacy_single_database(tmp_path: Path) -> None:
+    registry = _registry_for(tmp_path)
+    legacy = tmp_path / "kanban.db"
+    legacy.write_bytes(b"stub")
+
+    assert _native_board_path(tmp_path, registry) == legacy
+
+
+def test_board_path_defaults_to_the_legacy_layout_when_no_file_exists(
+    tmp_path: Path,
+) -> None:
+    registry = _registry_for(tmp_path)
+
+    assert _native_board_path(tmp_path, registry) == tmp_path / "kanban.db"
 
 
 def test_next_ready_runs_a_native_id_card_under_the_operational_id(tmp_path: Path) -> None:

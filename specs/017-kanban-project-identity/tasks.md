@@ -110,6 +110,16 @@ description: "Implementation task list for Kanban Project Identity Mapping"
 
 ---
 
+## Phase 7: Live verification discoveries (2026-09-20)
+
+**Purpose**: Record the two additional wiring gaps found and fixed while proving the feature on the live install.
+
+- [X] T024 [P] Resolve the native Kanban database per enrolled project (`kanban/boards/<id>/kanban.db`) with legacy fallback in `personalAgent/src/hermes_kanban/runtime.py`, with path-resolution checks in `personalAgent/tests/test_kanban_project_identity.py`.
+- [X] T025 [P] Sanitize drifted advisory result paths (bare-string artifacts, invalid changes/output references) in `personalAgent/src/hermes_kanban/pi.py`, replacing the run-killing rejection, with coercion checks in `personalAgent/tests/test_harness_adapter.py`.
+- [X] T026 Prove the full pipeline live: `--doctor` exit 0 with the declared alias, card selection from the per-board database, a completed Pi run, project validation pass, feature-branch push, and PR #2 on the disposable practice repo.
+
+---
+
 ## Dependencies & Execution Order
 
 - T002–T006 (foundational) block all user-story work.

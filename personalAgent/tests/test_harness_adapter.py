@@ -71,6 +71,38 @@ def test_request_and_result_are_provider_neutral(tmp_path: Path) -> None:
     assert "SDK" not in repr(result)
 
 
+def test_artifact_coercion_accepts_model_shapes(tmp_path: Path) -> None:
+    from hermes_kanban.pi import _coerce_artifacts
+
+    assert _coerce_artifacts(["spec.md", {"kind": "plan", "relative_path": "plan.md"}]) == (
+        HarnessArtifact("file", "spec.md"),
+        HarnessArtifact("plan", "plan.md"),
+    )
+    assert _coerce_artifacts({"specification": "spec.md"}) == (
+        HarnessArtifact("specification", "spec.md"),
+    )
+    assert _coerce_artifacts(None) == ()
+
+
+@pytest.mark.parametrize(
+    "raw",
+    [
+        42,
+        True,
+        "",
+        "  ",
+        [{"kind": 3, "relative_path": "x"}],
+        [object()],
+        [{"relative_path": " "}],
+    ],
+)
+def test_artifact_coercion_still_fails_closed(raw: object) -> None:
+    from hermes_kanban.pi import _coerce_artifacts
+
+    with pytest.raises(HarnessValidationError):
+        _coerce_artifacts(raw)
+
+
 @pytest.mark.parametrize(
     "change",
     [
@@ -193,16 +225,28 @@ def test_harness_config_pins_one_pi_runtime_and_named_profile(tmp_path: Path) ->
     assert loaded.timeout_seconds == 1800.0
 
 
-def test_pi_adapter_rejects_malformed_runtime_output(tmp_path: Path) -> None:
+def test_drifted_advisory_paths_are_dropped_not_rejected(tmp_path: Path) -> None:
     workspace = tmp_path / "worktree"
     workspace.mkdir()
+    kept = workspace / "spec.md"
+    kept.write_text("safe", encoding="utf-8")
 
-    class Malformed:
+    class Drifted:
         def run(self, _request):
-            return PiRunResponse("completed", "done", artifacts=("missing.md",))
+            return PiRunResponse(
+                "completed",
+                "done",
+                artifacts=("missing.md", "spec.md"),
+                changes=("../escape.md", "spec.md"),
+                output_reference="commit 3c15ebd",
+            )
 
-    result = PiHarnessAdapter(Malformed()).start(request(workspace))
-    assert result.status == "failed"
+    result = PiHarnessAdapter(Drifted()).start(request(workspace))
+
+    assert result.status == "completed"
+    assert result.artifacts == (HarnessArtifact("file", "spec.md"),)
+    assert result.changes == ("spec.md",)
+    assert result.output_reference is None
 
 
 def test_marker_only_runtime_is_unavailable(tmp_path: Path) -> None:

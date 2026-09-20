@@ -57,6 +57,24 @@ SqliteTaskBoard(db_path, *, resolve_project_id: Callable[[str], str] | None = No
 - without a resolver, behavior is unchanged; and
 - the database is still opened read-only and never written.
 
+## Native board resolution contract
+
+`runtime.build_live_orchestrator()` resolves the native database as:
+
+1. `HERMES_KANBAN_DB` when set;
+2. `HERMES_HOME/kanban/boards/<operational-id>/kanban.db` (Hermes 0.21
+   per-board layout) for the first enrolled project whose file exists;
+3. `HERMES_HOME/kanban.db` (legacy single-board layout) otherwise.
+
+## Harness result contract
+
+Advisory result paths are sanitized instead of rejecting a finished run:
+
+- `artifacts` accept objects `{kind, relative_path}` or bare path strings;
+- artifact, change, and output-reference entries that are not normalized
+  relative paths inside the worktree are dropped; and
+- status, reason, questions, and resume context remain strict.
+
 ## Orchestration contract
 
 - `run_workflow` and `run_next_workflow` operate on canonical ids only.
