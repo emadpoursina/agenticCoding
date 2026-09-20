@@ -19,6 +19,7 @@ from .projects import (
 from .workspace import InvalidWorkspaceRootError, load_workspace_root
 
 CloneFn = Callable[[str, Path, str], None]
+CardCreateFn = Callable[[list[str]], None]
 
 
 class OnboardError(Exception):
@@ -52,6 +53,8 @@ class OnboardRequest:
     drafts_out: Path | None = None
     default_priority: str = "P2"
     dry_run: bool = False
+    create_cards: bool = False
+    allow_todo: bool = False
 
 
 @dataclass(frozen=True)
@@ -68,6 +71,8 @@ class OnboardResult:
     already_enrolled: bool
     drafts: tuple[Path, ...] = ()
     incomplete_drafts: int = 0
+    created_cards: tuple[str, ...] = ()
+    triaged_cards: int = 0
 
 
 def resolve_projects_db() -> Path:
@@ -136,6 +141,85 @@ def native_project_id(projects_db: Path, repository: str) -> str:
             + ", ".join(sorted(matches))
         )
     return next(iter(matches))
+
+
+def _run_hermes(args: list[str]) -> None:
+    """Run one upstream Hermes CLI command and fail closed on a nonzero exit."""
+    try:
+        result = subprocess.run(
+            ["hermes", *args], capture_output=True, text=True, check=False
+        )
+    except OSError as exc:
+        raise OnboardError(f"cannot run the hermes CLI: {exc}") from exc
+    if result.returncode != 0:
+        raise OnboardError(
+            f"hermes {' '.join(args[:2])} failed: {result.stderr.strip() or result.stdout.strip()}"
+        )
+
+
+def live_create_native_project(repository: str) -> None:
+    """Create the native Hermes project for one repository via the Hermes CLI."""
+    slug = _slug_key(repository.replace("/", "-"))
+    _run_hermes(["project", "create", slug, "--slug", slug])
+
+
+def live_create_card(args: list[str]) -> None:
+    """Create one native Kanban card via the Hermes CLI."""
+    _run_hermes(["kanban", "create", *args])
+
+
+def _draft_card_args(text: str) -> tuple[str, str]:
+    """Extract the card title and priority from one validated draft."""
+    title = ""
+    priority = ""
+    current = ""
+    for line in text.splitlines():
+        heading = _H2_HEADING.match(line)
+        if heading:
+            current = heading.group(1).strip()
+            continue
+        if not title and line.startswith("# "):
+            title = line[2:].strip()
+        elif current == "Priority" and not priority and line.strip():
+            priority = line.strip().upper()
+    return title, priority
+
+
+def create_cards_from_drafts(
+    drafts: tuple[Path, ...],
+    native_id: str,
+    *,
+    allow_todo: bool = False,
+    creator: CardCreateFn = live_create_card,
+) -> tuple[tuple[str, ...], int]:
+    """Create native cards from validated drafts; incomplete drafts triage or fail."""
+    created: list[str] = []
+    triaged = 0
+    for path in drafts:
+        try:
+            text = path.read_text(encoding="utf-8")
+        except (OSError, UnicodeError) as exc:
+            raise PrdDraftError(f"cannot read card draft: {path}") from exc
+        validate_card_draft(text)
+        title, priority = _draft_card_args(text)
+        todo = "TODO:" in text
+        if todo and not allow_todo:
+            raise PrdDraftError(
+                f"card draft '{title}' still has TODO sections; complete it or pass --allow-todo"
+            )
+        args = [
+            title,
+            "--project", native_id,
+            "--priority", priority,
+            "--body", text,
+            "--idempotency-key", _slugify(title),
+        ]
+        if todo:
+            args.append("--triage")
+            triaged += 1
+        creator(args)
+        created.append(title)
+    return tuple(created), triaged
 
 
 def _entry_lines(
@@ -307,6 +391,8 @@ def run_onboard(
     *,
     cloner: CloneFn = live_clone,
     projects_db: Path | None = None,
+    native_project_creator: Callable[[str], None] = live_create_native_project,
+    card_creator: CardCreateFn = live_create_card,
 ) -> OnboardResult:
     """Run the full fail-closed onboarding sequence for one repository."""
     repository = request.repository.strip()
@@ -343,7 +429,13 @@ def run_onboard(
             scaffolded=(),
             already_enrolled=True,
         )
-    native_id = native_project_id(projects_db or resolve_projects_db(), repository)
+    try:
+        native_id = native_project_id(projects_db or resolve_projects_db(), repository)
+    except UnknownNativeProjectError:
+        if request.dry_run:
+            raise
+        native_project_creator(repository)
+        native_id = native_project_id(projects_db or resolve_projects_db(), repository)
     clone_url = f"git@github.com:{repository}.git"
     cloned = False
     scaffolded: tuple[str, ...] = ()
@@ -383,6 +475,12 @@ def run_onboard(
             request.drafts_out or Path("scratch") / "card-drafts" / project_id,
             default_priority=request.default_priority,
         )
+    created_cards: tuple[str, ...] = ()
+    triaged = 0
+    if request.create_cards and drafts:
+        created_cards, triaged = create_cards_from_drafts(
+            drafts, native_id, allow_todo=request.allow_todo, creator=card_creator
+        )
     return OnboardResult(
         project_id=project_id,
         repository=repository,
@@ -394,6 +492,8 @@ def run_onboard(
         already_enrolled=False,
         drafts=drafts,
         incomplete_drafts=incomplete,
+        created_cards=created_cards,
+        triaged_cards=triaged,
     )
 
 

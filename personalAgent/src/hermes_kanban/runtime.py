@@ -228,6 +228,8 @@ def _parser() -> argparse.ArgumentParser:
     parser.add_argument("--drafts-out", type=Path)
     parser.add_argument("--default-priority", default="P2")
     parser.add_argument("--dry-run", action="store_true")
+    parser.add_argument("--create-cards", action="store_true")
+    parser.add_argument("--allow-todo", action="store_true")
     return parser
 
 
@@ -251,6 +253,13 @@ def _print_onboard_result(result: OnboardResult, *, dry_run: bool) -> None:
                 f"incomplete drafts: {result.incomplete_drafts} "
                 "(fill TODO sections before grooming)"
             )
+    if result.created_cards:
+        for title in result.created_cards:
+            print(f"card: {title}")
+        if result.triaged_cards:
+            print(f"triaged cards: {result.triaged_cards} (incomplete drafts parked in triage)")
+    elif result.drafts and not dry_run:
+        print("cards: not created (pass --create-cards to publish drafts to the board)")
     if dry_run:
         print("status: dry run — no changes were written")
 
@@ -267,13 +276,14 @@ def main(argv: list[str] | None = None) -> int:
     selectors = sum(bool(value) for value in (task_id, args.next_ready, args.resume))
     onboard_only = any(
         value is not None for value in (args.prd, args.drafts_out, args.project_id)
-    ) or args.default_priority != "P2" or args.dry_run
+    ) or args.default_priority != "P2" or args.dry_run or args.create_cards or args.allow_todo
     if args.onboard and (selectors or args.doctor or args.smoke or args.skip):
         print("--onboard cannot be combined with other workflow selectors", file=sys.stderr)
         return 2
     if onboard_only and not args.onboard:
         print(
-            "--prd/--drafts-out/--project-id/--default-priority/--dry-run require --onboard",
+            "--prd/--drafts-out/--project-id/--default-priority/--dry-run/"
+            "--create-cards/--allow-todo require --onboard",
             file=sys.stderr,
         )
         return 2
@@ -303,6 +313,8 @@ def main(argv: list[str] | None = None) -> int:
                     drafts_out=args.drafts_out,
                     default_priority=args.default_priority,
                     dry_run=args.dry_run,
+                    create_cards=args.create_cards,
+                    allow_todo=args.allow_todo,
                 ),
                 args.config,
             )

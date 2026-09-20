@@ -1,5 +1,19 @@
 # Changelog
 
+## [1.4.7] - 2026-09-20
+### Added
+- One-command onboarding: when no native `projects.db` project matches the
+  repository, `--onboard` now creates it through the upstream
+  `hermes project create` CLI (fail-closed on CLI failure; dry-run never
+  creates) and re-resolves the native id, so the operator no longer runs
+  any Hermes command manually.
+- `--create-cards`: publishes validated PRD drafts to the native board via
+  upstream `hermes kanban create` (`--project <native-id>`, `--priority`,
+  card body as the draft text, and an `--idempotency-key` slug per title
+  so re-runs do not duplicate cards). Drafts with TODO sections fail
+  closed unless `--allow-todo` parks them in triage (`--triage`) for the
+  specifier to flesh out and promote.
+
 ## [1.4.6] - 2026-09-20
 ### Added
 - `--onboard owner/name` on the one dispatcher: resolves the native

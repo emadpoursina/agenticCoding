@@ -96,17 +96,82 @@ def test_onboard_reuses_existing_matching_clone(tmp_path: Path) -> None:
     assert result.scaffolded == ("README.md", "AGENTS.md", ".ainative/project.yaml")
 
 
-def test_onboard_fails_closed_without_native_project(tmp_path: Path) -> None:
+def test_onboard_fails_closed_when_native_creation_fails(tmp_path: Path) -> None:
     workspace = tmp_path / "workspaces"
     config = write_config(tmp_path, workspace)
     projects_db = write_projects_db(tmp_path, [])
     before = config.read_text(encoding="utf-8")
 
-    with pytest.raises(OnboardError, match="create it in Hermes first"):
-        run_onboard(request(), config, cloner=fake_cloner, projects_db=projects_db)
+    def failing_creator(repository: str) -> None:
+        raise OnboardError("hermes project create failed")
+
+    with pytest.raises(OnboardError, match="hermes project create failed"):
+        run_onboard(
+            request(),
+            config,
+            cloner=fake_cloner,
+            projects_db=projects_db,
+            native_project_creator=failing_creator,
+        )
 
     assert config.read_text(encoding="utf-8") == before
     assert not (workspace / "new-project").exists()
+
+
+def test_onboard_fails_closed_on_ambiguous_native_project(tmp_path: Path) -> None:
+    workspace = tmp_path / "workspaces"
+    config = write_config(tmp_path, workspace)
+    projects_db = write_projects_db(
+        tmp_path,
+        [(NATIVE_ID, "owner/new-project"), (NATIVE_ID + "8", "owner-new-project")],
+    )
+
+    with pytest.raises(OnboardError, match="ambiguously"):
+        run_onboard(request(), config, cloner=fake_cloner, projects_db=projects_db)
+
+
+def test_onboard_creates_missing_native_project(tmp_path: Path) -> None:
+    workspace = tmp_path / "workspaces"
+    config = write_config(tmp_path, workspace)
+    projects_db = write_projects_db(tmp_path, [])
+    created: list[str] = []
+
+    def creator(repository: str) -> None:
+        created.append(repository)
+        connection = sqlite3.connect(projects_db)
+        connection.execute(
+            "insert into projects values (?, ?)", (NATIVE_ID, "owner-new-project")
+        )
+        connection.commit()
+        connection.close()
+
+    result = run_onboard(
+        request(),
+        config,
+        cloner=fake_cloner,
+        projects_db=projects_db,
+        native_project_creator=creator,
+    )
+
+    assert created == [REPOSITORY]
+    assert result.native_id == NATIVE_ID
+    registry = ProjectRegistry.from_config(config)
+    assert registry.canonical_id(NATIVE_ID) == "new-project"
+
+
+def test_onboard_dry_run_does_not_create_native_project(tmp_path: Path) -> None:
+    workspace = tmp_path / "workspaces"
+    config = write_config(tmp_path, workspace)
+    projects_db = write_projects_db(tmp_path, [])
+
+    with pytest.raises(OnboardError, match="no native Hermes project"):
+        run_onboard(
+            request(dry_run=True),
+            config,
+            cloner=fake_cloner,
+            projects_db=projects_db,
+            native_project_creator=lambda repository: pytest.fail("must not create"),
+        )
 
 
 def test_onboard_fails_closed_on_duplicate_native_alias(tmp_path: Path) -> None:
@@ -275,3 +340,73 @@ def test_card_draft_render_validate_round_trip() -> None:
 def test_card_draft_validation_rejects_invalid_shapes(text: str) -> None:
     with pytest.raises(PrdDraftError):
         validate_card_draft(text)
+
+
+def onboard_with_cards(tmp_path: Path, prd: str, **request_overrides: object):
+    workspace = tmp_path / "workspaces"
+    config = write_config(tmp_path, workspace)
+    projects_db = write_projects_db(tmp_path, [(NATIVE_ID, "owner/new-project")])
+    prd_path = tmp_path / "PRD.md"
+    prd_path.write_text(prd, encoding="utf-8")
+    created: list[list[str]] = []
+    result = run_onboard(
+        request(prd=prd_path, drafts_out=tmp_path / "drafts", **request_overrides),
+        config,
+        cloner=fake_cloner,
+        projects_db=projects_db,
+        card_creator=lambda args: created.append(args),
+    )
+    return result, created
+
+
+def test_create_cards_pushes_validated_drafts_to_the_board(tmp_path: Path) -> None:
+    result, created = onboard_with_cards(
+        tmp_path,
+        "## Ship login\n\nPriority: P1\n\nUsers cannot sign in.\n\n"
+        "Expected result: users can sign in.\n",
+        create_cards=True,
+    )
+
+    assert result.created_cards == ("Ship login",)
+    assert result.triaged_cards == 0
+    assert len(created) == 1
+    args = created[0]
+    assert args[0] == "Ship login"
+    assert args[args.index("--project") + 1] == NATIVE_ID
+    assert args[args.index("--priority") + 1] == "P1"
+    assert args[args.index("--idempotency-key") + 1] == "ship-login"
+    assert "--triage" not in args
+
+
+def test_create_cards_trips_incomplete_drafts_into_triage(tmp_path: Path) -> None:
+    result, created = onboard_with_cards(
+        tmp_path,
+        "## Dark mode\n\nUsers want a dark theme.\n",
+        create_cards=True,
+        allow_todo=True,
+    )
+
+    assert result.created_cards == ("Dark mode",)
+    assert result.triaged_cards == 1
+    args = created[0]
+    assert args[-1] == "--triage"
+
+
+def test_create_cards_fail_closed_on_todo_without_allow(tmp_path: Path) -> None:
+    with pytest.raises(PrdDraftError, match="TODO sections"):
+        onboard_with_cards(
+            tmp_path,
+            "## Dark mode\n\nUsers want a dark theme.\n",
+            create_cards=True,
+        )
+
+
+def test_without_create_cards_drafts_stay_files(tmp_path: Path) -> None:
+    result, created = onboard_with_cards(
+        tmp_path,
+        "## Ship login\n\nPriority: P1\n\nUsers cannot sign in.\n\n"
+        "Expected result: users can sign in.\n",
+    )
+
+    assert result.created_cards == ()
+    assert created == []
