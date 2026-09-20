@@ -16,6 +16,7 @@ from .executor import ModelService
 from .external_framework import load_harness_config
 from .github import GitHost, LiveGitHost
 from .messaging import HermesTelegramChannel, MessagingChannel
+from .onboard import OnboardRequest, OnboardResult, run_onboard
 from .orchestrator import (
     MemoryTaskBoard,
     MissingTaskBoardError,
@@ -206,7 +207,38 @@ def _parser() -> argparse.ArgumentParser:
     parser.add_argument("--repo")
     parser.add_argument("--skip", action="store_true")
     parser.add_argument("--doctor", action="store_true")
+    parser.add_argument("--onboard", metavar="OWNER/NAME")
+    parser.add_argument("--branch", default="main")
+    parser.add_argument("--project-id")
+    parser.add_argument("--prd", type=Path)
+    parser.add_argument("--drafts-out", type=Path)
+    parser.add_argument("--default-priority", default="P2")
+    parser.add_argument("--dry-run", action="store_true")
     return parser
+
+
+def _print_onboard_result(result: OnboardResult, *, dry_run: bool) -> None:
+    """Print a short operator summary for one onboarding run."""
+    print(f"onboard target: {result.repository}")
+    print(f"project_id: {result.project_id}")
+    print(f"native_id: {result.native_id}")
+    print(f"location: {result.location}")
+    print(f"default_branch: {result.default_branch}")
+    print(f"cloned: {'yes' if result.cloned else 'no'}")
+    scaffolded = ", ".join(result.scaffolded) if result.scaffolded else "(nothing new)"
+    print(f"scaffolded: {scaffolded}")
+    if result.already_enrolled:
+        print("status: already enrolled and ready")
+    if result.drafts:
+        for path in result.drafts:
+            print(f"draft: {path}")
+        if result.incomplete_drafts:
+            print(
+                f"incomplete drafts: {result.incomplete_drafts} "
+                "(fill TODO sections before grooming)"
+            )
+    if dry_run:
+        print("status: dry run — no changes were written")
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -219,6 +251,18 @@ def main(argv: list[str] | None = None) -> int:
         else args.task or (worker_task if not args.next_ready and not args.resume else None)
     )
     selectors = sum(bool(value) for value in (task_id, args.next_ready, args.resume))
+    onboard_only = any(
+        value is not None for value in (args.prd, args.drafts_out, args.project_id)
+    ) or args.default_priority != "P2" or args.dry_run
+    if args.onboard and (selectors or args.doctor or args.smoke or args.skip):
+        print("--onboard cannot be combined with other workflow selectors", file=sys.stderr)
+        return 2
+    if onboard_only and not args.onboard:
+        print(
+            "--prd/--drafts-out/--project-id/--default-priority/--dry-run require --onboard",
+            file=sys.stderr,
+        )
+        return 2
     if args.doctor and (selectors or args.smoke):
         print("--doctor cannot be combined with a workflow selector", file=sys.stderr)
         return 2
@@ -231,10 +275,25 @@ def main(argv: list[str] | None = None) -> int:
     if args.smoke and selectors != 1:
         print("smoke requires exactly one task or next-ready selector", file=sys.stderr)
         return 2
-    if not args.doctor and not args.smoke and selectors != 1:
+    if not args.onboard and not args.doctor and not args.smoke and selectors != 1:
         print("choose exactly one task, next-ready, resume, or smoke mode", file=sys.stderr)
         return 2
     try:
+        if args.onboard:
+            result = run_onboard(
+                OnboardRequest(
+                    repository=args.onboard,
+                    branch=args.branch,
+                    project_id=args.project_id,
+                    prd=args.prd,
+                    drafts_out=args.drafts_out,
+                    default_priority=args.default_priority,
+                    dry_run=args.dry_run,
+                ),
+                args.config,
+            )
+            _print_onboard_result(result, dry_run=args.dry_run)
+            return 0
         orchestrator = build_live_orchestrator(args.config)
         if args.doctor:
             diagnostic = getattr(orchestrator, "startup_diagnostic", None)

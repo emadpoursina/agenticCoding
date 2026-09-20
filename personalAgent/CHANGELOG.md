@@ -1,5 +1,20 @@
 # Changelog
 
+## [1.4.6] - 2026-09-20
+### Added
+- `--onboard owner/name` on the one dispatcher: resolves the native
+  `projects.db` id by slug (read-only, `HERMES_PROJECTS_DB` override),
+  clones the repository into `workspace.root/<id>`, scaffolds `README.md`,
+  `AGENTS.md`, and `.ainative/project.yaml` without overwriting, then
+  appends and revalidates a `config/default.yaml` project entry
+  (restore-on-failure). Idempotent for already-enrolled projects and
+  supports `--branch`, `--project-id`, and `--dry-run`.
+- PRD card drafting behind `--prd` (with `--drafts-out`,
+  `--default-priority`): splits PRD `##` sections into validated card
+  drafts with the exact native headings (`## Priority` P0–P3,
+  `## Problem`, `## Expected Result`); the bridge still never writes
+  `kanban.db` — drafts are paste-ready for Hermes grooming.
+
 ## [1.4.5] - 2026-09-17
 ### Added
 - Declared native Hermes project ids per enrolled project via
