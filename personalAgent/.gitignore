@@ -1,0 +1,36 @@
+# OS
+.DS_Store
+
+# Env / secrets
+.env
+.env.*
+!.env.example
+
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+.venv/
+venv/
+*.egg-info/
+dist/
+build/
+
+# Local Hermes home must never be committed
+.hermes/
+
+# Task worktrees (runtime)
+workspaces/
+
+# Engineering OS — raw capture (promote, then delete)
+scratch/*
+!scratch/README.md
+
+# Personal AiNative symlinks (machine-local)
+.cursor/rules/personal
+docs/agents
+docs/systems

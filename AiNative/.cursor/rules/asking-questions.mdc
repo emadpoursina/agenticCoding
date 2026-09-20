@@ -1,0 +1,12 @@
+---
+description: How AI agents ask questions and make suggestions in AiNative
+alwaysApply: true
+---
+
+# AiNative — Asking Questions and Suggesting
+
+When asking the user a question or making a suggestion:
+
+- Always include at least 4 options alongside the question
+- Always recommend one of the options
+- Put the recommended option first and mark it with `(Recommended)`

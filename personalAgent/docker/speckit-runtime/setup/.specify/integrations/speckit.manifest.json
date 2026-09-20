@@ -1,0 +1,6 @@
+{
+  "provider_id": "github-spec-kit",
+  "version": "1.0.1",
+  "revision": "build-time-placeholder",
+  "lifecycle_steps": ["plan", "tasks", "implement"]
+}

@@ -1,0 +1,11 @@
+name: fixture-project
+description: Disposable project registry fixture
+repository: github.com/example/fixture
+default_branch: main
+
+workflow:
+  default: piv
+
+validation:
+  commands:
+    - uv run pytest

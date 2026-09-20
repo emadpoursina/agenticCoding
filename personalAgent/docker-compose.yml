@@ -1,0 +1,60 @@
+# Hermes Kanban control plane. Uses hermes-agent:local.
+# Rebuild that tag from official Hermes (do not docker-commit a mixed tree):
+#
+#   docker build -t hermes-agent:local -f docker/Dockerfile .
+#   docker compose up -d
+#
+#   cp .env.example .env
+#   mkdir -p "$WORKSPACE_ROOT" "$HERMES_HOME"
+
+services:
+  hermes-agent:
+    image: hermes-agent:local
+    container_name: hermes-personal-agent
+    restart: unless-stopped
+    # Bridge + published ports so the Hermes web UI is reachable on macOS
+    # Docker Desktop. Official Hermes Linux compose uses host networking,
+    # which does not expose container ports on the Mac.
+    ports:
+      - "9119:9119"
+    # Telegram over IPv6 from Docker Desktop often times out or returns
+    # a bad AAAA. Pin the IPv4 API host so polling can connect.
+    extra_hosts:
+      - "api.telegram.org:149.154.166.110"
+    env_file:
+      - .env
+    environment:
+      - HERMES_UID=${HERMES_UID:-10000}
+      - HERMES_GID=${HERMES_GID:-20}
+      # .env uses HERMES_HOME as the host-side bind source; Hermes must use
+      # the mounted container path so Kanban SQLite state survives restarts.
+      - HERMES_HOME=/opt/data
+      - AINATIVE_PATH=/ainative
+      - HERMES_PI_RUNTIME=/opt/pi-runtime
+      - PI_CODING_AGENT_DIR=/opt/data/pi-agent
+      - WORKSPACE_ROOT=/workspaces
+      - OPENAI_BASE_URL=${OPENAI_BASE_URL:-}
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      # Host/.env interpolation only. Empty when unset so boot skips gh login.
+      # Never put a real token in the repo or image.
+      - GH_TOKEN=${GH_TOKEN:-}
+      - GH_CONFIG_DIR=/opt/data/.config/gh
+      - SSH_AUTH_SOCK=/run/host-services/ssh-auth.sock
+      - HERMES_DASHBOARD=${HERMES_DASHBOARD:-1}
+      - HERMES_DASHBOARD_HOST=${HERMES_DASHBOARD_HOST:-0.0.0.0}
+      - HERMES_DASHBOARD_PORT=${HERMES_DASHBOARD_PORT:-9119}
+      - PYTHONPATH=/opt/personal-agent/src
+    volumes:
+      - ${HERMES_HOME}:/opt/data
+      - .:/opt/personal-agent:ro
+      - hermes-overlay:/var/lib/hermes-kanban
+      - ${AINATIVE_PATH}:/ainative:ro
+      - ${WORKSPACE_ROOT}:/workspaces
+      # Docker Desktop provides this stable proxy; Linux may set
+      # DOCKER_SSH_AUTH_SOCK in .env. Avoid rotating macOS launchd sockets.
+      # Never copy private keys into the image.
+      - ${DOCKER_SSH_AUTH_SOCK:-/run/host-services/ssh-auth.sock}:/run/host-services/ssh-auth.sock
+    command: ["gateway", "run"]
+
+volumes:
+  hermes-overlay:

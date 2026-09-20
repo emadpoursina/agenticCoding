@@ -1,0 +1,18 @@
+# Copy to $HERMES_HOME/config.yaml and edit. Model auth lives here, not in git.
+#
+#   mkdir -p ~/.hermes/personal-agent
+#   cp config/hermes.yaml.example ~/.hermes/personal-agent/config.yaml
+
+model:
+  default: deepseek/deepseek-v4-flash
+  provider: openrouter
+  # Optional OpenAI-compatible endpoint (9router, etc.). Uncomment and set
+  # api key via Hermes env / $HERMES_HOME/.env — never commit keys.
+  # provider: openai
+  # base_url: http://host.docker.internal:20128/v1
+  api_mode: chat_completions
+
+agent:
+  max_turns: 150
+  verbose: false
+  reasoning_effort: medium

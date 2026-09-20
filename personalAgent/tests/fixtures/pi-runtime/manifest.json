@@ -1,0 +1,6 @@
+{
+  "adapter_id": "pi",
+  "version": "1.0.0",
+  "revision": "fixture-pi-revision-1",
+  "executable": "runtime.py"
+}

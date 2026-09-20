@@ -1,0 +1,17 @@
+---
+description: Enforce the PIV loop (Plan, Implementation, Validation) before multi-file implementation
+alwaysApply: true
+---
+
+# PIV gate
+
+For any task touching 2 or more files, run the PIV loop — see `docs/systems/agentic-coding.md`:
+
+1. **Plan** — follow [agentic-coding.md](docs/systems/agentic-coding.md). Before writing the plan: run the [scout](docs/agents/scout/) agent (System Understanding Brief + on-demand Repo Q&A on a cheap Tier 3 model) so the planner does not index the repo itself. Then assess complexity and ask **5 / 10 / 20** multiple-choice questions (**exactly 4 options each**) and recommend one answer per question; wait for confirmation. Before proposing new code: check **library** (worth adopting?) → **in-repo reuse** → **build from scratch**; document the choice in the execution plan. The written plan must include: execution plan, **acceptance criteria**, **validation layer** (for critic/tester), **test flows** (user-facing steps), and commit plan. The planner then **automatically runs the [plan-reviewer](docs/agents/plan-reviewer/) gate** (same model as the planner) and fixes/rewrites on REJECT until ACCEPT. Present the plan and wait for confirmation before implementing.
+2. **Implementation** — execute one work item at a time; small atomic commits.
+3. **Validation** — run the [critic](docs/agents/critic/) agent (adversarial review of plan + implementation), then the [tester](docs/agents/tester/) agent (execute the Plan's test flows) in a **new chat** with a **different model** than Plan or Implementation. See [validation-layer.md](docs/systems/validation-layer.md). Loop back to Implementation on fixable failures, or to Plan on a misunderstanding.
+4. **PR review** — only after Validation passes, run the [pr-reviewer](docs/agents/pr-reviewer/) agent as the final gate. A surprise at PR review means the Validation layer missed something.
+
+Do not write code before the Plan is confirmed. If the task is ambiguous, ask one clarifying question before planning.
+
+Single-file tasks and typo/config fixes are exempt.

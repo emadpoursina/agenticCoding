@@ -1,0 +1,168 @@
+"""Hermes Kanban orchestration package."""
+
+# Public re-exports are intentionally imported for package consumers.
+# ruff: noqa: F401
+
+from .ainative import (
+    AgentDefinition,
+    AgentDependency,
+    AiNativeAdapter,
+    AiNativeAdapterError,
+    AiNativeSettings,
+    ExecutionContext,
+    IncompleteAgentError,
+    InvalidMethodologyError,
+    ReadOnlyError,
+    Revision,
+    RevisionError,
+    UnknownAgentError,
+    UnresolvedDependencyError,
+    load_ainative_settings,
+)
+from .board import SqliteTaskBoard, SqliteTaskBoardError
+from .executor import (
+    AgentExecutor,
+    AssembledContext,
+    ExecutePayload,
+    ExecuteResult,
+    ExecutionSettings,
+    ExecutorError,
+    InvalidExecutePayloadError,
+    MissingModelAssignmentError,
+    MissingModelCredentialsError,
+    MissingWorkspaceError,
+    ModelResponse,
+    ModelService,
+    UnknownRoleError,
+    UnsafeWorkspaceWriteError,
+)
+from .external_framework import (
+    PLAYBOOK_ID,
+    HarnessAdapter,
+    HarnessArtifact,
+    HarnessConfiguration,
+    HarnessConfigurationError,
+    HarnessError,
+    HarnessResult,
+    HarnessRuntime,
+    HarnessRuntimeError,
+    HarnessStartRequest,
+    HarnessValidationError,
+    RepositoryContext,
+    ResumeContext,
+    SafetyLimits,
+    TaskContext,
+    coerce_timeout_seconds,
+    harness_result_from_dict,
+    load_harness_config,
+    load_harness_runtime,
+    task_context_from_board,
+    validate_harness_request,
+    validate_harness_result,
+)
+from .github import (
+    ForbiddenGitHubActionError,
+    GitHost,
+    LiveGitHost,
+    MemoryGitHost,
+    PullRequestIdentity,
+)
+from .messaging import (
+    HermesTelegramChannel,
+    InboundResult,
+    MemoryMessagingChannel,
+    MessagingChannel,
+    SendRecord,
+    SendStatus,
+    format_blockers,
+    format_projects,
+    format_prs,
+    format_status,
+    format_tasks,
+    handle_inbound,
+    parse_option_letter,
+)
+from .orchestrator import (
+    BoardTask,
+    DecisionBrief,
+    DecisionOption,
+    DiagnosticReport,
+    IncompleteTaskError,
+    IneligibleColumnError,
+    InvalidDecisionError,
+    InvalidPriorityError,
+    MemoryTaskBoard,
+    MissingTaskBoardError,
+    NoReadyTaskError,
+    OrchestratorError,
+    PivOrchestrator,
+    ResumeNotParkedError,
+    StepRecord,
+    TaskBoard,
+    TaskProjectMismatchError,
+    UnknownTaskError,
+    UnmetDependenciesError,
+    WorkflowBusyError,
+    WorkflowRecord,
+)
+from .persist import (
+    InvalidOverlayDirError,
+    OverlaySnapshot,
+    SlotHeldError,
+    alive_is_fresh,
+    read_overlay,
+    touch_alive,
+    write_overlay,
+)
+from .pi import PiHarnessAdapter, PiRunRequest, PiRunResponse, PiSdkPort
+from .projects import (
+    ContextFile,
+    DisabledProjectError,
+    InvalidProjectConfigError,
+    InvalidProjectLocationError,
+    MalformedManifestError,
+    MissingProjectConfigurationError,
+    ProjectContext,
+    ProjectManifest,
+    ProjectRecord,
+    ProjectRegistry,
+    ProjectRegistryError,
+    UnknownProjectError,
+    UnsafePathError,
+    load_project_entries,
+)
+from .runtime import build_live_orchestrator, main
+from .startup_context import (
+    CONTEXT_ROLES,
+    PRECEDENCE_ORDER,
+    ContextPrecedenceLayer,
+    LoadedStartupContext,
+    StartupContextError,
+    StartupContextLoadError,
+    StartupContextRegistration,
+    StartupContextSnapshot,
+    StartupDiagnostic,
+    load_startup_context,
+    resolve_context_precedence,
+    resolve_precedence,
+)
+from .workspace import (
+    CorrelationIdentity,
+    DirtyWorkspaceError,
+    GitRefreshError,
+    InvalidProjectRepositoryError,
+    InvalidTaskIdError,
+    InvalidWorkspaceError,
+    InvalidWorkspaceRootError,
+    MissingDefaultBranchError,
+    PreparedWorkspace,
+    ProtectedBranchError,
+    WorkspaceError,
+    WorkspaceInspection,
+    WorkspaceManager,
+    load_workspace_root,
+)
+
+__version__ = "1.4.5"
+
+__all__ = [name for name in globals() if not name.startswith("_")]

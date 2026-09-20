@@ -1,0 +1,39 @@
+---
+description: Core AI workflow, code style, and constraints for AiNative
+alwaysApply: true
+---
+
+# AiNative — AI Rules
+
+## Workflow
+
+- Always follow: **PIV — Plan → Implementation → Validation** — see `docs/systems/agentic-coding.md`. Validation uses the critic and tester agents.
+- Do not write code until the plan is confirmed if the change touches 2+ files
+- For ambiguous tasks: ask, do not guess
+- Commit style: Conventional Commits — short messages (see Commit-style rule)
+- Capture raw notes in `scratch/` during work; promote on Friday review
+
+## Doc and Code Rules
+
+- One canonical location per topic — do not duplicate content across layers
+- After making changes, update related documentation if it exists
+- Match existing naming, folder structure, and markdown style exactly
+- Never rewrite an entire file to change one section — surgical edits only
+- Remove AI-style comments and filler prose before finishing
+- When editing TypeScript or config: strict mode, no `any`; use Zod for external input validation when applicable
+- After hard bugs: append to `docs/records/debugging/<domain>/` using `docs/records/debugging/template.md`
+- Significant decisions: new ADR in `docs/records/decisions/` using `docs/records/decisions/template.md`
+
+## Constraints
+
+- No new external dependencies without explicit approval
+- Always output SQL / migration for manual review before suggesting `db push` or `migrate`
+- Terminal commands: check mentally before suggesting — no destructive defaults
+- Never expose secrets, tokens, or credentials in output
+- Never commit `scratch/` contents
+
+## Out of Scope
+
+- Do not modify committed migration files directly — create new migrations
+- Do not change Docker network config in shared infrastructure without explicit approval
+- Do not introduce team-specific URLs, approvers, or board links into this repo

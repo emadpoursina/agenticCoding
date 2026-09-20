@@ -1,0 +1,2 @@
+#!/bin/sh
+exec /opt/pi/bin/pi --provider 9router --model DeepSeekFlash --no-session "$@"

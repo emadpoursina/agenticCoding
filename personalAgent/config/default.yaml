@@ -1,0 +1,76 @@
+# Operational defaults. Host-specific paths belong in .env / Docker Compose,
+# not in application code.
+
+context:
+  hermes_instructions: /opt/personal-agent/AGENTS.md
+  system: /opt/data/hermes-context/SYSTEM.md
+  user: /opt/data/hermes-context/USER.md
+
+projects:
+  - id: ich-mag-dich
+    name: emadpoursina/ich-mag-dich
+    repository: github.com/emadpoursina/ich-mag-dich
+    location: /workspaces/ich-mag-dich
+    default_branch: master
+    # Native Hermes projects.db ids that resolve to this operational id.
+    # Read once with: sqlite3 /opt/data/projects.db "select id, slug from projects;"
+    kanban_project_ids:
+      - p_f1577341
+
+ainative:
+  path: /ainative
+  read_only: true
+
+workspace:
+  root: /workspaces
+
+github:
+  auth: ssh
+  allow_push: true
+  allow_pr: true
+  allow_merge: false
+
+execution:
+  max_retries: 3
+  max_concurrent_tasks: 1
+  overlay_dir: /var/lib/hermes-kanban
+
+workflow:
+  default: piv
+
+harness:
+  adapters:
+    - id: pi
+      active: true
+      runtime_path_env: HERMES_PI_RUNTIME
+      # The mounted manifest names the container-visible executable.
+  playbook: speckit-orchestrate
+  # Provider-neutral profile name; Pi resolves it inside its own runtime.
+  model_profile: default
+  timeout_seconds: 1800
+
+# Optional AiNative role → agent map for discovery/validation.
+# External Spec Kit plan/tasks/implement never look up planner or builder.
+# roles:
+#   discovery: scout
+#   validation: tester
+
+learning:
+  enabled: true
+  auto_modify_ainative: false
+
+notifications:
+  telegram:
+    enabled: true
+
+model:
+  # Primary: configure provider/model inside Hermes (HERMES_HOME/config.yaml).
+  # Optional OpenAI-compatible override via OPENAI_BASE_URL + OPENAI_API_KEY.
+  # Role model ids are operator-configured; leave unset until assigned.
+  # roles:
+  #   planning:
+  #   implementation:
+  #   validation:
+  openai_compatible:
+    base_url_env: OPENAI_BASE_URL
+    api_key_env: OPENAI_API_KEY

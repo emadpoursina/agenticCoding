@@ -1,0 +1,27 @@
+---
+description: Script writing - safe defaults for any script (Global)
+alwaysApply: true
+globs:
+  - "**/*.sh"
+  - "**/*.bash"
+  - "**/*.zsh"
+  - "**/*.fish"
+  - "**/*.ps1"
+  - "**/*.py"
+  - "**/*.js"
+  - "**/*.mjs"
+  - "**/*.cjs"
+  - "**/*.ts"
+  - "**/*.mts"
+  - "**/*.cts"
+---
+
+# Script writing
+
+Applies to any script (shell, Python, Node, ts-node) the agent writes or edits.
+
+- Safe guard: validate inputs and preconditions before mutating anything
+- Default to dry-run; apply changes only with an explicit `--force` flag
+- One separate flag (e.g. `--prod`) gates production-only changes
+- Expose individual actions behind their own flags so partial runs are possible
+- Default behavior merges / updates existing state — never overwrite unless an explicit `--overwrite` flag is passed

@@ -1,0 +1,23 @@
+{
+  "providers": {
+    "9router": {
+      "baseUrl": "http://host.docker.internal:20128/v1",
+      "api": "openai-completions",
+      "apiKey": "$OPENAI_API_KEY",
+      "authHeader": true,
+      "compat": {
+        "supportsDeveloperRole": false,
+        "supportsReasoningEffort": false
+      },
+      "models": [
+        {
+          "id": "DeepSeekFlash",
+          "name": "DeepSeekFlash",
+          "input": ["text"],
+          "contextWindow": 128000,
+          "maxTokens": 8192
+        }
+      ]
+    }
+  }
+}

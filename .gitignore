@@ -14,8 +14,7 @@ build/
 *.egg-info/
 .idea/
 .vscode/
-AiNative/
-personalAgent/
+*.swp
 
 # Working notes (do not commit)
 scratch/*

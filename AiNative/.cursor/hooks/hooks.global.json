@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "hooks": {
+    "stop": [
+      {
+        "command": "./hooks/agent-alert.sh stop",
+        "timeout": 5
+      }
+    ],
+    "preToolUse": [
+      {
+        "command": "./hooks/agent-alert.sh ask",
+        "matcher": "^(AskQuestion|SwitchMode)$",
+        "timeout": 5
+      }
+    ]
+  }
+}

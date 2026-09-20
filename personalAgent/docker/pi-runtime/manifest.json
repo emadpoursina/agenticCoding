@@ -1,0 +1,6 @@
+{
+  "adapter_id": "pi",
+  "version": "1.0.0",
+  "revision": "configured-pi-runtime",
+  "executable": "pi"
+}

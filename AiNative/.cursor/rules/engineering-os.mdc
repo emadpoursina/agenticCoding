@@ -1,0 +1,21 @@
+---
+description: Wire Cursor to the Engineering Operating System docs in this repo
+alwaysApply: true
+---
+
+When working in AiNative or repos using this OS:
+
+- Architecture spec: `ENGINEERING-OS.md`
+- Agentic system (Harness, Model, Context, Tools, Agents): `docs/systems/agentic-system.md`
+- Harness setup (Tmux + Cursor CLI): `docs/knowledge/setup/harness.md`
+- PR review: follow `docs/systems/pr-review-system.md`; prompts in `docs/agents/pr-reviewer/` — run Phase 1.5 architecture compliance for feature PRs in existing subsystems
+- Task grooming / meetings: `docs/agents/task-groomer/`
+- Multi-file features: follow PIV — `docs/systems/agentic-coding.md`. Validation via `docs/agents/critic/` and `docs/agents/tester/`
+- Multi-client releases: `docs/systems/client-compatibility-system.md` — pair with release management; run pre-tag check and post-deploy monitor
+- Commands and setup: `docs/knowledge/` — navigate by domain, do not guess
+- Local shared databases (Docker): `docs/knowledge/setup/local-shared-services.md` — compose at `/Users/emad/docker-infrastructure/docker-compose.yml`
+- After hard bugs: append to `docs/records/debugging/<domain>/` using `docs/records/debugging/template.md`
+- Significant decisions: new ADR in `docs/records/decisions/` using `docs/records/decisions/template.md`
+- Raw capture during work: write to `scratch/` (gitignored); promote on Friday review
+
+Commits: Conventional Commits, short messages (see Commit-style rule).
