@@ -32,6 +32,7 @@ REFUSED_PLAYBOOKS = frozenset({PLAYBOOK_ID})
 
 # Canonical loop states (AiNative/docs/systems/feature-loop.md). The graph
 # definition is linked, not copied; Hermes only stores these id strings.
+# `change` and `job` are short card paths; the feature graph is unchanged.
 AGENT_LOOP_STATES = (
     "ready",
     "specify",
@@ -44,6 +45,8 @@ AGENT_LOOP_STATES = (
     "critic",
     "tester",
     "pr-review",
+    "change",
+    "job",
 )
 HUMAN_STATES = ("confirm", "uat")
 PARENT_STATES = ("publish",)
@@ -54,15 +57,19 @@ STATE_KINDS: dict[str, str] = {
     **{state: "parent" for state in PARENT_STATES},
 }
 # AiNative agent states resolve to docs/agents/<name>/; the rest are
-# Spec Kit skills in the task worktree.
+# Spec Kit skills in the task worktree. `change` resolves like critic;
+# `job` resolves dynamically to one allowlisted skill and is never Spec Kit.
 AINATIVE_STEP_AGENTS = {
     "ready": "ready",
     "critic": "critic",
     "tester": "tester",
     "pr-review": "pr-reviewer",
+    "change": "change",
 }
 SPEC_KIT_STATES = tuple(
-    state for state in AGENT_LOOP_STATES if state not in AINATIVE_STEP_AGENTS
+    state
+    for state in AGENT_LOOP_STATES
+    if state not in AINATIVE_STEP_AGENTS and state != "job"
 )
 
 RESULT_STATUSES = frozenset({"completed", "failed", "needs_human", "stuck"})
@@ -360,6 +367,8 @@ REQUIRED_REPORT_FIELDS: dict[str, tuple[str, ...]] = {
     "critic": ("VERDICT", "SUMMARY"),
     "tester": ("VERDICT", "SUMMARY"),
     "pr-review": ("VERDICT", "SUMMARY"),
+    "change": ("STATUS", "SCOPE", "SUMMARY"),
+    "job": ("STATUS", "SCOPE", "SUMMARY"),
 }
 _REPORT_VALUE_SETS: dict[str, frozenset[str]] = {
     "READY": frozenset({"ok", "blocked"}),
@@ -367,6 +376,7 @@ _REPORT_VALUE_SETS: dict[str, frozenset[str]] = {
     "ANALYZE": frozenset({"yes", "no"}),
     "CONVERGE_OUTCOME": frozenset({"converged", "tasks_appended", "blocked"}),
     "VERDICT": frozenset({"PASS", "FAIL"}),
+    "SCOPE": frozenset({"ok", "feature"}),
 }
 
 

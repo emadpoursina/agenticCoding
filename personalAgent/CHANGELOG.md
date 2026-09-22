@@ -1,5 +1,25 @@
 # Changelog
 
+## [1.6.0] - 2026-09-22
+### Added
+- Card paths: the dispatcher reads `## Path` (`feature`, `change`, `job`;
+  missing means `feature`) and `## Skill` (required only for `job`,
+  allowlisted to `prd-writer` and `project-bootstrapper`) onto the task.
+  Unknown paths or job skills fail closed before Pi starts.
+- `change` path: `ready` → one `change` worker → `tester` → `COMPLETED`
+  with no UAT, pr-review, or publish. `SCOPE: feature` parks `BLOCKED`.
+- `job` path: `ready` → one allowlisted skill worker → `COMPLETED` with
+  no publish. `needs_human` parks and resumes in a new job session, same
+  as clarify. `SCOPE: feature` parks `BLOCKED`.
+- New AiNative `change` agent (`docs/agents/change/`); `ready` skips the
+  Spec Kit layout check for `change` and `job` cards (git and branch
+  preflight only).
+- Hermetic fixture-Pi coverage for both short paths, `SCOPE` stop, and
+  fail-closed validation (no network, no publish).
+### Changed
+- `WorkflowRecord` persists `card_path` (old overlays default to `feature`)
+  so a resume cannot switch graphs. Ready inputs carry `card_path`.
+
 ## [1.5.0] - 2026-09-21
 ### Changed
 - Live execution is now the Hermes-owned **feature loop** state machine

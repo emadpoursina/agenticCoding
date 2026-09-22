@@ -646,16 +646,28 @@ class AgentExecutor:
             raise HarnessValidationError(str(exc)) from exc
         # The tester state carries the declared validation_commands as
         # inputs; Hermes does not execute them itself (FR-008).
+        card_path = getattr(task, "card_path", "feature") or "feature"
+        card_skill = getattr(task, "card_skill", "") or ""
         inputs: dict[str, object] = {
             "task_id": task_id,
             "task_problem": task.problem,
             "expected_result": task.expected_result,
             "acceptance_criteria": task.acceptance_criteria,
             "priority": task.priority,
+            "card_path": card_path,
         }
         if step_id == "tester":
             inputs["validation_commands"] = tuple(project_context.validation_commands)
-        if step_id in AINATIVE_STEP_AGENTS:
+        if step_id == "job":
+            from .orchestrator import _JOB_SKILLS
+
+            skill = card_skill.strip().lower()
+            if skill not in _JOB_SKILLS:
+                raise HarnessValidationError(f"unknown job skill: {card_skill}")
+            self.adapter.get_agent(skill)  # fail closed on an unresolvable agent
+            skill_path = f"docs/agents/{skill}/"
+            inputs["job_skill"] = skill
+        elif step_id in AINATIVE_STEP_AGENTS:
             agent_name = AINATIVE_STEP_AGENTS[step_id]
             self.adapter.get_agent(agent_name)  # fail closed on an unresolvable agent
             skill_path = f"docs/agents/{agent_name}/"

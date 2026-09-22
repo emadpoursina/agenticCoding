@@ -127,9 +127,29 @@ publishes.
 Do not copy this graph into Hermes. Do not rebuild Telegram or a second
 task DB. Park in-flight 013 whole-playbook overlays for a human.
 
+## Card paths
+
+After a project is enrolled, every unit of work is a Kanban card. The card
+names its path. Hermes does not infer the path from the title or body.
+A missing path is `feature`.
+
+| Path | When | Graph |
+|---|---|---|
+| `feature` | Product work that needs a spec, a plan, and review | The graph below |
+| `change` | A small code edit already specified by the card | `ready` → one worker → `tester` |
+| `job` | Work that is not a code change (write a PRD, bootstrap from a PRD) | One worker for the named skill. It may park for a human. It does not enter the feature graph and it does not publish |
+
+A `change` or `job` worker that finds the card is really a feature stops
+and reports that. It does not promote itself onto the feature graph.
+
+`change` does not run specify, clarify, confirm, plan, tasks, analyze,
+implement/converge, critic, UAT, pr-review, or publish. `tester` runs the
+project `validation_commands`. `ready` on a `change` is branch preflight
+only.
+
 ## Canonical state graph
 
-Orchestrator-specific **edges** (not extra loops):
+This graph is the `feature` path. Orchestrator-specific **edges** (not extra loops):
 
 - **Hermes:** pick Kanban card, isolate worktree, Telegram for human
   gates, GitHub after pr-review.
@@ -207,6 +227,8 @@ Human questions are not stuck; they are `confirm` / clarify relay / `uat`.
 - One Pi identity `speckit-orchestrate` that runs the whole Spec Kit
   playbook (Hermes 013). The Cursor **command** `/speckit-orchestrate` is
   the parent, not that playbook.
+- A classifier that picks `feature` / `change` / `job` from card prose.
+  The path is a field on the card.
 - Parent implementing Spec Kit stages in-process (Cursor or Hermes).
 - `/pi-harness` owning skip/confirm/converge looping.
 - Converge substituting for critic/tester/UAT.

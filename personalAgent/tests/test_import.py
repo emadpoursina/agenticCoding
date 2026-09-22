@@ -1,7 +1,7 @@
 def test_package_imports():
     import hermes_kanban
 
-    assert hermes_kanban.__version__ == "1.5.0"
+    assert hermes_kanban.__version__ == "1.6.0"
     assert hermes_kanban.AgentExecutor
     assert hermes_kanban.ExecutionSettings
     assert hermes_kanban.ExecuteResult

@@ -22,7 +22,10 @@ UAT → pr-review → publish. Do not write spec content, `specs/`, `spec.md`, o
    the default → create/switch to the slug. Any other branch → `READY:
    blocked` with the fix in `FIXES`.
 3. Check the Spec Kit layout (`.specify/` and the speckit skill files the
-   loop needs in this environment).
+   loop needs in this environment) — except when `card_path` is `change`
+   or `job`: skip the Spec Kit layout check and do git and branch
+   preflight only. A `feature` card (or missing `card_path`) keeps the
+   full check.
 4. Return the compact report: `READY`, `FLOW_ID`, `BRANCH`, `CHECKS`,
    `FIXES`.
 

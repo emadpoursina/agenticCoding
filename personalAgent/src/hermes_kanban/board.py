@@ -147,6 +147,9 @@ class SqliteTaskBoard:
         if priority not in _PRIORITIES:
             priority = priority or ""
         status = str(row["status"] or "").strip().lower()
+        raw_path = body.get("Path", "").strip().lower()
+        card_path = raw_path or "feature"
+        card_skill = body.get("Skill", "").strip().lower()
         return BoardTask(
             id=str(row["id"]),
             project_id=self._canonical_project_id(str(row["project_id"] or "").strip()),
@@ -162,6 +165,8 @@ class SqliteTaskBoard:
             created_at=_created_at(row["created_at"]),
             complete=status in {"done", "archived"},
             column=status,
+            card_path=card_path,
+            card_skill=card_skill,
         )
 
     def get(self, task_id: str) -> BoardTask:

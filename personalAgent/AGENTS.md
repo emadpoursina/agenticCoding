@@ -22,6 +22,8 @@ the graph into Hermes.
 - Run the feature loop as a Hermes-owned state machine over the canonical
   graph: `ready → specify → clarify → confirm → plan → tasks → [analyze] →
   implement ↔ converge → critic → tester → uat → pr-review → publish`.
+- The dispatcher reads `## Path` on the card (`feature`/`change`/`job`);
+  see Card paths in `/ainative/docs/systems/feature-loop.md`.
 - Start **one new Pi session per agent state**; each session knows only
   that step. Check the step's compact report, then advance, retry (3
   attempts per state), or park for a human.

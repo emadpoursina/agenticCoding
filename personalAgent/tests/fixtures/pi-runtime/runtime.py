@@ -40,6 +40,9 @@ class PiFixtureRuntime:
         stuck: bool = False,
         timeout: bool = False,
         missing_artifact: bool = False,
+        change_scope_feature: bool = False,
+        job_scope_feature: bool = False,
+        job_question: bool = False,
     ) -> None:
         self.needs_analysis = needs_analysis
         self.question = question
@@ -53,6 +56,9 @@ class PiFixtureRuntime:
         self.stuck = stuck
         self.timeout = timeout
         self.missing_artifact = missing_artifact
+        self.change_scope_feature = change_scope_feature
+        self.job_scope_feature = job_scope_feature
+        self.job_question = job_question
         self.calls: list[PiRunRequest] = []
         self.order: list[str] = []
         self.sessions: list[str] = []
@@ -288,6 +294,42 @@ class PiFixtureRuntime:
                 report=_report(
                     VERDICT=verdict,
                     SUMMARY="fixture pr-review report",
+                ),
+            )
+        if step == "change":
+            scope = "feature" if self.change_scope_feature else "ok"
+            return PiRunResponse(
+                "completed",
+                "fixture change edit finished",
+                report=_report(
+                    STATUS="ok",
+                    SCOPE=scope,
+                    SUMMARY="fixture change report",
+                ),
+            )
+        if step == "job":
+            if self.job_question and not (
+                request.resume_context is not None and request.resume_context.answers
+            ):
+                return PiRunResponse(
+                    "needs_human",
+                    "fixture job needs a person",
+                    next_action="answer the job question",
+                    questions=("Choose the job scope.",),
+                    report=_report(
+                        STATUS="ok",
+                        SCOPE="ok",
+                        SUMMARY="fixture job question",
+                    ),
+                )
+            scope = "feature" if self.job_scope_feature else "ok"
+            return PiRunResponse(
+                "completed",
+                "fixture job finished",
+                report=_report(
+                    STATUS="ok",
+                    SCOPE=scope,
+                    SUMMARY="fixture job report",
                 ),
             )
         return PiRunResponse("failed", f"fixture does not implement step: {step}")

@@ -99,7 +99,8 @@ class LoopState:
 
     Source of truth: ``/ainative/docs/systems/feature-loop.md``. Agent-kind
     states start one new Pi session each; ``confirm`` and ``uat`` are human
-    gates; ``publish`` is Hermes/GitHub only.
+    gates; ``publish`` is Hermes/GitHub only. ``change`` and ``job`` are
+    short card paths; the feature graph itself is unchanged.
     """
 
     READY = "ready"
@@ -116,6 +117,8 @@ class LoopState:
     UAT = "uat"
     PR_REVIEW = "pr-review"
     PUBLISH = "publish"
+    CHANGE = "change"
+    JOB = "job"
 
 
 class OrchestratorError(Exception):
@@ -166,6 +169,18 @@ class InvalidDecisionError(OrchestratorError):
     pass
 
 
+class InvalidCardPathError(OrchestratorError):
+    pass
+
+
+class InvalidJobSkillError(OrchestratorError):
+    pass
+
+
+_CARD_PATHS = frozenset({"feature", "change", "job"})
+_JOB_SKILLS = frozenset({"prd-writer", "project-bootstrapper"})
+
+
 @dataclass(frozen=True)
 class BoardTask:
     id: str
@@ -182,6 +197,8 @@ class BoardTask:
     reviewer: str = ""
     complete: bool = False
     column: str = ""
+    card_path: str = "feature"
+    card_skill: str = ""
 
 
 @dataclass(frozen=True)
@@ -260,6 +277,7 @@ class WorkflowRecord:
     question_queue: tuple[str, ...] = ()
     uat_checklist: tuple[str, ...] = ()
     analyze_requested: bool = False
+    card_path: str = "feature"
 
 
 class TaskBoard(Protocol):
@@ -723,6 +741,8 @@ class PivOrchestrator:
             return self._enter_state(record.current_phase)
         if phase == "clarify" and record.question_queue:
             return self._resume_clarify_answer(record, choice)
+        if phase == "job" and record.question_queue:
+            return self._resume_job_answer(record, choice)
         if phase == "confirm":
             return self._resume_confirm(record, letter)
         if phase == "uat":
@@ -760,6 +780,30 @@ class PivOrchestrator:
         self._set_record(encoded)
         # The recorded answers are encoded by a NEW clarify Pi session.
         return self._enter_state("clarify")
+
+    def _resume_job_answer(self, record: WorkflowRecord, choice: DecisionOption):
+        context = record.resume_context or ResumeContext()
+        context = replace(context, answers=context.answers + (choice.text,))
+        queue = record.question_queue[1:]
+        if queue:
+            parked = replace(
+                record,
+                resume_context=context,
+                question_queue=queue,
+                chosen_option=choice.letter,
+            )
+            return self._park_job(parked)
+        encoded = replace(
+            record,
+            state="QUEUED",
+            resume_context=context,
+            question_queue=(),
+            chosen_option=choice.letter,
+            next_action="encode job answers",
+        )
+        self._set_record(encoded)
+        # The recorded answers are encoded by a NEW job Pi session.
+        return self._enter_state("job")
 
     def _resume_confirm(self, record: WorkflowRecord, letter: str):
         # One human continuation before plan; `skip` never bypasses confirm.
@@ -842,6 +886,10 @@ class PivOrchestrator:
             raise InvalidPriorityError(f"invalid priority: {task.priority}")
         if not self._has_required_fields(task):
             raise IncompleteTaskError(f"task is incomplete: {task.id}")
+        if task.card_path not in _CARD_PATHS:
+            raise InvalidCardPathError(f"invalid card path: {task.card_path}")
+        if task.card_path == "job" and task.card_skill not in _JOB_SKILLS:
+            raise InvalidJobSkillError(f"invalid job skill: {task.card_skill}")
         if not self._dependencies_met(task):
             raise UnmetDependenciesError(f"unmet dependencies for task: {task.id}")
 
@@ -879,6 +927,7 @@ class PivOrchestrator:
             next_action="start the ready step",
             steps=(StepRecord("QUEUED", "ready"),),
             operator_flags=operator_flags,
+            card_path=task.card_path,
         )
 
     def _enter_state(self, step: str) -> WorkflowRecord:
@@ -969,7 +1018,13 @@ class PivOrchestrator:
             if fields["READY"] == "blocked":
                 # A stable READY: blocked parks and is never retried.
                 return self._block("ready", result)
+            if record.card_path == "change":
+                return self._enter_state("change")
+            if record.card_path == "job":
+                return self._enter_state("job")
             return self._enter_state("specify")
+        if step in {"change", "job"}:
+            return self._after_short_path_step(step, report)
         status = fields.get("STATUS", "")
         if step in {"specify", "clarify", "plan", "tasks", "analyze"}:
             artifact = _artifact_for_step(step, record.task_id)
@@ -1057,6 +1112,38 @@ class PivOrchestrator:
             return self._enter_state("implement")
         return self._enter_state("critic")
 
+    def _after_short_path_step(self, step: str, report: StepReport) -> WorkflowRecord:
+        """Advance one change/job worker report; SCOPE feature stops closed."""
+        record = self._require_record()
+        fields = report.fields
+        if fields.get("SCOPE") == "feature":
+            self._set_record(replace(record, error="scope is a feature"))
+            return self._block(step, None)
+        status = fields.get("STATUS", "")
+        if status == "blocked":
+            return self._block(step, None)
+        if status != "ok":
+            return self._retry_or_park(step, fields.get("SUMMARY", "step stuck"))
+        if step == "change":
+            return self._enter_state("tester")
+        return self._complete("job")
+
+    def _complete(self, phase: str) -> WorkflowRecord:
+        """Mark one short path COMPLETED with no publish."""
+        record = self._require_record()
+        completed = replace(
+            record,
+            state="COMPLETED",
+            current_phase=phase,
+            next_action="",
+            decision=None,
+            error=None,
+            steps=record.steps
+            + (StepRecord("COMPLETED", phase, record.current_worker, "ok", (), ""),),
+        )
+        self._set_record(completed)
+        return self._require_record()
+
     def _after_verdict_step(
         self, step: str, report: StepReport, result: HarnessResult
     ) -> WorkflowRecord:
@@ -1082,6 +1169,8 @@ class PivOrchestrator:
         if verdict == "PASS":
             if step == "tester":
                 self._set_record(replace(record, validation_status="pass"))
+                if record.card_path == "change":
+                    return self._complete("tester")
                 return self._enter_state("uat")
             if step == "critic":
                 return self._enter_state("tester")
@@ -1122,10 +1211,38 @@ class PivOrchestrator:
         self._set_record(parked)
         if step == "clarify":
             return self._park_clarify(replace(parked, question_queue=queue))
+        if step == "job":
+            return self._park_job(replace(parked, question_queue=queue))
         self._emit(
             "human_decision",
             self._decision_payload(brief),
             f"{record.run_id}:human:{step}:{len(record.steps)}",
+        )
+        return parked
+
+    def _park_job(self, record: WorkflowRecord) -> WorkflowRecord:
+        queue = record.question_queue
+        question = queue[0] if queue else "Review the job stop."
+        brief = DecisionBrief(
+            record.project_id,
+            record.task_id,
+            "job",
+            question,
+            "Answer the job question; Hermes relays it to the worker.",
+            (DecisionOption("A", question),),
+        )
+        parked = replace(
+            record,
+            state="HUMAN_DECISION_REQUIRED",
+            current_phase="job",
+            next_action="reply with the answer",
+            decision=brief,
+        )
+        self._set_record(parked)
+        self._emit(
+            "human_decision",
+            self._decision_payload(brief),
+            f"{record.run_id}:job:{len(record.steps)}",
         )
         return parked
 

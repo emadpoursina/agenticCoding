@@ -227,9 +227,13 @@ def _record_from_dict(raw: object) -> WorkflowRecord:
         "reviewer",
         "complete",
         "column",
+        "card_path",
+        "card_skill",
     }
     task_values = {name: task_raw[name] for name in task_fields if name in task_raw}
     task_values["dependencies"] = tuple(task_values.get("dependencies", ()))
+    task_values.setdefault("card_path", "feature")
+    task_values.setdefault("card_skill", "")
     task = BoardTask(**task_values)
 
     options: tuple[DecisionOption, ...] = ()
@@ -328,6 +332,9 @@ def _record_from_dict(raw: object) -> WorkflowRecord:
     analyze_requested = raw.get("analyze_requested", False)
     if not isinstance(analyze_requested, bool):
         raise ValueError("analyze_requested must be boolean")
+    card_path = raw.get("card_path", "feature")
+    if not isinstance(card_path, str) or not card_path.strip():
+        card_path = "feature"
     return WorkflowRecord(
         run_id=str(raw["run_id"]),
         execution_id=str(raw.get("execution_id", raw["run_id"])),
@@ -365,6 +372,7 @@ def _record_from_dict(raw: object) -> WorkflowRecord:
         question_queue=tuple(question_queue_raw),
         uat_checklist=tuple(uat_checklist_raw),
         analyze_requested=analyze_requested,
+        card_path=card_path,
     )
 
 

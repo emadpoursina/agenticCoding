@@ -91,7 +91,9 @@ from .orchestrator import (
     DiagnosticReport,
     IncompleteTaskError,
     IneligibleColumnError,
+    InvalidCardPathError,
     InvalidDecisionError,
+    InvalidJobSkillError,
     InvalidPriorityError,
     LoopState,
     MemoryTaskBoard,
@@ -166,6 +168,6 @@ from .workspace import (
     load_workspace_root,
 )
 
-__version__ = "1.5.0"
+__version__ = "1.6.0"
 
 __all__ = [name for name in globals() if not name.startswith("_")]
