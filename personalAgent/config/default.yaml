@@ -36,7 +36,7 @@ execution:
   overlay_dir: /var/lib/hermes-kanban
 
 workflow:
-  default: piv
+  default: feature-loop
 
 harness:
   adapters:
@@ -44,17 +44,19 @@ harness:
       active: true
       runtime_path_env: HERMES_PI_RUNTIME
       # The mounted manifest names the container-visible executable.
-  playbook: speckit-orchestrate
-  # Provider-neutral profile name; Pi resolves it inside its own runtime.
+  # Provider-neutral default profile; Pi resolves it inside its own runtime.
   model_profile: default
+  # Optional per-step model-profile mapping (one key per agent state).
+  # Unknown step keys fail closed at startup.
+  # step_profiles:
+  #   ready: ready
+  #   critic: critic
+  #   tester: tester
+  #   pr-review: pr-review
   timeout_seconds: 1800
 
-# Optional AiNative role → agent map for discovery/validation.
 # External Spec Kit plan/tasks/implement never look up planner or builder.
-# roles:
-#   discovery: scout
-#   validation: tester
-
+# Agent states run as Pi sessions via the harness; see /ainative/docs/systems/feature-loop.md
 learning:
   enabled: true
   auto_modify_ainative: false
@@ -63,14 +65,11 @@ notifications:
   telegram:
     enabled: true
 
+# Optional per-step model assignments for the OpenAI-compatible executor.
 model:
   # Primary: configure provider/model inside Hermes (HERMES_HOME/config.yaml).
   # Optional OpenAI-compatible override via OPENAI_BASE_URL + OPENAI_API_KEY.
   # Role model ids are operator-configured; leave unset until assigned.
-  # roles:
-  #   planning:
-  #   implementation:
-  #   validation:
   openai_compatible:
     base_url_env: OPENAI_BASE_URL
     api_key_env: OPENAI_API_KEY

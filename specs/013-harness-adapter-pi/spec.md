@@ -1,5 +1,11 @@
 # Feature Specification: Pi Harness Adapter
 
+> **Superseded by `018-unified-feature-loop` for execution shape.** Live
+> execution is now the Hermes-owned feature loop with one new Pi session
+> per agent state (`AiNative/docs/systems/feature-loop.md`). The
+> whole-playbook execution described in this spec is retired from the live
+> path; this document is kept for history.
+
 **Feature Branch**: `013-harness-adapter-pi`
 
 **Created**: 2026-09-08

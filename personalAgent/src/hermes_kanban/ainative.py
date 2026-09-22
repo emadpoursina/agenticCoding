@@ -7,6 +7,8 @@ import subprocess
 from dataclasses import dataclass
 from pathlib import Path
 
+from .external_framework import AINATIVE_STEP_AGENTS
+
 
 class AiNativeAdapterError(Exception):
     """Base error for AiNative adapter failures."""
@@ -250,6 +252,14 @@ class AiNativeAdapter:
                 )
             )
         return dependencies
+
+    # Resolve one live loop agent state (ready/critic/tester/pr-review).
+    def resolve_step_agent(self, step_id: str) -> AgentDefinition:
+        """Map one agent-kind graph state to its AiNative agent definition."""
+        name = AINATIVE_STEP_AGENTS.get(step_id)
+        if name is None:
+            raise UnknownAgentError(f"step is not an AiNative agent state: {step_id}")
+        return self.get_agent(name)
 
     # Run git in a requested methodology path and return trimmed output.
     @staticmethod

@@ -18,7 +18,8 @@ Generic AI templates shared across agents — not task-specific.
 | File | Purpose |
 |------|---------|
 | [agentic-system.md](./agentic-system.md) | Five-part model — Harness, Model, Context, Tools, Agents |
-| [agentic-coding.md](./agentic-coding.md) | PIV — Plan, Implementation, Validation |
+| [feature-loop.md](./feature-loop.md) | Live feature loop — Hermes graph, Pi per state, Spec Kit + AiNative gates |
+| [agentic-coding.md](./agentic-coding.md) | Historical PIV — not the live Hermes stage list |
 | [validation-layer.md](./validation-layer.md) | Validation phase architecture — multi-agent workflow, quality gates, diamond testing model |
 | [agent-handoff-template.md](./agent-handoff-template.md) | Structured handoff between planner, plan-reviewer, implementer, critic, tester, and groomer agents |
 | [system-understanding-brief-template.md](./system-understanding-brief-template.md) | Brief the scout agent produces before PIV Plan interrogation |

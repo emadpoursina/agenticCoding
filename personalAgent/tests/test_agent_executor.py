@@ -7,7 +7,7 @@ from pathlib import Path
 
 import pytest
 
-from hermes_kanban.ainative import ReadOnlyError, UnknownAgentError
+from hermes_kanban.ainative import UnknownAgentError
 from hermes_kanban.executor import (
     AgentExecutor,
     AssembledContext,
@@ -18,8 +18,6 @@ from hermes_kanban.executor import (
     MissingModelCredentialsError,
     MissingWorkspaceError,
     ModelResponse,
-    UnknownRoleError,
-    UnsafeWorkspaceWriteError,
 )
 from hermes_kanban.projects import DisabledProjectError, UnknownProjectError
 from hermes_kanban.workspace import InvalidTaskIdError, ProtectedBranchError, WorkspaceManager
@@ -192,7 +190,7 @@ def test_discovery_reads_workspace_files_and_does_not_write(tmp_path: Path):
     enrolled_head = git("rev-parse", "HEAD", cwd=enrolled)
     dirty_before = git("status", "--porcelain", cwd=workspace.path)
 
-    result = executor.execute_role("discovery", "fixture", "123")
+    result = executor.execute_agent("scout", "fixture", "123")
 
     files = {item.path: item.text for item in stand_in.context.workspace_files}
     assert files["index.html"] == "hello quiz"
@@ -262,12 +260,10 @@ def test_empty_task_id_is_invalid_and_not_joined_to_a_path(tmp_path: Path):
 
 def test_execution_settings_from_default_yaml_has_no_live_model_ids():
     settings = ExecutionSettings.from_config(PACKAGE_ROOT / "config" / "default.yaml")
-    assert settings.workflow_name == "piv"
-    assert settings.role_agents["discovery"] == "scout"
-    assert settings.role_agents["planning"] == "specs-planner"
-    assert settings.role_agents["implementation"] == "builder"
-    assert settings.role_agents["validation"] == "tester"
+    assert settings.workflow_name == "feature-loop"
     assert settings.model_roles["planning"] == ""
+    assert settings.harness_step_profiles == {}
+    assert settings.profile_for_step("ready") == "default"
     assert settings.base_url_env == "OPENAI_BASE_URL"
     assert settings.api_key_env == "OPENAI_API_KEY"
     text = (PACKAGE_ROOT / "config" / "default.yaml").read_text(encoding="utf-8")
@@ -283,49 +279,6 @@ def test_execution_settings_from_default_yaml_has_no_live_model_ids():
     assert "openrouter" not in text.lower()
 
 
-EIGHT_SECTION_PLAN = """\
-## Problem understanding
-The problem
-## Scope
-In
-## Likely affected parts
-Files
-## Implementation approach
-Do it
-## Acceptance-criteria mapping
-Map
-## Validation strategy
-true
-## Risks
-None
-## Open questions
-None
-"""
-
-INCOMPLETE_PLAN = """\
-## Problem understanding
-The problem
-## Scope
-In
-"""
-
-
-def set_validation_commands(enrolled: Path, commands: list[str]) -> None:
-    commands_yaml = "".join(f'    - "{command}"\n' for command in commands)
-    (enrolled / ".ainative" / "project.yaml").write_text(
-        "name: fixture-project\n"
-        "description: Disposable project registry fixture\n"
-        "repository: github.com/example/fixture\n"
-        "default_branch: main\n"
-        "workflow:\n"
-        "  default: piv\n"
-        "validation:\n"
-        "  commands:\n"
-        f"{commands_yaml}",
-        encoding="utf-8",
-    )
-
-
 def test_successful_result_has_explicit_status_shape(tmp_path: Path):
     executor, *_ = make_env(tmp_path)
 
@@ -338,168 +291,6 @@ def test_successful_result_has_explicit_status_shape(tmp_path: Path):
     assert isinstance(result.questions, tuple)
 
 
-def test_planning_writes_plan_artifact_with_eight_sections(tmp_path: Path):
-    stand_in = StandIn(ModelResponse(summary="planned", plan_markdown=EIGHT_SECTION_PLAN))
-    executor, stand_in, _enrolled, _methodology, _ws = make_env(tmp_path, stand_in=stand_in)
-    workspace = WorkspaceManager.from_config(tmp_path / "config.yaml").inspect_workspace(
-        "fixture", "123"
-    )
-
-    result = executor.execute_role("planning", "fixture", "123")
-
-    plan_path = workspace.path / "PLAN.md"
-    assert plan_path.is_file()
-    body = plan_path.read_text(encoding="utf-8")
-    for heading in (
-        "Problem understanding",
-        "Scope",
-        "Likely affected parts",
-        "Implementation approach",
-        "Acceptance-criteria mapping",
-        "Validation strategy",
-        "Risks",
-        "Open questions",
-    ):
-        assert f"## {heading}" in body
-    assert result.artifacts == (plan_path,)
-    assert result.status == "success"
-
-
-def test_planning_missing_section_is_failure(tmp_path: Path):
-    stand_in = StandIn(
-        ModelResponse(summary="planned", plan_markdown=INCOMPLETE_PLAN, status="success")
-    )
-    executor, stand_in, *_ = make_env(tmp_path, stand_in=stand_in)
-    workspace = WorkspaceManager.from_config(tmp_path / "config.yaml").inspect_workspace(
-        "fixture", "123"
-    )
-
-    result = executor.execute_role("planning", "fixture", "123")
-
-    assert (workspace.path / "PLAN.md").is_file()
-    assert result.status == "failure"
-    assert result.artifacts == ()
-
-
-def test_discovery_succeeds_without_plan_md(tmp_path: Path):
-    executor, *_ = make_env(tmp_path)
-    workspace = WorkspaceManager.from_config(tmp_path / "config.yaml").inspect_workspace(
-        "fixture", "123"
-    )
-
-    result = executor.execute_role("discovery", "fixture", "123")
-
-    assert result.status == "success"
-    assert not (workspace.path / "PLAN.md").exists()
-
-
-def test_implementation_writes_and_commits_only_in_isolated_copy(tmp_path: Path):
-    stand_in = StandIn(
-        ModelResponse(summary="built", files={"notes.txt": "hello"}, commit=True)
-    )
-    executor, stand_in, enrolled, _methodology, _ws = make_env(tmp_path, stand_in=stand_in)
-    enrolled_head = git("rev-parse", "HEAD", cwd=enrolled)
-    enrolled_branch = git("rev-parse", "--abbrev-ref", "HEAD", cwd=enrolled)
-    enrolled_files = {
-        path.relative_to(enrolled): path.read_bytes()
-        for path in enrolled.rglob("*")
-        if path.is_file() and ".git" not in path.parts
-    }
-    workspace = WorkspaceManager.from_config(tmp_path / "config.yaml").inspect_workspace(
-        "fixture", "123"
-    )
-
-    result = executor.execute_role(
-        "implementation", "fixture", "123", payload=ExecutePayload(plan=EIGHT_SECTION_PLAN)
-    )
-
-    assert result.status == "success"
-    assert (workspace.path / "notes.txt").read_text(encoding="utf-8") == "hello"
-    assert git("rev-parse", "--abbrev-ref", "HEAD", cwd=workspace.path) == "feature/task-123"
-    assert git("rev-parse", "HEAD", cwd=workspace.path) != enrolled_head
-    assert git("rev-parse", "HEAD", cwd=enrolled) == enrolled_head
-    assert git("rev-parse", "--abbrev-ref", "HEAD", cwd=enrolled) == enrolled_branch
-    after = {
-        path.relative_to(enrolled): path.read_bytes()
-        for path in enrolled.rglob("*")
-        if path.is_file() and ".git" not in path.parts
-    }
-    assert after == enrolled_files
-    assert not (enrolled / "notes.txt").exists()
-    source = (PACKAGE_ROOT / "src" / "hermes_kanban" / "executor.py").read_text(encoding="utf-8")
-    assert "GitHost" not in source
-    assert "push_feature_branch" not in source
-    assert "upsert_pull_request" not in source
-
-
-def test_validation_status_comes_from_commands_not_model_prose(tmp_path: Path):
-    cases = (
-        (["true"], "pass", "success", "all failed"),
-        (["false"], "fail", "failure", "all passed"),
-        (["this-binary-does-not-exist-xyz"], "blocked", "failure", "all passed"),
-    )
-    for commands, validation, status, model_summary in cases:
-        case_dir = tmp_path / f"val-{validation}"
-        case_dir.mkdir()
-        stand_in = StandIn(ModelResponse(summary=model_summary, status="success"))
-        executor, stand_in, enrolled, *_ = make_env(case_dir, stand_in=stand_in)
-        set_validation_commands(enrolled, commands)
-
-        result = executor.execute_role("validation", "fixture", "123")
-
-        assert result.validation == validation
-        assert result.status == status
-
-
-def test_planning_remap_to_unknown_agent_does_not_publish(tmp_path: Path):
-    executor, stand_in, enrolled, *_ = make_env(
-        tmp_path, extra="roles:\n  planning: not-in-roster\n"
-    )
-    enrolled_head = git("rev-parse", "HEAD", cwd=enrolled)
-
-    with pytest.raises(UnknownAgentError):
-        executor.execute_role("planning", "fixture", "123")
-    assert stand_in.calls == []
-    assert git("rev-parse", "HEAD", cwd=enrolled) == enrolled_head
-
-
-def test_unknown_role_name_fails(tmp_path: Path):
-    executor, stand_in, *_ = make_env(tmp_path)
-
-    with pytest.raises(UnknownRoleError):
-        executor.execute_role("debugging", "fixture", "123")
-    assert stand_in.calls == []
-
-
-def test_roles_use_configured_model_assignment_not_agent_documents(tmp_path: Path):
-    executor, stand_in, *_ = make_env(
-        tmp_path,
-        stand_in=StandIn(ModelResponse(summary="ok", plan_markdown=EIGHT_SECTION_PLAN)),
-    )
-    planning = executor.execute_role("planning", "fixture", "123")
-    implementation = executor.execute_role("implementation", "fixture", "123")
-    scout = executor.adapter.get_agent("scout")
-    planner = executor.adapter.get_agent("specs-planner")
-    builder = executor.adapter.get_agent("builder")
-    documents = " ".join(
-        part or ""
-        for part in (
-            scout.purpose,
-            scout.howto,
-            planner.purpose,
-            planner.howto,
-            builder.purpose,
-            builder.howto,
-        )
-    )
-    assert planning.model_assignment == "test-planning-model"
-    assert implementation.model_assignment == "test-implementation-model"
-    assert stand_in.calls[0][0] == "test-planning-model"
-    assert stand_in.calls[1][0] == "test-implementation-model"
-    assert planning.model_assignment not in documents
-    assert implementation.model_assignment not in documents
-
-
 def test_missing_model_assignment_does_not_ask_the_model(tmp_path: Path):
     empty_planning = (
         "  roles:\n"
@@ -510,8 +301,6 @@ def test_missing_model_assignment_does_not_ask_the_model(tmp_path: Path):
     executor, stand_in, *_ = make_env(tmp_path, model_roles=empty_planning)
     for call in (
         lambda: executor.execute_agent("scout", "fixture", "123"),
-        lambda: executor.execute_role("discovery", "fixture", "123"),
-        lambda: executor.execute_role("planning", "fixture", "123"),
     ):
         with pytest.raises(MissingModelAssignmentError):
             call()
@@ -527,22 +316,7 @@ def test_missing_model_assignment_does_not_ask_the_model(tmp_path: Path):
         tmp_path / "impl", model_roles=empty_implementation
     )
     with pytest.raises(MissingModelAssignmentError):
-        executor.execute_role("implementation", "fixture", "123")
-    assert stand_in.calls == []
-
-    empty_validation = (
-        "  roles:\n"
-        "    planning: test-planning-model\n"
-        "    implementation: test-implementation-model\n"
-        "    validation:\n"
-    )
-    executor, stand_in, enrolled, *_ = make_env(tmp_path / "val", model_roles=empty_validation)
-    set_validation_commands(enrolled, ["true"])
-    result = executor.execute_role("validation", "fixture", "123")
-    assert result.status == "success"
-    assert result.validation == "pass"
-    with pytest.raises(MissingModelAssignmentError):
-        executor.execute_agent("tester", "fixture", "123", model_slot="validation")
+        executor.execute_agent("tester", "fixture", "123", model_slot="implementation")
     assert stand_in.calls == []
 
 
@@ -761,40 +535,6 @@ def test_live_client_requires_credentials_stand_in_does_not(
     assert stand_in.calls
 
 
-def test_methodology_write_is_refused(tmp_path: Path):
-    executor, stand_in, _enrolled, methodology, _ws = make_env(tmp_path)
-    workspace = WorkspaceManager.from_config(tmp_path / "config.yaml").inspect_workspace(
-        "fixture", "123"
-    )
-    target = methodology / "docs" / "agents" / "scout" / "AGENTS.md"
-    before = target.read_bytes()
-    relative = os.path.relpath(target, workspace.path)
-    stand_in.response = ModelResponse(summary="nope", files={relative: "hacked"})
-
-    with pytest.raises(ReadOnlyError):
-        executor.execute_role("implementation", "fixture", "123")
-    assert target.read_bytes() == before
-
-
-def test_escape_and_enrolled_writes_are_refused(tmp_path: Path):
-    executor, stand_in, enrolled, _methodology, _ws = make_env(tmp_path)
-    workspace = WorkspaceManager.from_config(tmp_path / "config.yaml").inspect_workspace(
-        "fixture", "123"
-    )
-    enrolled_readme = enrolled / "README.md"
-    before = enrolled_readme.read_bytes()
-    relative = os.path.relpath(enrolled_readme, workspace.path)
-    stand_in.response = ModelResponse(summary="nope", files={relative: "hacked"})
-
-    with pytest.raises(UnsafeWorkspaceWriteError):
-        executor.execute_role("implementation", "fixture", "123")
-    assert enrolled_readme.read_bytes() == before
-
-    stand_in.response = ModelResponse(summary="nope", files={"../outside.txt": "nope"})
-    with pytest.raises(UnsafeWorkspaceWriteError):
-        executor.execute_role("implementation", "fixture", "123")
-
-
 def test_missing_workspace_does_not_prepare(tmp_path: Path):
     executor, stand_in, _enrolled, _methodology, workspace_root = make_env(
         tmp_path, prepare=False
@@ -854,30 +594,4 @@ def test_unknown_project_and_path_like_agent_names(tmp_path: Path):
     )
     with pytest.raises(DisabledProjectError):
         disabled_executor.execute_agent("scout", "fixture", "123")
-
-
-def test_secrets_absent_from_result_and_no_publish(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-):
-    secret = "super-secret-test-value-not-for-results"
-    monkeypatch.setenv("OPENAI_API_KEY", secret)
-    seen: list[tuple[str, ...]] = []
-    real_run = subprocess.run
-
-    def wrapped(command, *args, **kwargs):
-        seen.append(tuple(str(part) for part in command))
-        return real_run(command, *args, **kwargs)
-
-    monkeypatch.setattr(subprocess, "run", wrapped)
-    executor, *_ = make_env(
-        tmp_path,
-        stand_in=StandIn(
-            ModelResponse(summary="ok", files={"notes.txt": "hello"}, commit=True)
-        ),
-    )
-    result = executor.execute_role("implementation", "fixture", "123")
-    dumped = f"{result.status}{result.summary}{result.identity}{result.model_assignment}"
-    assert secret not in dumped
-    assert result.identity.worker_id == "builder"
-    assert not any("push" in command for command in seen)
 

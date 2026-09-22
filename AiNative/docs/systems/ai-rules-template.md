@@ -28,7 +28,7 @@ alwaysApply: true
 
 ## Workflow
 
-- Always follow: **PIV — Plan → Implementation → Validation** (Validation via critic and tester agents)
+- Always follow the **feature loop** ([feature-loop.md](./feature-loop.md)): Ready → Spec Kit → critic → tester → UAT → pr-review (Validation via critic and tester agents)
 - Do not write code until the plan is confirmed if the change touches 2+ files
 - During Plan, before proposing new code: library (worth it?) → in-repo reuse → build from scratch
 - After making changes, update related documentation if it exists

@@ -119,8 +119,13 @@ def test_list_agents_discovers_sorted_non_reserved_directories(tmp_path: Path):
     assert adapter.list_agents() == [
         "broken-deps",
         "builder",
+        "change",
         "critic",
         "empty-agent",
+        "pr-reviewer",
+        "prd-writer",
+        "project-bootstrapper",
+        "ready",
         "scout",
         "specs-planner",
         "tester",

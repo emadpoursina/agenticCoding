@@ -85,7 +85,7 @@ paths are not mixed up.
 
 - Active coding harness: **pi** (`HERMES_PI_RUNTIME=/opt/pi-runtime`)
 - Pi version seen in the container: **0.84.3**
-- Playbook name in config: `speckit-orchestrate`
+- Live workflow: the feature loop (see `/ainative/docs/systems/feature-loop.md`; one new Pi session per agent state)
 - Workspace root: `/workspaces`
 - AiNative is read-only. Never write into `/ainative`.
 - GitHub: SSH agent forwarding; optional `GH_TOKEN` from the environment,

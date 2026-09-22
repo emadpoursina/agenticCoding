@@ -2,9 +2,18 @@
 
 Operational control plane: Hermes runs Kanban, workspaces, GitHub, and Telegram. [AiNative](https://github.com/emadpoursina/AiNative) stays an external read-only methodology. Each managed software project keeps its own source of truth.
 
-This repo is the environment scaffold and live Hermes PIV bridge. Native
-Kanban remains the only task source; the package reads `kanban.db` read-only
-and reuses the existing orchestrator, GitHub, and Telegram seams.
+Live execution is the **feature loop** defined in
+[`/ainative/docs/systems/feature-loop.md`](https://github.com/emadpoursina/AiNative/blob/main/docs/systems/feature-loop.md):
+a Hermes-owned state machine (Ready → specify → clarify → confirm → plan →
+tasks → optional analyze → implement ↔ converge → critic → tester → UAT →
+pr-review → publish) that starts **one new Pi session per agent state**.
+`confirm`, `uat`, and `publish` are human/parent gates and never start Pi.
+Hermes never runs Spec Kit or AiNative skills in-process, and it never runs a
+whole Spec Kit playbook in one session — a whole-playbook request is refused
+everywhere.
+
+Native Kanban remains the only task source; the package reads `kanban.db`
+read-only and reuses the existing orchestrator, GitHub, and Telegram seams.
 Card-body creation and editing belong to upstream Hermes Kanban; this
 repository does not add a second writer or specifier. The upstream
 specifier/groomer must preserve the exact `## Priority` heading with a value
@@ -199,8 +208,8 @@ next-ready never starts parked or running cards.
 
 ## Harness execution
 
-Hermes starts one generic harness run per work attempt. The default
-configuration selects Pi and the `speckit-orchestrate` playbook:
+Hermes starts one new Pi session per agent state. The default configuration
+selects Pi with an optional per-step model-profile mapping:
 
 ```yaml
 harness:
@@ -208,8 +217,13 @@ harness:
     - id: pi
       active: true
       runtime_path_env: HERMES_PI_RUNTIME
-  playbook: speckit-orchestrate
   model_profile: default
+  # Optional per-step profiles; unknown step keys fail closed at startup.
+  # step_profiles:
+  #   ready: ready
+  #   critic: critic
+  #   tester: tester
+  #   pr-review: pr-review
   timeout_seconds: 1800
 ```
 
@@ -220,12 +234,16 @@ responses/events until settlement, and extracts one structured result. The
 checked-in timeout accepts positive finite numbers and numeric strings, with no
 new maximum.
 
-Pi owns the complete playbook: specify, clarify/continue, plan, tasks,
-conditional analyze, and implement/converge. Native
-`specs/<task-id>/spec.md`, `plan.md`, and `tasks.md` files stay in the
-isolated task worktree. Hermes stores only the normalized result and safe
-resume context on its existing overlay record. Pi has no operator chat,
-publish, push, merge, deploy, or AiNative write access.
+Each agent state is exactly one new Pi session, prompted for that step only:
+the Ready pre-flight, the Spec Kit states (specify, clarify, plan, tasks,
+optional analyze, implement ↔ converge), and critic / tester / pr-review.
+Native `specs/<task-id>/spec.md`, `plan.md`, and `tasks.md` files stay in the
+isolated task worktree. Hermes parses each session's per-state compact
+report, stores it on the overlay record, and advances, retries (3 attempts
+per state), or parks. The tester state receives the project's declared
+`validation_commands` as inputs and runs them inside the worktree; Hermes
+never executes them itself. Pi has no operator chat, publish, push, merge,
+deploy, or AiNative write access.
 
 ### Kanban worker contract
 
@@ -242,14 +260,19 @@ request, or mark the card complete from direct edits. If the command fails,
 the worker reports the failure and stops; it must not fall back to coding the
 card itself.
 
-Questions return as `needs_human`. Hermes records answers, skip assumptions,
-and the one continuation confirmation, then starts another whole harness run.
-Three recoverable stuck attempts park for a human. A `completed` harness
-result still requires the existing project validation before Hermes can
-commit, push a feature branch, or create/update a pull request. Historical
-records from the removed stage machine are parked and never auto-start Pi.
-A human acknowledgement clears the legacy marker without starting Pi; the
-next Hermes process then reclaims the task through the generic harness path.
+Human gates stay in Hermes: clarify questions park and are relayed one at a
+time over the existing Telegram path, and after the operator answers a **new**
+clarify session encodes them. One `confirm` continuation always runs before
+plan (operator `skip` self-answers clarify but confirm still runs). After
+tester pass, UAT is simple human QA: Hermes presents a feature-derived QA
+checklist; the operator verifies and confirms pass before pr-review. After
+pr-review completes (PASS or FAIL) the record parks — Hermes never
+auto-loops into implement or re-validation; publish runs only when the
+operator approves after pr-review PASS, on the feature branch only. Three
+attempts per state park for a human; a stable `READY: blocked`, missing
+spec/plan/tasks artifacts, and a repeated converge fingerprint are never
+retried. In-flight 013 whole-playbook overlay records stay parked until a
+human acknowledges them and are never auto-migrated onto the new graph.
 
 The live smoke command is fail-closed. It requires an explicit disposable
 `owner/name` that matches both the GitHub remote and the enrolled project

@@ -28,6 +28,28 @@ _GITHUB_SSH = re.compile(r"^git@github\.com:[^/\s]+/[^/\s]+(?:\.git)?$")
 _GITHUB_SSH_URI = re.compile(r"^ssh://git@github\.com/[^/\s]+/[^/\s]+(?:\.git)?$")
 
 
+def assert_publish_gate(steps: object) -> None:
+    """Refuse publish unless critic/tester/uat/pr-review PASS is recorded.
+
+    The GitHub unlock requires recorded critic PASS, tester PASS, uat
+    pass, and pr-review PASS on the workflow record (FR-007, FR-009).
+    Shell project checks never satisfy this gate.
+    """
+    verdicts: dict[str, str] = {}
+    for step in tuple(steps):
+        status = getattr(step, "execute_status", None)
+        phase = getattr(step, "phase", "")
+        if status and isinstance(phase, str):
+            verdicts[phase] = str(status)
+    required = {"critic": "PASS", "tester": "PASS", "uat": "pass", "pr-review": "PASS"}
+    missing = sorted(name for name, verdict in required.items() if verdicts.get(name) != verdict)
+    if missing:
+        raise PublishError(
+            f"publish gate not satisfied: missing {', '.join(missing)}",
+            failure_class="NON_RETRYABLE",
+        )
+
+
 class ForbiddenGitHubActionError(OrchestratorError):
     """Merge, approve-as-human, deploy, protected-push, amend, or force-push."""
 

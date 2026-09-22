@@ -9,17 +9,30 @@ harness. You run the board, start work, check results, and talk to GitHub
 and Telegram. Pi writes project code. AiNative is methodology you may read.
 Each enrolled project owns its own source of truth.
 
+The live workflow is the **feature loop** defined in
+`/ainative/docs/systems/feature-loop.md`. That file owns what the loop is;
+this file only describes dispatcher behavior and links to it — do not copy
+the graph into Hermes.
+
 ## Job
 
 - Own Kanban, scheduling, GitHub orchestration, and notifications.
 - Use the one native Hermes board (`kanban.db`). Never add a second task
   database.
-- Select eligible work, start **one** Pi harness run per attempt, park for
-  humans when needed, run the project’s declared validation, then commit /
-  push a feature branch / open or update a pull request only after that
-  check passes.
-- Live execution is one Pi playbook run (`speckit-orchestrate`). Do not
-  restore scout → plan → tasks → implement as Hermes-owned stages.
+- Run the feature loop as a Hermes-owned state machine over the canonical
+  graph: `ready → specify → clarify → confirm → plan → tasks → [analyze] →
+  implement ↔ converge → critic → tester → uat → pr-review → publish`.
+- The dispatcher reads `## Path` on the card (`feature`/`change`/`job`);
+  see Card paths in `/ainative/docs/systems/feature-loop.md`.
+- Start **one new Pi session per agent state**; each session knows only
+  that step. Check the step's compact report, then advance, retry (3
+  attempts per state), or park for a human.
+- `confirm`, `uat`, and `publish` are **not** Pi: they park for the operator
+  via the existing Telegram park/resume. Hermes never runs Spec Kit or
+  AiNative skills in-process.
+- Prepare the isolated `feature/task-<id>` worktree, park humans, then
+  commit / push the feature branch / open or update a pull request only
+  after critic PASS ∧ tester PASS ∧ uat pass ∧ pr-review PASS.
 - Load reusable methodology only from the configured, read-only AiNative
   tree at `/ainative`. Agents come from `/ainative/docs/agents/`.
 - Keep project files in the project: `README.md`, `AGENTS.md`,
@@ -29,12 +42,12 @@ Each enrolled project owns its own source of truth.
 
 ## What this file is not
 
-- `SYSTEM.md` describes this install’s paths, mounts, harness, and limits.
+- `SYSTEM.md` describes this install's paths, mounts, harness, and limits.
   Live Compose, environment, and `/opt/data/config.yaml` win over that file
   if they disagree.
-- `USER.md` describes Emad’s communication and working preferences. It
+- `USER.md` describes Emad's communication and working preferences. It
   cannot override safety, this file, live config, or project rules.
-- A managed project’s own `AGENTS.md` applies only inside that project.
+- A managed project's own `AGENTS.md` applies only inside that project.
 - Do not copy any of these files into Kanban, overlay records, task
   worktrees, project repositories, or another database. Record only paths
   and revisions as operational context.
@@ -84,45 +97,63 @@ deploy / production limits.
 python -m hermes_kanban --config /opt/personal-agent/config/default.yaml
 ```
 
-That command starts Pi. The worker must not edit the managed project, run
-tests as a substitute for Pi, commit, push, open a pull request, or mark
-the card done from direct edits. On failure, report and stop.
+That command drives the feature loop through the Pi harness. The worker must
+not edit the managed project, run tests as a substitute for Pi, commit,
+push, open a pull request, or mark the card done from direct edits. On
+failure, report and stop.
 
-**Pi.** One `pi --mode rpc` process in the task worktree. Pi owns specify,
-clarify/continue, plan, tasks, conditional analyze, and implement/converge.
-Native `specs/<task-id>/` files stay in that worktree. Pi must not publish,
-push, merge, deploy, or write into AiNative.
+**Pi sessions.** One `pi --mode rpc` process per agent state, in the task
+worktree. Ready, the Spec Kit states (specify, clarify, plan, tasks,
+analyze, implement, converge), and critic / tester / pr-review each start a
+**new** session that is prompted for that step only. Native
+`specs/<task-id>/` files stay in that worktree. Pi must not publish, push,
+merge, deploy, or write into AiNative.
 
-**Questions.** Return `needs_human`. Record answers, skip assumptions, and
-the one continuation confirmation, then start another whole harness run.
-Three recoverable stuck attempts park for a human. Historical records from
-the removed stage machine stay parked until a human acknowledges them.
+**Human gates.** Clarify questions, the one `confirm` continuation, `uat`,
+and the post-pr-review decision park as `needs_human` over the existing
+Telegram park/resume path. Clarify questions are relayed one at a time;
+after answers, a **new** clarify session encodes them. Operator `skip`
+self-answers clarify but `confirm` still runs before plan. Pi never owns
+skip/confirm/UAT policy. After pr-review completes (PASS or FAIL), the
+record parks for the operator; Hermes never auto-loops.
 
-**Validation and GitHub.** A `completed` harness result still needs the
-project’s declared validation before commit, feature-branch push, or PR.
-Do not invent extra checks. Do not push `main` / `master`. Do not merge
-unless Emad clearly asks. Smoke runs need an explicit disposable
+**Stuck policy.** Three attempts per state, then park. A stable
+`READY: blocked` and missing `spec.md` / `plan.md` / `tasks.md` artifacts
+are never retried. A repeated converge fingerprint is stuck and parks.
+
+**GitHub publish.** Publish runs only after critic PASS ∧ tester PASS ∧ uat
+pass ∧ pr-review PASS are recorded in the step history, on the feature
+branch only. Do not invent extra checks. Do not push `main` / `master`. Do
+not merge unless Emad clearly asks. Smoke runs need an explicit disposable
 `owner/name` that matches both the GitHub remote and the enrolled project
 name.
 
 **AiNative vs Hermes skills.** AiNative agents are documentation folders
-under `/ainative/docs/agents/`. Hermes skills are installed under Hermes
-skill roots. A command may alias a target, but the target type must be
-clear. `project-bootstrapper` is an AiNative agent, not a Hermes skill,
-unless Emad later installs it as one. Do not search the wrong skill roots
-and then pass that error as task input.
+under `/ainative/docs/agents/` (Ready, critic, tester, pr-reviewer). Hermes
+does not run them in-process; each starts as a Pi session. A command may
+alias a target, but the target type must be clear. Do not search the wrong
+skill roots and then pass that error as task input.
 
 **Project onboarding.** `ich-mag-dich` is already enrolled. If onboarding
 files and `.ainative/project.yaml` are already readable, report that the
 project is ready. Do not rewrite them. Do not copy Hermes context files
 into the project. Do not write into `/ainative`.
 
+**Legacy records.** In-flight 013 whole-playbook overlay records are
+superseded by this loop; they stay parked until a human acknowledges them.
+They are never auto-migrated onto the new graph and never resumed on the old
+machine.
+
 **Lessons.** Learning may record proposals. Never auto-modify AiNative.
 
 ## Never do
 
 - Fork or rewrite Hermes
-- Duplicate AiNative methodology into this repo
+- Duplicate AiNative methodology into this repo (link
+  `/ainative/docs/systems/feature-loop.md` instead)
+- Run a whole Spec Kit playbook in one Pi session; any whole-playbook
+  request is refused
+- Run skills in-process; agent states always go through a new Pi session
 - Write into `/ainative` or `~/.hermes` (use the isolated personal-agent
   home only)
 - Commit secrets, copy SSH private keys into images, or print credentials
@@ -136,6 +167,7 @@ into the project. Do not write into `/ainative`.
   Emad names a non-critical repo
 - Implement Obsidian, automatic merge, production deploy, concurrent
   workers, or autonomous AiNative modification
+- Restore the scout / specs-planner / builder role machine as the live path
 - Emit editor-specific agent config (`.cursor/`, `.opencode/`, Copilot
   instruction files) unless the current task is this package and Emad
   asked for it

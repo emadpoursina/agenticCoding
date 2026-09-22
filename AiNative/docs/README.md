@@ -17,7 +17,8 @@ Four layers, one decision each: **systems** (how you work), **agents** (AI partn
 | A per-task AI agent | [agents/](./agents/) — start with `AGENTS.md` |
 | Agentic system (Harness, Model, Context, Tools, Agents) | [systems/agentic-system.md](./systems/agentic-system.md) |
 | Harness setup (Tmux + Cursor CLI) | [knowledge/setup/harness.md](./knowledge/setup/harness.md) |
-| PIV methodology (Plan, Implementation, Validation) | [systems/agentic-coding.md](./systems/agentic-coding.md) |
+| Live feature loop (Hermes / Cursor) | [systems/feature-loop.md](./systems/feature-loop.md) |
+| Historical PIV (not the live stage list) | [systems/agentic-coding.md](./systems/agentic-coding.md) |
 | Validation layer architecture | [systems/validation-layer.md](./systems/validation-layer.md) |
 | PIV Validation — adversarial review | [agents/critic/](./agents/critic/) |
 | PIV Validation — prove the code works | [agents/tester/](./agents/tester/) |

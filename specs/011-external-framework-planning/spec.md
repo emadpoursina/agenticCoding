@@ -1,5 +1,11 @@
 # Feature Specification: External Framework Planning Adapter
 
+> **Superseded by `018-unified-feature-loop` for execution shape.** Live
+> execution is now the Hermes-owned feature loop with one new Pi session
+> per agent state (`AiNative/docs/systems/feature-loop.md`). The
+> whole-playbook execution described in this spec is retired from the live
+> path; this document is kept for history.
+
 **Feature Branch**: `011-external-framework-planning`
 
 **Created**: 2026-09-07

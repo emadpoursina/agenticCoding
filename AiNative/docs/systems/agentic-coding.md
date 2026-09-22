@@ -1,8 +1,14 @@
 # Agentic coding system
 
+**Live feature workflow is not this file.** Use
+[feature-loop.md](./feature-loop.md) (Hermes + Cursor). This document is
+the older homemade PIV write-up (scout, plan-reviewer, critic, tester).
+Keep it for optional small Cursor-only work; do not treat it as what
+Hermes runs.
+
 Canonical five-part model (Harness, Model, Context, Tools, Agents): [agentic-system.md](./agentic-system.md).
 
-This doc covers **Context** (AI layer below) and **Agents** (PIV methodology). Harness, model tiers, and tools are defined in agentic-system.md.
+This doc covers **Context** (AI layer below) and historical **PIV** agents. Harness, model tiers, and tools are defined in agentic-system.md.
 
 ## AI layer
 

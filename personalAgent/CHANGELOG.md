@@ -1,5 +1,73 @@
 # Changelog
 
+## [1.6.0] - 2026-09-22
+### Added
+- Card paths: the dispatcher reads `## Path` (`feature`, `change`, `job`;
+  missing means `feature`) and `## Skill` (required only for `job`,
+  allowlisted to `prd-writer` and `project-bootstrapper`) onto the task.
+  Unknown paths or job skills fail closed before Pi starts.
+- `change` path: `ready` → one `change` worker → `tester` → `COMPLETED`
+  with no UAT, pr-review, or publish. `SCOPE: feature` parks `BLOCKED`.
+- `job` path: `ready` → one allowlisted skill worker → `COMPLETED` with
+  no publish. `needs_human` parks and resumes in a new job session, same
+  as clarify. `SCOPE: feature` parks `BLOCKED`.
+- New AiNative `change` agent (`docs/agents/change/`); `ready` skips the
+  Spec Kit layout check for `change` and `job` cards (git and branch
+  preflight only).
+- Hermetic fixture-Pi coverage for both short paths, `SCOPE` stop, and
+  fail-closed validation (no network, no publish).
+### Changed
+- `WorkflowRecord` persists `card_path` (old overlays default to `feature`)
+  so a resume cannot switch graphs. Ready inputs carry `card_path`.
+
+## [1.5.0] - 2026-09-21
+### Changed
+- Live execution is now the Hermes-owned **feature loop** state machine
+  (`ready → specify → clarify → confirm → plan → tasks → [analyze] →
+  implement ↔ converge → critic → tester → uat → pr-review → publish`),
+  matching `AiNative/docs/systems/feature-loop.md`. Every agent state starts
+  **one new Pi session** prompted for that step only; Hermes checks the
+  per-state compact report and advances, retries (3 attempts per state), or
+  parks.
+- Harness start requests carry a per-step `StepStartRequest` (step id,
+  flow id, skill path, worktree, per-step model profile, inputs, resume
+  context). Requests for a whole-playbook job, a non-agent state
+  (`confirm`/`uat`/`publish`), or an unknown step are refused at the
+  boundary, not translated. Per-state compact reports
+  (`READY`/`STATUS`/`ANALYZE`/`IMPLEMENT_STATUS`/`CONVERGE_OUTCOME`/
+  PASS-FAIL verdicts) are parsed strictly; unknown or missing fields fail
+  the step.
+- Validation is critic → tester → UAT → pr-review before any GitHub publish.
+  The tester state receives the project's declared `validation_commands` as
+  inputs and runs them in the worktree; `_run_validation` no longer runs in
+  Hermes and no longer unlocks GitHub. Publish runs only after critic PASS ∧
+  tester PASS ∧ uat pass ∧ pr-review PASS, on the feature branch only, and
+  only when the operator approves the post-pr-review park.
+- Clarify questions park and are relayed one question at a time over the
+  existing Telegram path; recorded answers are encoded by a **second clarify
+  Pi session** (same `clarify` step id — no new graph state). `confirm`
+  always precedes `plan`, including under operator `skip`; UAT is simple
+  human QA with a feature-derived checklist and no auto-loop; after
+  pr-review completes the record parks for operator decision.
+### Removed
+- The one-shot whole-playbook Pi run (`speckit-orchestrate` as a flow),
+  whole-playbook resume, and `_run_validation` as the GitHub gate. Config no
+  longer defines `harness.playbook`; an optional per-step `step_profiles`
+  model-profile mapping replaces it (unknown keys fail closed at startup).
+  The live role map (scout/specs-planner/builder/tester-as-shell-role) is
+  removed with it.
+### Added
+- In-flight 013 whole-playbook overlay records park
+  `HUMAN_DECISION_REQUIRED` with the diagnostic "superseded by 018 —
+  whole-playbook run" at startup; they are never auto-migrated onto the new
+  graph.
+- Hermetic tests for per-state session starts, prompt isolation, human
+  gates, the implement↔converge loop, and the critic-before-publish gate
+  (fixture Pi runtime, no network).
+- `AGENTS.md`/`README.md` now link `/ainative/docs/systems/feature-loop.md`
+  as the methodology source of truth instead of describing a forked loop;
+  `docs/context/SYSTEM.md` reference copy updated to match.
+
 ## [1.4.7] - 2026-09-20
 ### Added
 - One-command onboarding: when no native `projects.db` project matches the

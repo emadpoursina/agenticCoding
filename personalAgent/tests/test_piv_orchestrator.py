@@ -1,4 +1,4 @@
-"""Offline one-run Hermes orchestration checks."""
+"""Offline per-state Hermes feature-loop checks (fixture Pi, no network)."""
 
 from __future__ import annotations
 
@@ -19,6 +19,21 @@ from hermes_kanban.pi import PiHarnessAdapter
 from hermes_kanban.startup_context import StartupContextSnapshot
 
 FIXTURES = Path(__file__).parent / "fixtures"
+
+# Agent-kind graph states in fixture happy-path order.
+HAPPY_PATH = (
+    "ready",
+    "specify",
+    "clarify",
+    "plan",
+    "tasks",
+    "analyze",
+    "implement",
+    "converge",
+    "critic",
+    "tester",
+    "pr-review",
+)
 
 
 def _git(*args: str, cwd: Path) -> str:
@@ -121,8 +136,6 @@ projects:
     default_branch: main
 {project_extra}execution:
   overlay_dir: {overlay}
-roles:
-  validation: tester
 model:
   roles:
     validation: test-validation-model
@@ -142,115 +155,254 @@ model:
     return orchestrator, selected_runtime, workspace
 
 
-def test_one_harness_request_writes_native_artifacts_and_publishes_after_validation(
-    tmp_path: Path,
-) -> None:
+def test_full_run_records_one_new_session_per_agent_state(tmp_path: Path) -> None:
     orchestrator, runtime, workspace_root = environment(tmp_path)
 
-    record = orchestrator.run_workflow("fixture", "123")
+    parked = orchestrator.run_workflow("fixture", "123")
 
     worktree = workspace_root / "fixture" / "123"
-    assert record.state == "PR_CREATED"
-    assert len(runtime.calls) == 1
-    assert runtime.order == [
-        "specify",
-        "clarify/continue",
-        "plan",
-        "tasks",
-        "analyze",
-        "implement",
-        "converge",
-    ]
+    assert parked.state == "HUMAN_DECISION_REQUIRED"
+    assert parked.current_phase == "confirm"
+    assert runtime.order[:3] == ["ready", "specify", "clarify"]
+    assert len(set(runtime.sessions)) == len(runtime.sessions)
     assert (worktree / "specs/123/spec.md").is_file()
+
+    orchestrator.resume_workflow("fixture", "123", "A")
+    orchestrator.resume_workflow("fixture", "123", "A")
+    finished = orchestrator.resume_workflow("fixture", "123", "A")
+
+    assert finished.state == "PR_CREATED"
+    assert tuple(runtime.order) == HAPPY_PATH
+    assert len(runtime.calls) == len(HAPPY_PATH)
+    assert runtime.validation_command_observes[-1] == ("true",)
     assert (worktree / "specs/123/plan.md").is_file()
     assert (worktree / "specs/123/tasks.md").is_file()
-    assert record.harness_result is not None
-    assert record.harness_result.status == "completed"
     assert len(orchestrator.git_host.pushes) == 1  # type: ignore[union-attr]
 
 
-def test_clarify_requires_answer_then_one_continue_confirmation(tmp_path: Path) -> None:
+def test_human_gates_never_start_pi(tmp_path: Path) -> None:
+    orchestrator, runtime, _workspace_root = environment(tmp_path)
+
+    orchestrator.run_workflow("fixture", "123")
+    orchestrator.resume_workflow("fixture", "123", "A")
+    orchestrator.resume_workflow("fixture", "123", "A")
+    parked = orchestrator.resume_workflow("fixture", "123", "A")
+
+    assert parked.state == "PR_CREATED"
+    assert tuple(runtime.order) == HAPPY_PATH
+    assert "confirm" not in runtime.order
+    assert "uat" not in runtime.order
+    assert "publish" not in runtime.order
+
+
+def test_clarify_parks_relays_and_encodes_with_a_new_session(tmp_path: Path) -> None:
     runtime = _runtime_class()(question=True)
     orchestrator, runtime, _workspace_root = environment(tmp_path, runtime=runtime)
 
     parked = orchestrator.run_workflow("fixture", "123")
     assert parked.state == "HUMAN_DECISION_REQUIRED"
-    assert len(runtime.calls) == 1
-    confirmed = orchestrator.resume_workflow("fixture", "123", "A")
-    assert confirmed.state == "HUMAN_DECISION_REQUIRED"
-    assert len(runtime.calls) == 1
-    finished = orchestrator.resume_workflow("fixture", "123", "A")
-    assert finished.state == "PR_CREATED"
-    assert len(runtime.calls) == 2
-
-
-def test_skip_records_assumptions_and_continue_report(tmp_path: Path) -> None:
-    runtime = _runtime_class()(question=True)
-    messaging = MemoryMessagingChannel()
-    orchestrator, runtime, _workspace_root = environment(
-        tmp_path,
-        runtime=runtime,
-        messaging=messaging,
-    )
-
-    report = orchestrator.run_workflow("fixture", "123", operator_flags=("skip",))
-    assert report.state == "HUMAN_DECISION_REQUIRED"
-    assert report.resume_context is not None
-    assert report.resume_context.assumptions
-    assert report.decision is not None
-    assert len(report.decision.options) == 1
-    assert report.decision.options[0].text == "Continue the Spec Kit playbook"
-    choice_reports = [
-        delivery for delivery in messaging.deliveries if delivery[0] == "choice_report"
-    ]
-    assert len(choice_reports) == 1
-    assert choice_reports[0][1]["assumptions"] == report.resume_context.assumptions
-    assert len(runtime.calls) == 1
-    finished = orchestrator.resume_workflow("fixture", "123", "A")
-    assert finished.state == "PR_CREATED"
-    assert len(runtime.calls) == 2
-
-
-def test_implementation_question_parks_before_convergence(tmp_path: Path) -> None:
-    runtime = _runtime_class()(implementation_question=True)
-    orchestrator, runtime, _workspace_root = environment(tmp_path, runtime=runtime)
-
-    parked = orchestrator.run_workflow("fixture", "123")
-
-    assert parked.state == "HUMAN_DECISION_REQUIRED"
-    assert parked.decision is not None
-    assert parked.decision.options[0].text == "Keep the fixture change?"
-    assert "implement" in runtime.order
-    assert "converge" not in runtime.order
-    assert len(runtime.calls) == 1
-
-    finished = orchestrator.resume_workflow("fixture", "123", "A")
-
-    assert finished.state == "PR_CREATED"
-    assert len(runtime.calls) == 2
-
-
-def test_second_question_batch_parks_before_later_playbook_work(tmp_path: Path) -> None:
-    runtime = _runtime_class()(question=True, second_question=True)
-    orchestrator, runtime, _workspace_root = environment(tmp_path, runtime=runtime)
-
-    first = orchestrator.run_workflow("fixture", "123")
-    continuation = orchestrator.resume_workflow("fixture", "123", "A")
-    second = orchestrator.resume_workflow("fixture", "123", "A")
-
-    assert first.state == "HUMAN_DECISION_REQUIRED"
-    assert continuation.state == "HUMAN_DECISION_REQUIRED"
-    assert second.state == "HUMAN_DECISION_REQUIRED"
-    assert second.decision is not None
-    assert second.decision.options[0].text == "Choose the fixture implementation mode."
-    assert runtime.order[-1] == "tasks"
-    assert "implement" not in runtime.order
-    assert len(runtime.calls) == 2
-
-    finished = orchestrator.resume_workflow("fixture", "123", "A")
-
-    assert finished.state == "PR_CREATED"
+    assert parked.current_phase == "clarify"
+    assert parked.question_queue == ("Choose the fixture scope.",)
+    assert runtime.order[-1] == "clarify"
     assert len(runtime.calls) == 3
+
+    encoded = orchestrator.resume_workflow("fixture", "123", "A")
+    assert encoded.state == "HUMAN_DECISION_REQUIRED"
+    assert encoded.current_phase == "confirm"
+    assert runtime.calls[-1].resume_context is not None
+    assert runtime.calls[-1].resume_context.answers == ("Choose the fixture scope.",)
+
+    orchestrator.resume_workflow("fixture", "123", "A")
+    orchestrator.resume_workflow("fixture", "123", "A")
+    finished = orchestrator.resume_workflow("fixture", "123", "A")
+    assert finished.state == "PR_CREATED"
+    assert runtime.order.count("clarify") == 2
+
+
+def test_skip_self_answers_clarify_but_confirm_still_runs(tmp_path: Path) -> None:
+    runtime = _runtime_class()(question=True)
+    orchestrator, runtime, _workspace_root = environment(tmp_path, runtime=runtime)
+
+    parked = orchestrator.run_workflow("fixture", "123", operator_flags=("skip",))
+    assert parked.state == "HUMAN_DECISION_REQUIRED"
+    assert parked.current_phase == "confirm"
+    assert len(runtime.calls) == 3
+
+    orchestrator.resume_workflow("fixture", "123", "A")
+    orchestrator.resume_workflow("fixture", "123", "A")
+    finished = orchestrator.resume_workflow("fixture", "123", "A")
+    assert finished.state == "PR_CREATED"
+
+
+def test_converge_tasks_appended_starts_a_new_implement_session(tmp_path: Path) -> None:
+    runtime = _runtime_class()(repeat_convergence=True)
+    orchestrator, runtime, _workspace_root = environment(tmp_path, runtime=runtime)
+
+    orchestrator.run_workflow("fixture", "123")
+    orchestrator.resume_workflow("fixture", "123", "A")
+    orchestrator.resume_workflow("fixture", "123", "A")
+    finished = orchestrator.resume_workflow("fixture", "123", "A")
+
+    assert finished.state == "PR_CREATED"
+    assert runtime.order.count("implement") == 2
+    assert runtime.order.count("converge") == 2
+
+
+def test_converge_blocked_parks(tmp_path: Path) -> None:
+    runtime = _runtime_class()(converge_blocked=True)
+    orchestrator, runtime, _workspace_root = environment(tmp_path, runtime=runtime)
+
+    orchestrator.run_workflow("fixture", "123")
+    record = orchestrator.resume_workflow("fixture", "123", "A")
+
+    assert record.state == "BLOCKED"
+    assert record.current_phase == "converge"
+    assert orchestrator.git_host.pushes == []  # type: ignore[union-attr]
+
+
+def test_converge_fingerprint_stuck_parks(tmp_path: Path) -> None:
+    runtime = _runtime_class()(converge_stuck=True)
+    orchestrator, runtime, _workspace_root = environment(tmp_path, runtime=runtime)
+
+    orchestrator.run_workflow("fixture", "123")
+    record = orchestrator.resume_workflow("fixture", "123", "A")
+
+    assert record.state == "BLOCKED"
+    assert record.current_phase == "converge"
+    assert runtime.order.count("converge") == 2
+    assert orchestrator.git_host.pushes == []  # type: ignore[union-attr]
+
+
+def test_analyze_skipped_when_plan_says_no(tmp_path: Path) -> None:
+    runtime = _runtime_class()(needs_analysis=False)
+    orchestrator, runtime, _workspace_root = environment(tmp_path, runtime=runtime)
+
+    orchestrator.run_workflow("fixture", "123")
+    orchestrator.resume_workflow("fixture", "123", "A")
+    orchestrator.resume_workflow("fixture", "123", "A")
+    finished = orchestrator.resume_workflow("fixture", "123", "A")
+
+    assert finished.state == "PR_CREATED"
+    assert "analyze" not in runtime.order
+
+
+def test_ready_blocked_parks_and_is_never_retried(tmp_path: Path) -> None:
+    runtime = _runtime_class()(ready_blocked=True)
+    orchestrator, runtime, _workspace_root = environment(tmp_path, runtime=runtime)
+
+    record = orchestrator.run_workflow("fixture", "123")
+
+    assert record.state == "BLOCKED"
+    assert record.current_phase == "ready"
+    assert len(runtime.calls) == 1
+    assert orchestrator.git_host.pushes == []  # type: ignore[union-attr]
+
+
+def test_step_stuck_retries_three_attempts_then_parks(tmp_path: Path) -> None:
+    runtime = _runtime_class()(stuck=True)
+    orchestrator, runtime, _workspace_root = environment(tmp_path, runtime=runtime)
+
+    record = orchestrator.run_workflow("fixture", "123")
+
+    assert record.state == "HUMAN_DECISION_REQUIRED"
+    assert record.state_attempts["ready"] == 3
+    assert len(runtime.calls) == 3
+    assert orchestrator.git_host.pushes == []  # type: ignore[union-attr]
+
+
+def test_timeout_failure_parks_without_validating_or_publishing(tmp_path: Path) -> None:
+    runtime = _runtime_class()(timeout=True)
+    orchestrator, runtime, _workspace_root = environment(tmp_path, runtime=runtime)
+
+    record = orchestrator.run_workflow("fixture", "123")
+
+    assert record.state == "BLOCKED"
+    assert len(runtime.calls) == 1
+    assert orchestrator.git_host.pushes == []  # type: ignore[union-attr]
+
+
+def test_missing_artifact_parks_without_retry(tmp_path: Path) -> None:
+    runtime = _runtime_class()(missing_artifact=True)
+    orchestrator, runtime, _workspace_root = environment(tmp_path, runtime=runtime)
+
+    record = orchestrator.run_workflow("fixture", "123")
+
+    assert record.state == "BLOCKED"
+    assert record.current_phase == "specify"
+    assert "missing native artifact" in (record.error or "")
+    assert len(runtime.calls) == 2
+    assert orchestrator.git_host.pushes == []  # type: ignore[union-attr]
+
+
+def test_critic_retryable_fail_never_skips_to_publish(tmp_path: Path) -> None:
+    runtime = _runtime_class()(critic_retryable_fail=True)
+    orchestrator, runtime, _workspace_root = environment(tmp_path, runtime=runtime)
+
+    orchestrator.run_workflow("fixture", "123")
+    record = orchestrator.resume_workflow("fixture", "123", "A")
+
+    assert record.state == "HUMAN_DECISION_REQUIRED"
+    assert record.current_phase == "critic"
+    assert record.state_attempts["critic"] == 3
+    assert "tester" not in runtime.order
+    assert orchestrator.git_host.pushes == []  # type: ignore[union-attr]
+
+
+def test_tester_fail_blocks_uat_and_publish(tmp_path: Path) -> None:
+    runtime = _runtime_class()(tester_fail=True)
+    orchestrator, runtime, _workspace_root = environment(tmp_path, runtime=runtime)
+
+    orchestrator.run_workflow("fixture", "123")
+    record = orchestrator.resume_workflow("fixture", "123", "A")
+
+    assert record.state == "BLOCKED"
+    assert record.current_phase == "tester"
+    assert "uat" not in runtime.order
+    assert orchestrator.git_host.pushes == []  # type: ignore[union-attr]
+
+
+def test_pr_review_fail_parks_without_publish(tmp_path: Path) -> None:
+    runtime = _runtime_class()(pr_review_fail=True)
+    orchestrator, runtime, _workspace_root = environment(tmp_path, runtime=runtime)
+
+    orchestrator.run_workflow("fixture", "123")
+    orchestrator.resume_workflow("fixture", "123", "A")
+    parked = orchestrator.resume_workflow("fixture", "123", "A")
+
+    assert parked.state == "BLOCKED"
+    assert parked.current_phase == "pr-review"
+    assert orchestrator.git_host.pushes == []  # type: ignore[union-attr]
+
+
+def test_pr_review_pass_requires_operator_publish_decision(tmp_path: Path) -> None:
+    orchestrator, runtime, _workspace_root = environment(tmp_path)
+
+    orchestrator.run_workflow("fixture", "123")
+    orchestrator.resume_workflow("fixture", "123", "A")
+    parked = orchestrator.resume_workflow("fixture", "123", "A")
+
+    assert parked.state == "HUMAN_DECISION_REQUIRED"
+    assert parked.current_phase == "pr-review"
+    assert orchestrator.git_host.pushes == []  # type: ignore[union-attr]
+    letters = [option.letter for option in parked.decision.options]
+    assert letters == ["A", "B"]
+
+    finished = orchestrator.resume_workflow("fixture", "123", "A")
+    assert finished.state == "PR_CREATED"
+    assert len(orchestrator.git_host.pushes) == 1  # type: ignore[union-attr]
+
+
+def test_uat_presents_checklist_and_starts_no_pi(tmp_path: Path) -> None:
+    orchestrator, runtime, _workspace_root = environment(tmp_path)
+
+    orchestrator.run_workflow("fixture", "123")
+    parked = orchestrator.resume_workflow("fixture", "123", "A")
+
+    assert parked.current_phase == "uat"
+    assert parked.uat_checklist
+    assert "Verify: note exists" in parked.uat_checklist
+    assert parked.decision.options[0].text.startswith("Pass")
+    assert "uat" not in runtime.order
 
 
 def test_harness_isolation_snapshots_forbidden_roots(
@@ -271,9 +423,12 @@ def test_harness_isolation_snapshots_forbidden_roots(
     overlay_before = snapshot_files(overlay, exclude={"overlay.json", "alive"})
     sibling_before = snapshot_files(sibling)
 
-    record = orchestrator.run_workflow("fixture", "123")
+    orchestrator.run_workflow("fixture", "123")
+    orchestrator.resume_workflow("fixture", "123", "A")
+    orchestrator.resume_workflow("fixture", "123", "A")
+    finished = orchestrator.resume_workflow("fixture", "123", "A")
 
-    assert record.state == "PR_CREATED"
+    assert finished.state == "PR_CREATED"
     assert snapshot_files(enrolled) == enrolled_before
     assert snapshot_files(ainative) == ainative_before
     assert snapshot_files(overlay, exclude={"overlay.json", "alive"}) == overlay_before
@@ -294,36 +449,12 @@ def test_registered_context_stays_out_of_harness_and_overlay_payloads(
         registrations=(),
     )
 
-    record = orchestrator.run_workflow("fixture", "123")
+    orchestrator.run_workflow("fixture", "123")
 
     assert sentinel not in repr(runtime.calls[0])
-    assert sentinel not in repr(record)
     assert sentinel not in (orchestrator.overlay_dir / "overlay.json").read_text()
     assert sentinel not in "\n".join(
         path.read_text(encoding="utf-8")
         for path in (workspace_root / "fixture" / "123").rglob("*")
         if path.is_file() and ".git" not in path.parts
     )
-
-
-def test_third_stuck_attempt_parks_without_a_fourth_run(tmp_path: Path) -> None:
-    runtime = _runtime_class()(stuck=True)
-    orchestrator, runtime, _workspace_root = environment(tmp_path, runtime=runtime)
-
-    record = orchestrator.run_workflow("fixture", "123")
-
-    assert record.state == "HUMAN_DECISION_REQUIRED"
-    assert record.attempt == 3
-    assert len(runtime.calls) == 3
-    assert orchestrator.git_host.pushes == []  # type: ignore[union-attr]
-
-
-def test_timeout_failure_does_not_validate_or_publish(tmp_path: Path) -> None:
-    runtime = _runtime_class()(timeout=True)
-    orchestrator, runtime, _workspace_root = environment(tmp_path, runtime=runtime)
-
-    record = orchestrator.run_workflow("fixture", "123")
-
-    assert record.state == "FAILED"
-    assert len(runtime.calls) == 1
-    assert orchestrator.git_host.pushes == []  # type: ignore[union-attr]

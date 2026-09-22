@@ -20,11 +20,7 @@ OverlaySchema = Literal["v0"]
 Clock = Callable[[], float]
 
 _ALIVE_TTL = 60.0
-_PHASE_ALIASES = {
-    "publish": "github",
-    "diagnose": "diagnosis",
-    "re-check": "validation",
-}
+_PHASE_ALIASES = {}
 _SECRET_NAME = re.compile(r"(?:KEY|TOKEN|SECRET|PASSWORD|CREDENTIAL)", re.IGNORECASE)
 
 
@@ -200,7 +196,6 @@ def _jsonable(value: object, *, field_name: str | None = None) -> object:
 
 def _record_from_dict(raw: object) -> WorkflowRecord:
     """Rebuild the public workflow dataclasses from one validated JSON object."""
-    from .external_framework import harness_result_from_dict
     from .github import PullRequestIdentity
     from .messaging import SendRecord, SendStatus
     from .orchestrator import (
@@ -232,9 +227,13 @@ def _record_from_dict(raw: object) -> WorkflowRecord:
         "reviewer",
         "complete",
         "column",
+        "card_path",
+        "card_skill",
     }
     task_values = {name: task_raw[name] for name in task_fields if name in task_raw}
     task_values["dependencies"] = tuple(task_values.get("dependencies", ()))
+    task_values.setdefault("card_path", "feature")
+    task_values.setdefault("card_skill", "")
     task = BoardTask(**task_values)
 
     options: tuple[DecisionOption, ...] = ()
@@ -311,6 +310,31 @@ def _record_from_dict(raw: object) -> WorkflowRecord:
     legacy_acknowledged = raw.get("legacy_acknowledged", False)
     if not isinstance(legacy_acknowledged, bool):
         raise ValueError("legacy_acknowledged must be boolean")
+    state_attempts_raw = raw.get("state_attempts", {})
+    if not isinstance(state_attempts_raw, dict) or not all(
+        isinstance(key, str) and isinstance(value, int) and value >= 0
+        for key, value in state_attempts_raw.items()
+    ):
+        raise ValueError("state_attempts must be a step-id to int mapping")
+    question_queue_raw = raw.get("question_queue", ())
+    if not isinstance(question_queue_raw, (list, tuple)) or not all(
+        isinstance(item, str) for item in question_queue_raw
+    ):
+        raise ValueError("question_queue must be a sequence of strings")
+    uat_checklist_raw = raw.get("uat_checklist", ())
+    if not isinstance(uat_checklist_raw, (list, tuple)) or not all(
+        isinstance(item, str) for item in uat_checklist_raw
+    ):
+        raise ValueError("uat_checklist must be a sequence of strings")
+    converge_fingerprint = raw.get("converge_fingerprint")
+    if converge_fingerprint is not None and not isinstance(converge_fingerprint, str):
+        raise ValueError("converge_fingerprint must be a string")
+    analyze_requested = raw.get("analyze_requested", False)
+    if not isinstance(analyze_requested, bool):
+        raise ValueError("analyze_requested must be boolean")
+    card_path = raw.get("card_path", "feature")
+    if not isinstance(card_path, str) or not card_path.strip():
+        card_path = "feature"
     return WorkflowRecord(
         run_id=str(raw["run_id"]),
         execution_id=str(raw.get("execution_id", raw["run_id"])),
@@ -323,7 +347,6 @@ def _record_from_dict(raw: object) -> WorkflowRecord:
         next_action=str(raw.get("next_action", "")),
         current_worker=raw.get("current_worker"),
         attempt=int(raw.get("attempt", 1)),
-        harness_attempt=int(raw.get("harness_attempt", raw.get("attempt", 1))),
         workspace_path=(
             Path(raw["workspace_path"]) if raw.get("workspace_path") is not None else None
         ),
@@ -340,11 +363,16 @@ def _record_from_dict(raw: object) -> WorkflowRecord:
         failure_class=raw.get("failure_class"),
         diagnostic=diagnostic,
         sends=sends,
-        harness_result=harness_result_from_dict(raw.get("harness_result")),
         resume_context=_resume_context_from_dict(raw.get("resume_context")),
         operator_flags=tuple(raw.get("operator_flags", ())),
         legacy_migration_reason=raw.get("legacy_migration_reason"),
         legacy_acknowledged=legacy_acknowledged,
+        state_attempts=dict(state_attempts_raw),
+        converge_fingerprint=converge_fingerprint,
+        question_queue=tuple(question_queue_raw),
+        uat_checklist=tuple(uat_checklist_raw),
+        analyze_requested=analyze_requested,
+        card_path=card_path,
     )
 
 
@@ -366,14 +394,11 @@ def _resume_context_from_dict(raw: object):
 
 
 def _validate_saved_harness_record(record: WorkflowRecord | None) -> None:
-    """Reject unsafe normalized harness data while reading the overlay."""
+    """Reject unsafe normalized resume data while reading the overlay."""
     if record is None:
         return
     from .external_framework import (
-        RESULT_STATUSES,
         HarnessValidationError,
-        contains_secret,
-        validate_harness_result,
         validate_resume_context,
     )
 
@@ -381,25 +406,3 @@ def _validate_saved_harness_record(record: WorkflowRecord | None) -> None:
         validate_resume_context(record.resume_context)
     except HarnessValidationError as exc:
         raise ValueError(f"invalid saved resume context: {exc}") from exc
-    if record.harness_result is None:
-        return
-    result = record.harness_result
-    if result.status not in RESULT_STATUSES:
-        raise ValueError("saved harness status is unknown")
-    if contains_secret(result.reason) or contains_secret(result.next_action):
-        raise ValueError("saved harness metadata is unsafe")
-    if result.harness_id and contains_secret(result.harness_id):
-        raise ValueError("saved harness identity is unsafe")
-    if any(contains_secret(question) for question in result.questions):
-        raise ValueError("saved harness question is unsafe")
-    if result.artifacts and record.workspace_path is None:
-        raise ValueError("saved harness artifacts require a workspace")
-    try:
-        if record.workspace_path is not None:
-            validate_harness_result(
-                result,
-                workspace_path=record.workspace_path,
-                adapter_id=result.harness_id or None,
-            )
-    except HarnessValidationError as exc:
-        raise ValueError(f"invalid saved harness result: {exc}") from exc

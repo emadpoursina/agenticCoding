@@ -1,5 +1,30 @@
 # Changelog
 
+## [0.35.0] - 2026-09-21
+### Changed
+- 018 apply slice implemented on Hermes only: live execution is the
+  Hermes-owned feature-loop state machine with one new Pi session per agent
+  state; `confirm`/`uat`/`publish` are human/parent gates, critic → tester →
+  UAT → pr-review gate GitHub publish, clarify questions relay over Telegram
+  and are encoded by a second clarify Pi session, per-step harness requests
+  and strict per-state compact reports replace the whole-playbook request,
+  and in-flight 013 whole-playbook overlays park for a human. Cursor
+  `/speckit-orchestrate` is untouched. See
+  `personalAgent/CHANGELOG.md` (1.5.0) for the Hermes package detail and
+  `specs/018-unified-feature-loop/`.
+
+## [0.34.0] - 2026-09-21
+### Added
+- Canonical live feature loop in AiNative
+  (`docs/systems/feature-loop.md`) and ADR
+  `docs/records/decisions/2026-09-feature-loop.md`.
+- Apply spec for aligning Hermes and Cursor to that loop
+  (`specs/018-unified-feature-loop/`).
+- Documented two orchestrators on that graph: Cursor
+  `/speckit-orchestrate` (Task or `/pi-harness`) and Hermes (Pi only).
+- Scoped the 018 apply slice to Hermes (add/remove the one-shot
+  playbook); Cursor orchestrate is documented, not part of that pass.
+
 ## [0.33.0] - 2026-09-17
 ### Added
 - Feature specification, plan, research, data model, quickstart, tasks, and
