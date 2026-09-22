@@ -2,6 +2,9 @@
 
 Pi SDK objects and model settings stop at this module.  Hermes sees only the
 generic request/result records from :mod:`external_framework`.
+
+One request is one agent-kind graph state; each start is one fresh Pi
+process run that is prompted for that step only.
 """
 
 from __future__ import annotations
@@ -21,13 +24,13 @@ from .external_framework import (
     HarnessArtifact,
     HarnessResult,
     HarnessRuntime,
-    HarnessStartRequest,
     HarnessValidationError,
     ResumeContext,
+    StepStartRequest,
     _safe_relative_path,
     contains_secret,
-    validate_harness_request,
     validate_harness_result,
+    validate_step_request,
 )
 
 
@@ -35,19 +38,21 @@ from .external_framework import (
 class PiRunRequest:
     """Private request shape understood by the injected Pi runtime."""
 
+    step_id: str
+    flow_id: str
+    skill_path: str
     task_id: str
     task_title: str
     task_description: str
     acceptance_criteria: str
     workspace_path: Path
     workspace_branch: str
-    playbook_id: str
     model_profile: object
     timeout_seconds: float
     deadline: float
     operator_flags: tuple[str, ...]
     resume_context: ResumeContext | None
-    allow_publish: bool = False
+    inputs: dict[str, object] | None = None
 
 
 @dataclass(frozen=True)
@@ -63,6 +68,7 @@ class PiRunResponse:
     retryable: bool = False
     questions: tuple[str, ...] = ()
     resume_context: ResumeContext | None = None
+    report: dict[str, object] | None = None
 
 
 class PiSdkPort(Protocol):
@@ -100,66 +106,67 @@ def _resume_payload(context: ResumeContext | None) -> dict[str, object] | None:
     }
 
 
-def _prompt_message(request: HarnessStartRequest) -> str:
-    """Wrap one generic job in the prompt understood by Pi RPC."""
+# Fixed, unchanged safety constraints carried on every step run (write root
+# is the task worktree, feature branch only, never publish/push/merge).
+_SAFETY_CONSTRAINTS = {
+    "write_root": ".",
+    "feature_branch_only": True,
+    "allow_publish": False,
+    "allow_protected_branch": False,
+    "allow_external_writes": False,
+    "reject_secrets": True,
+}
+
+
+def _prompt_message(request: StepStartRequest) -> str:
+    """Wrap one step job in the prompt understood by Pi RPC.
+
+    The prompt names only this step and its skill path. It must never
+    instruct Pi to run a later graph state (FR-004).
+    """
     job = json.dumps(_job_payload(request), separators=(",", ":"))
     return (
-        "Execute the Hermes playbook for this task in the current worktree. "
-        "Do not publish, push, merge, deploy, or write outside the worktree. "
-        "When the playbook is finished, reply with exactly one JSON object and "
-        "no markdown using this schema: "
+        f"Execute exactly one Hermes step: {request.step_id}. Use only the "
+        f"skill at {request.skill_path} in the current worktree. Do not run "
+        "any other step and do not continue to a next step. Do not publish, "
+        "push, merge, deploy, or write outside the worktree. When the step "
+        "is finished, reply with exactly one JSON object and no markdown "
+        "using this schema: "
         '{"status":"completed|failed|needs_human|stuck","reason":"...",'
         '"next_action":"...","artifacts":[],"changes":[],"output_reference":null,'
-        '"retryable":false,"questions":[],"resume_context":null}. '
-        "The status must be one of the four values shown. The task document is:\n"
+        '"retryable":false,"questions":[],"resume_context":null,"report":{}}. '
+        "The status must be one of the four values shown. The step document is:\n"
         + job
     )
 
 
-def _rpc_prompt(request: HarnessStartRequest) -> dict[str, object]:
+def _rpc_prompt(request: StepStartRequest) -> dict[str, object]:
     return {
-        "id": f"hermes-{request.task_id}",
+        "id": f"hermes-{request.flow_id}-{request.step_id}",
         "type": "prompt",
         "message": _prompt_message(request),
     }
 
 
-def _job_payload(request: HarnessStartRequest) -> dict[str, object]:
+def _job_payload(request: StepStartRequest) -> dict[str, object]:
     """Build the bounded provider-neutral document sent to Pi."""
-    task = request.task_context
-    repository = request.repository_context
     return {
-        "task_id": request.task_id,
-        "task": {
-            "title": task.title,
-            "description": task.description,
-            "expected_result": task.expected_result,
-            "acceptance_criteria": task.acceptance_criteria,
-            "priority": task.priority,
-            "platform": task.platform,
-            "technical_notes": task.technical_notes,
-            "dependencies": list(task.dependencies),
-        },
-        "repository": {
-            "repository": repository.repository,
-            "default_branch": repository.default_branch,
-        },
+        "step_id": request.step_id,
+        "flow_id": request.flow_id,
+        "skill": request.skill_path,
+        "task_id": str(request.inputs.get("task_id", "")),
         "worktree": {
             "root": ".",
             "branch": request.workspace_branch,
         },
-        "playbook": PLAYBOOK_ID,
-        "constraints": {
-            "write_root": ".",
-            "feature_branch_only": True,
-            "allow_publish": False,
-            "allow_protected_branch": False,
-            "allow_external_writes": False,
-            "reject_secrets": True,
-        },
+        "constraints": dict(_SAFETY_CONSTRAINTS),
         "model_profile": request.model_profile,
         "operator_flags": list(request.operator_flags),
         "resume_context": _resume_payload(request.resume_context),
+        "inputs": {
+            key: list(value) if isinstance(value, (list, tuple)) else value
+            for key, value in request.inputs.items()
+        },
     }
 
 
@@ -188,7 +195,7 @@ def _sanitize_advisory_paths(
 
     ponytail: models drift from the documented result schema; status, reason,
     and questions stay strict while advisory paths are sanitized. Upgrade is a
-    pinned playbook output schema enforced inside the Pi runtime.
+    pinned step report schema enforced inside the Pi runtime.
     """
     artifacts = tuple(
         HarnessArtifact(artifact.kind, kept)
@@ -276,8 +283,25 @@ def _coerce_resume_context(raw: object) -> ResumeContext | None:
     )
 
 
+def _coerce_report(raw: object) -> dict[str, object] | None:
+    if raw is None:
+        return None
+    if not isinstance(raw, dict):
+        raise HarnessValidationError("Pi step report is malformed")
+    if not all(isinstance(key, str) for key in raw):
+        raise HarnessValidationError("Pi step report is malformed")
+    for value in raw.values():
+        if isinstance(value, (list, tuple)) and not all(
+            isinstance(item, str) for item in value
+        ):
+            raise HarnessValidationError("Pi step report is malformed")
+        if value is not None and not isinstance(value, (str, list, tuple)):
+            raise HarnessValidationError("Pi step report is malformed")
+    return raw
+
+
 def _coerce_response(raw: object) -> PiRunResponse:
-    if isinstance(raw, (PiRunResponse, HarnessResult)):
+    if isinstance(raw, PiRunResponse):
         raw = {
             "status": raw.status,
             "reason": raw.reason,
@@ -288,6 +312,20 @@ def _coerce_response(raw: object) -> PiRunResponse:
             "retryable": raw.retryable,
             "questions": raw.questions,
             "resume_context": raw.resume_context,
+            "report": raw.report,
+        }
+    if isinstance(raw, HarnessResult):
+        raw = {
+            "status": raw.status,
+            "reason": raw.reason,
+            "next_action": raw.next_action,
+            "artifacts": raw.artifacts,
+            "changes": raw.changes,
+            "output_reference": raw.output_reference,
+            "retryable": raw.retryable,
+            "questions": raw.questions,
+            "resume_context": raw.resume_context,
+            "report": raw.report.fields if raw.report else None,
         }
     if not isinstance(raw, dict):
         raise HarnessValidationError("Pi runtime returned malformed output")
@@ -301,6 +339,7 @@ def _coerce_response(raw: object) -> PiRunResponse:
         "retryable",
         "questions",
         "resume_context",
+        "report",
     }
     if set(raw) - allowed:
         raise HarnessValidationError("Pi runtime returned unsupported fields")
@@ -335,11 +374,12 @@ def _coerce_response(raw: object) -> PiRunResponse:
         retryable=retryable,
         questions=tuple(questions),
         resume_context=_coerce_resume_context(raw.get("resume_context")),
+        report=_coerce_report(raw.get("report")),
     )
 
 
 class PiHarnessAdapter:
-    """Map one generic request to one complete Pi playbook run."""
+    """Map one step request to exactly one complete Pi session run."""
 
     identity = "pi"
 
@@ -378,8 +418,9 @@ class PiHarnessAdapter:
             raise HarnessValidationError(f"unknown model profile: {name}") from exc
 
     @staticmethod
-    def _discover_artifacts(request: HarnessStartRequest) -> tuple[HarnessArtifact, ...]:
-        feature = request.workspace_path / "specs" / request.task_id
+    def _discover_artifacts(request: StepStartRequest) -> tuple[HarnessArtifact, ...]:
+        task_id = str(request.inputs.get("task_id", ""))
+        feature = request.workspace_path / "specs" / task_id
         expected = (
             ("specification", feature / "spec.md"),
             ("plan", feature / "plan.md"),
@@ -388,7 +429,7 @@ class PiHarnessAdapter:
         return tuple(
             HarnessArtifact(kind, path.relative_to(request.workspace_path).as_posix())
             for kind, path in expected
-            if path.is_file()
+            if task_id and path.is_file()
         )
 
     @staticmethod
@@ -401,7 +442,7 @@ class PiHarnessAdapter:
         try:
             value = json.loads(stripped)
         except json.JSONDecodeError as exc:
-            raise _PiTransportError("Pi assistant returned malformed harness JSON") from exc
+            raise _PiTransportError("Pi assistant returned malformed step JSON") from exc
         if not isinstance(value, dict):
             raise _PiTransportError("Pi assistant result must be a JSON object")
         return value
@@ -452,7 +493,7 @@ class PiHarnessAdapter:
                 process.kill()
                 process.wait(timeout=0.5)
 
-    def _run_process(self, request: HarnessStartRequest) -> object:
+    def _run_process(self, request: StepStartRequest) -> object:
         marker = self.runtime_marker
         executable = marker.executable if marker is not None else None
         if (
@@ -507,7 +548,7 @@ class PiHarnessAdapter:
                         event_type = event["type"]
                         if event_type == "response" and event.get("command") == "prompt":
                             if event.get("success") is not True:
-                                raise _PiTransportError("Pi rejected the harness prompt")
+                                raise _PiTransportError("Pi rejected the step prompt")
                         elif event_type == "turn_end":
                             message = event.get("message")
                             if isinstance(message, dict) and message.get("stopReason") == "error":
@@ -524,7 +565,7 @@ class PiHarnessAdapter:
                                         result_count += 1
                                         if result_count > 1:
                                             raise _PiTransportError(
-                                                "Pi assistant returned multiple harness results"
+                                                "Pi assistant returned multiple step results"
                                             )
                                         result = candidate
                         elif event_type == "agent_settled":
@@ -535,13 +576,13 @@ class PiHarnessAdapter:
             if agent_error and result is None:
                 return {
                     "status": "failed",
-                    "reason": "Pi agent failed before returning a harness result",
+                    "reason": "Pi agent failed before returning a step result",
                     "next_action": "inspect the Pi run before retrying",
                 }
             if result is None:
                 if saw_malformed_result:
-                    raise _PiTransportError("Pi assistant returned malformed harness JSON")
-                raise _PiTransportError("Pi assistant returned no harness result")
+                    raise _PiTransportError("Pi assistant returned malformed step JSON")
+                raise _PiTransportError("Pi assistant returned no step result")
             if buffer.strip():
                 raise _PiTransportError("Pi runtime returned an incomplete RPC event")
             self._stop_process(process)
@@ -560,12 +601,12 @@ class PiHarnessAdapter:
                 if process.stdout is not None:
                     process.stdout.close()
 
-    def start(self, request: HarnessStartRequest) -> HarnessResult:
-        """Validate, invoke exactly once, and normalize one Pi run."""
+    def start(self, request: StepStartRequest) -> HarnessResult:
+        """Validate, invoke exactly once, and normalize one Pi step run."""
         try:
-            validate_harness_request(request)
-            if request.playbook_id != PLAYBOOK_ID:
-                raise HarnessValidationError("unsupported playbook")
+            validate_step_request(request)
+            if "playbook" in request.step_id or request.step_id == PLAYBOOK_ID:
+                raise HarnessValidationError("playbook requests are refused")
         except HarnessValidationError:
             raise
         except Exception as exc:
@@ -588,18 +629,21 @@ class PiHarnessAdapter:
 
         started = self.clock()
         private_request = PiRunRequest(
-            task_id=request.task_id,
-            task_title=request.task_context.title,
-            task_description=request.task_context.description,
-            acceptance_criteria=request.task_context.acceptance_criteria,
+            step_id=request.step_id,
+            flow_id=request.flow_id,
+            skill_path=request.skill_path,
+            task_id=str(request.inputs.get("task_id", "")),
+            task_title=str(request.inputs.get("task_problem", "")),
+            task_description=str(request.inputs.get("expected_result", "")),
+            acceptance_criteria=str(request.inputs.get("acceptance_criteria", "")),
             workspace_path=request.workspace_path,
             workspace_branch=request.workspace_branch,
-            playbook_id=request.playbook_id,
             model_profile=profile,
             timeout_seconds=float(request.timeout_seconds),
             deadline=started + float(request.timeout_seconds),
             operator_flags=request.operator_flags,
             resume_context=request.resume_context,
+            inputs=dict(request.inputs),
         )
         result_box: list[object] = []
         error_box: list[BaseException] = []
@@ -633,7 +677,7 @@ class PiHarnessAdapter:
         return self._normalize_response(request, response)
 
     def _normalize_response(
-        self, request: HarnessStartRequest, response: PiRunResponse
+        self, request: StepStartRequest, response: PiRunResponse
     ) -> HarnessResult:
         if response.status == "timeout":
             return _failed(
@@ -650,11 +694,21 @@ class PiHarnessAdapter:
         artifacts, changes, output_reference = _sanitize_advisory_paths(
             response, request.workspace_path
         )
+        report = None
+        try:
+            from .external_framework import parse_step_report
+
+            if response.report is not None:
+                report = parse_step_report(request.step_id, response.report)
+            elif status == "completed":
+                return _failed(f"Pi returned no {request.step_id} compact report")
+        except HarnessValidationError as exc:
+            return _failed(f"Pi step report rejected: {exc}")
         result = HarnessResult(
             status=status,
             reason=response.reason or "Pi run finished without a reason",
             next_action=response.next_action
-            or ("answer the harness questions" if status == "needs_human" else ""),
+            or ("answer the step questions" if status == "needs_human" else ""),
             artifacts=artifacts or self._discover_artifacts(request),
             changes=changes,
             output_reference=output_reference,
@@ -662,12 +716,14 @@ class PiHarnessAdapter:
             questions=response.questions,
             resume_context=response.resume_context,
             harness_id=self.identity,
+            report=report,
         )
         try:
             return validate_harness_result(
                 result,
                 workspace_path=request.workspace_path,
                 adapter_id=self.identity,
+                step_id=request.step_id,
             )
         except HarnessValidationError as exc:
             return _failed(f"Pi result rejected: {exc}")

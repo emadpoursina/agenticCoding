@@ -1,12 +1,19 @@
-"""Single-shot agent execute against a prepared workspace."""
+"""Single-shot agent execute and per-step harness dispatch.
+
+The live execution path is per-step: :meth:`AgentExecutor.start_step`
+assembles one :class:`StepStartRequest` for one agent-kind graph state and
+each agent state becomes exactly one new Pi session. The old role map
+(discovery/planning/implementation/validation), the whole-playbook
+config, and the shell `_run_validation` gate are removed; the tester
+state carries the project's declared `validation_commands` as request
+inputs and Hermes never executes them itself.
+"""
 
 from __future__ import annotations
 
 import json
 import os
 import re
-import shlex
-import subprocess
 import urllib.error
 import urllib.request
 import uuid
@@ -18,23 +25,22 @@ from .ainative import (
     AgentDefinition,
     AgentDependency,
     AiNativeAdapter,
-    ReadOnlyError,
     Revision,
 )
 from .external_framework import (
+    AGENT_LOOP_STATES,
+    AINATIVE_STEP_AGENTS,
     HarnessAdapter,
     HarnessConfigurationError,
     HarnessResult,
-    HarnessStartRequest,
     HarnessValidationError,
-    RepositoryContext,
     ResumeContext,
-    SafetyLimits,
+    StepStartRequest,
     coerce_timeout_seconds,
     load_harness_config,
-    task_context_from_board,
-    validate_harness_request,
+    step_skill_path,
     validate_harness_result,
+    validate_step_request,
 )
 from .pi import PiHarnessAdapter
 from .projects import (
@@ -52,26 +58,8 @@ from .workspace import (
     WorkspaceManager,
 )
 
-_ROLES = ("discovery", "planning", "implementation", "validation")
-_DEFAULT_ROLE_AGENTS = {
-    "discovery": "scout",
-    "planning": "specs-planner",
-    "implementation": "builder",
-    "validation": "tester",
-}
 _MODEL_SLOTS = ("planning", "implementation", "validation")
 _RESULT_STATUSES = frozenset({"success", "failure", "blocked"})
-_PLAN_SECTIONS = (
-    "problemunderstanding",
-    "scope",
-    "likelyaffectedparts",
-    "implementationapproach",
-    "acceptancecriteriamapping",
-    "validationstrategy",
-    "risks",
-    "openquestions",
-)
-_HEADING = re.compile(r"^##\s+(.*)$")
 # 9router (and some OpenAI-compatible hosts) append an SSE closer after one JSON object.
 _TRAILING_SSE_DONE = re.compile(r"\A\s*(?:data:\s*\[DONE\]\s*)?\Z")
 _OPENCODE_SESSION_HEADER = "x-opencode-session"
@@ -87,8 +75,6 @@ _MODEL_JSON_ONLY = (
     "for consequential product, architecture, security, or irreversible decisions. "
     "When the task and acceptance criteria are complete, questions must be an empty array."
 )
-_SKIP_WORKSPACE_DIRS = frozenset({".git"})
-_PREFERRED_WORKSPACE_FILES = ("index.html", "README.md", "AGENTS.md", "CHANGELOG.md")
 _MAX_WORKSPACE_FILES = 8
 _MAX_WORKSPACE_FILE_BYTES = 20 * 1024
 _MAX_WORKSPACE_TOTAL_BYTES = 24 * 1024
@@ -96,10 +82,6 @@ _MAX_WORKSPACE_TOTAL_BYTES = 24 * 1024
 
 class ExecutorError(Exception):
     """Base error for agent executor failures."""
-
-
-class UnknownRoleError(ExecutorError):
-    """Raised when a role name is not in the closed set."""
 
 
 class MissingWorkspaceError(ExecutorError):
@@ -116,10 +98,6 @@ class MissingModelCredentialsError(ExecutorError):
 
 class InvalidExecutePayloadError(ExecutorError):
     """Raised when an execute payload is present but malformed."""
-
-
-class UnsafeWorkspaceWriteError(ExecutorError):
-    """Raised when a model-requested path leaves the isolated copy."""
 
 
 @dataclass(frozen=True)
@@ -198,20 +176,19 @@ class ExecuteResult:
 
 @dataclass(frozen=True)
 class ExecutionSettings:
-    """Role map and model-assignment slots from operational YAML."""
+    """Model-assignment slots and per-step harness profile mapping."""
 
     workflow_name: str
-    role_agents: dict[str, str]
     model_roles: dict[str, str]
     base_url_env: str | None
     api_key_env: str | None
-    harness_playbook: str
     harness_model_profile: str
+    harness_step_profiles: dict[str, str]
     harness_timeout_seconds: float
 
     @classmethod
     def from_config(cls, config_path: Path) -> ExecutionSettings:
-        """Load workflow, roles, and model env *names*. Does not invent model ids."""
+        """Load workflow, model env *names*, and the per-step profile map."""
         try:
             text = config_path.read_text(encoding="utf-8")
         except (OSError, UnicodeError) as exc:
@@ -222,23 +199,13 @@ class ExecutionSettings:
         except _SubsetYamlError as exc:
             raise ExecutorError(f"cannot parse config: {config_path}") from exc
 
-        workflow_name = "piv"
+        workflow_name = "feature-loop"
         raw_workflow = document.get("workflow")
         if isinstance(raw_workflow, dict) and "default" in raw_workflow:
             raw_default = raw_workflow["default"]
             if not isinstance(raw_default, str) or not raw_default.strip():
                 raise ExecutorError("workflow.default must be non-empty")
             workflow_name = raw_default.strip()
-
-        role_agents = dict(_DEFAULT_ROLE_AGENTS)
-        raw_roles = document.get("roles")
-        if isinstance(raw_roles, dict):
-            for role in _ROLES:
-                if role not in raw_roles:
-                    continue
-                value = raw_roles[role]
-                if isinstance(value, str) and value.strip():
-                    role_agents[role] = value.strip()
 
         model_roles = {slot: "" for slot in _MODEL_SLOTS}
         raw_model = document.get("model")
@@ -263,14 +230,25 @@ class ExecutionSettings:
                 api_key_env = raw_key.strip()
 
         raw_harness = document.get("harness")
-        harness_playbook = "speckit-orchestrate"
         harness_model_profile = "default"
+        harness_step_profiles: dict[str, str] = {}
         harness_timeout_seconds = 1800.0
         if isinstance(raw_harness, dict):
-            if isinstance(raw_harness.get("playbook"), str):
-                harness_playbook = raw_harness["playbook"].strip()
             if isinstance(raw_harness.get("model_profile"), str):
                 harness_model_profile = raw_harness["model_profile"].strip()
+            raw_step_profiles = raw_harness.get("step_profiles")
+            if raw_step_profiles is not None:
+                if not isinstance(raw_step_profiles, dict):
+                    raise ExecutorError("harness.step_profiles must be a mapping")
+                for step, profile in raw_step_profiles.items():
+                    if step not in AGENT_LOOP_STATES:
+                        # Unknown step in the map fails closed at startup.
+                        raise ExecutorError(f"unknown harness step profile: {step}")
+                    if not isinstance(profile, str) or not profile.strip():
+                        raise ExecutorError(f"step profile for {step} must be a named reference")
+                    if "/" in profile or "\\" in profile:
+                        raise ExecutorError("model profile must be a named reference")
+                    harness_step_profiles[step] = profile.strip()
             try:
                 harness_timeout_seconds = coerce_timeout_seconds(
                     raw_harness.get("timeout_seconds")
@@ -279,14 +257,17 @@ class ExecutionSettings:
                 raise ExecutorError(str(exc)) from exc
         return cls(
             workflow_name,
-            role_agents,
             model_roles,
             base_url_env,
             api_key_env,
-            harness_playbook,
             harness_model_profile,
+            harness_step_profiles,
             harness_timeout_seconds,
         )
+
+    def profile_for_step(self, step_id: str) -> str:
+        """Resolve one step's model profile; unknown steps use the default."""
+        return self.harness_step_profiles.get(step_id, self.harness_model_profile)
 
 
 class ModelService(Protocol):
@@ -298,31 +279,8 @@ class ModelService(Protocol):
     ) -> ModelResponse: ...
 
 
-def _git(repo: Path, *args: str) -> str:
-    result = subprocess.run(
-        ["git", "-C", str(repo), *args],
-        check=True,
-        capture_output=True,
-        text=True,
-    )
-    return result.stdout.strip()
-
-
-def _has_plan_sections(body: str) -> bool:
-    found = {
-        re.sub(r"[^a-z0-9]", "", match.group(1).lower())
-        for line in body.splitlines()
-        if (match := _HEADING.match(line.strip()))
-    }
-    return all(section in found for section in _PLAN_SECTIONS)
-
-
-def _assignment_slot(role: str | None, model_slot: str | None = None) -> str:
-    if model_slot:
-        return model_slot
-    if role in {"implementation", "validation"}:
-        return role
-    return "planning"
+def _assignment_slot(model_slot: str | None = None) -> str:
+    return model_slot or "planning"
 
 
 def _chat_completions_url(base_url: str) -> str:
@@ -388,52 +346,13 @@ def _read_workspace_files(workspace: Path) -> tuple[ContextFile, ...]:
         total += len(data)
         found.append(ContextFile(relative, text))
 
-    for name in _PREFERRED_WORKSPACE_FILES:
+    for name in ("index.html", "README.md", "AGENTS.md"):
         _add(root / name)
     docs = root / "docs"
     if docs.is_dir():
         for path in sorted(docs.glob("*.md")):
             _add(path)
     return tuple(found)
-
-
-def _safe_write_path(relative: str, workspace: Path, methodology: Path, enrolled: Path) -> Path:
-    workspace = workspace.resolve()
-    candidate = Path(relative)
-    if not isinstance(relative, str) or not relative or candidate.is_absolute():
-        raise UnsafeWorkspaceWriteError(f"unsafe write: {relative}")
-    resolved = candidate.resolve() if candidate.is_absolute() else (workspace / relative).resolve()
-    try:
-        resolved.relative_to(methodology.resolve())
-        raise ReadOnlyError("AiNative methodology is read-only")
-    except ValueError:
-        pass
-    if any(part in {"", ".", ".."} for part in candidate.parts):
-        raise UnsafeWorkspaceWriteError(f"unsafe write: {relative}")
-    try:
-        resolved.relative_to(workspace)
-    except ValueError as exc:
-        raise UnsafeWorkspaceWriteError(f"unsafe write: {relative}") from exc
-    try:
-        resolved.relative_to(enrolled.resolve())
-        raise UnsafeWorkspaceWriteError(f"unsafe write: {relative}")
-    except ValueError:
-        pass
-    return resolved
-
-
-def _run_validation(commands: tuple[str, ...], cwd: Path) -> tuple[str, str]:
-    # ponytail: no subprocess timeout; upgrade is a bounded timeout when a project check hangs.
-    for command in commands:
-        try:
-            completed = subprocess.run(
-                shlex.split(command), cwd=cwd, capture_output=True, text=True
-            )
-        except OSError:
-            return "blocked", "failure"
-        if completed.returncode != 0:
-            return "fail", "failure"
-    return "pass", "success"
 
 
 def _jsonable(value: object) -> object:
@@ -601,7 +520,7 @@ class OpenAICompatibleModelService:
 
 
 class AgentExecutor:
-    """Trust boundary for one named agent or role against a prepared workspace."""
+    """Trust boundary for one named agent or one graph step."""
 
     def __init__(
         self,
@@ -667,46 +586,34 @@ class AgentExecutor:
             project_id,
             task_id,
             payload=payload,
-            role=None,
             model_slot=model_slot,
             framework_artifacts=framework_artifacts,
         )
 
-    def execute_role(
+    def start_step(
         self,
-        role: str,
-        project_id: str,
-        task_id: str,
-        *,
-        payload: ExecutePayload | None = None,
-        framework_artifacts: dict[str, Path] | None = None,
-    ) -> ExecuteResult:
-        if role not in _ROLES:
-            raise UnknownRoleError(f"unknown role: {role}")
-        return self._execute(
-            self.settings.role_agents[role],
-            project_id,
-            task_id,
-            payload=payload,
-            role=role,
-            framework_artifacts=framework_artifacts,
-        )
-
-    def start_harness(
-        self,
-        adapter: HarnessAdapter | None,
+        step_id: str,
         project_id: str,
         task_id: str,
         *,
         task: object | None = None,
-        timeout_seconds: float | None = None,
+        flow_id: str,
         operator_flags: tuple[str, ...] = (),
         resume_context: ResumeContext | None = None,
+        timeout_seconds: float | None = None,
     ) -> HarnessResult:
-        """Assemble and invoke exactly one provider-neutral harness request."""
+        """Assemble and invoke exactly one per-step provider-neutral request.
+
+        Each agent state is one new Pi session. Requests for non-agent
+        states or a retired playbook id are refused before any runtime.
+        """
         from .orchestrator import BoardTask
 
-        selected = adapter or self.harness_adapter
+        if step_id not in AGENT_LOOP_STATES:
+            raise HarnessValidationError(f"step_id is not an agent state: {step_id}")
+        if "playbook" in step_id:
+            raise HarnessValidationError("playbook requests are refused")
+        selected = self.harness_adapter
         if selected is None:
             raise HarnessValidationError("harness adapter is required")
         if not isinstance(task, BoardTask):
@@ -737,30 +644,44 @@ class AgentExecutor:
             actual_timeout = coerce_timeout_seconds(actual_timeout)
         except HarnessConfigurationError as exc:
             raise HarnessValidationError(str(exc)) from exc
-        request = HarnessStartRequest(
-            project_id=project_id,
-            task_id=task_id,
-            task_context=task_context_from_board(task),
-            repository_context=RepositoryContext(
-                project_context.repository,
-                project_context.default_branch,
-                project_context.location,
-            ),
+        # The tester state carries the declared validation_commands as
+        # inputs; Hermes does not execute them itself (FR-008).
+        inputs: dict[str, object] = {
+            "task_id": task_id,
+            "task_problem": task.problem,
+            "expected_result": task.expected_result,
+            "acceptance_criteria": task.acceptance_criteria,
+            "priority": task.priority,
+        }
+        if step_id == "tester":
+            inputs["validation_commands"] = tuple(project_context.validation_commands)
+        if step_id in AINATIVE_STEP_AGENTS:
+            agent_name = AINATIVE_STEP_AGENTS[step_id]
+            self.adapter.get_agent(agent_name)  # fail closed on an unresolvable agent
+            skill_path = f"docs/agents/{agent_name}/"
+        else:
+            skill_path = step_skill_path(step_id)
+            if not (inspection.path / skill_path).is_file():
+                raise HarnessValidationError(f"step skill is missing in the worktree: {skill_path}")
+        request = StepStartRequest(
+            step_id=step_id,
+            flow_id=flow_id,
+            skill_path=skill_path,
             workspace_path=inspection.path,
             workspace_branch=inspection.branch,
-            playbook_id=self.settings.harness_playbook,
-            model_profile=self.settings.harness_model_profile,
+            model_profile=self.settings.profile_for_step(step_id),
             timeout_seconds=actual_timeout,
-            safety_limits=SafetyLimits(),
+            inputs=inputs,
             operator_flags=operator_flags,
             resume_context=resume_context,
         )
-        validate_harness_request(request)
+        validate_step_request(request)
         result = selected.start(request)
         return validate_harness_result(
             result,
             workspace_path=inspection.path,
             adapter_id=selected.identity,
+            step_id=step_id,
         )
 
     def _payload(self, payload: ExecutePayload | None) -> ExecutePayload:
@@ -781,35 +702,6 @@ class AgentExecutor:
                 raise InvalidExecutePayloadError(f"payload.{name} must be a string")
         return payload
 
-    def _apply_files(
-        self,
-        files: dict[str, str],
-        *,
-        workspace: Path,
-        methodology: Path,
-        enrolled: Path,
-        branch: str,
-        default_branch: str,
-        commit: bool,
-        task_id: str,
-    ) -> None:
-        # ponytail: whole-file writes from the model list (no tool loop);
-        # upgrade is a Hermes-native tool-using worker.
-        targets = [
-            (_safe_write_path(relative, workspace, methodology, enrolled), content)
-            for relative, content in files.items()
-        ]
-        for path, content in targets:
-            path.parent.mkdir(parents=True, exist_ok=True)
-            path.write_text(content, encoding="utf-8")
-        if not commit:
-            return
-        self.workspaces.assert_publish_allowed(branch, default_branch=default_branch)
-        if not _git(workspace, "status", "--porcelain"):
-            return
-        _git(workspace, "add", "-A")
-        _git(workspace, "commit", "-m", f"task {task_id}")
-
     def _execute(
         self,
         name: str,
@@ -817,7 +709,6 @@ class AgentExecutor:
         task_id: str,
         *,
         payload: ExecutePayload | None,
-        role: str | None,
         model_slot: str | None = None,
         framework_artifacts: dict[str, Path] | None = None,
     ) -> ExecuteResult:
@@ -833,33 +724,13 @@ class AgentExecutor:
             inspection.branch, default_branch=project_context.default_branch
         )
         payload = self._payload(payload)
-        if role == "validation" and model_slot is None:
-            validation, status = _run_validation(
-                project_context.validation_commands, inspection.path
-            )
-            return ExecuteResult(
-                status=status,
-                summary=f"project checks {validation}",
-                artifacts=(),
-                next_action=None,
-                questions=(),
-                identity=CorrelationIdentity(
-                    task_id=task_id,
-                    execution_id=uuid.uuid4().hex,
-                    project_id=project_id,
-                    workspace_id=f"ws-{project_id}-{task_id}",
-                    worker_id=self.settings.role_agents[role],
-                ),
-                model_assignment="",
-                validation=validation,
-            )
         agent = self.adapter.get_agent(name)
         dependencies = tuple(self.adapter.resolve_agent_dependencies(name))
-        execution = self.adapter.build_execution_context(agent, workflow_phase=role or "agent")
-        assignment = self.settings.model_roles.get(_assignment_slot(role, model_slot), "")
+        execution = self.adapter.build_execution_context(agent, workflow_phase="agent")
+        assignment = self.settings.model_roles.get(_assignment_slot(model_slot), "")
         if not assignment:
             raise MissingModelAssignmentError(
-                f"missing model assignment for {_assignment_slot(role)}"
+                f"missing model assignment for {_assignment_slot(model_slot)}"
             )
         context = AssembledContext(
             task=_TaskSlice(
@@ -889,41 +760,11 @@ class AgentExecutor:
             framework_artifacts=dict(framework_artifacts or {}),
         )
         response = self.model_service.complete(assignment=assignment, context=context)
-        artifacts: tuple[Path, ...] = ()
-        failed = False
-        if role == "planning":
-            plan_path = inspection.path / "PLAN.md"
-            plan_path.write_text(response.plan_markdown or "", encoding="utf-8")
-            if _has_plan_sections(response.plan_markdown or ""):
-                artifacts = (plan_path,)
-            else:
-                failed = True
-        elif role == "implementation":
-            self._apply_files(
-                response.files,
-                workspace=inspection.path,
-                methodology=execution.methodology_path,
-                enrolled=project_context.location,
-                branch=inspection.branch,
-                default_branch=project_context.default_branch,
-                commit=response.commit,
-                task_id=task_id,
-            )
-        validation = None
-        if role == "validation":
-            validation, status = _run_validation(
-                project_context.validation_commands, inspection.path
-            )
-        else:
-            status = (
-                "failure"
-                if failed
-                else (response.status if response.status in _RESULT_STATUSES else "success")
-            )
+        status = response.status if response.status in _RESULT_STATUSES else "success"
         return ExecuteResult(
             status=status,
             summary=response.summary,
-            artifacts=artifacts,
+            artifacts=(),
             next_action=response.next_action,
             questions=response.questions,
             identity=CorrelationIdentity(
@@ -934,5 +775,5 @@ class AgentExecutor:
                 worker_id=name,
             ),
             model_assignment=assignment,
-            validation=validation,
+            validation=None,
         )

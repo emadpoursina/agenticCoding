@@ -121,6 +121,8 @@ def test_list_agents_discovers_sorted_non_reserved_directories(tmp_path: Path):
         "builder",
         "critic",
         "empty-agent",
+        "pr-reviewer",
+        "ready",
         "scout",
         "specs-planner",
         "tester",

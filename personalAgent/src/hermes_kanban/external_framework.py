@@ -2,6 +2,10 @@
 
 The module intentionally knows nothing about a provider SDK.  Provider
 translation belongs in the adapter selected by Hermes.
+
+One request is exactly one loop step (an agent state on the canonical
+graph in ``/ainative/docs/systems/feature-loop.md``); there is no
+whole-playbook request anymore.
 """
 
 from __future__ import annotations
@@ -11,6 +15,7 @@ import math
 import os
 import re
 import shutil
+from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING, Literal, Protocol
@@ -18,9 +23,48 @@ from typing import TYPE_CHECKING, Literal, Protocol
 from .projects import _parse_document, _path_like_id, _SubsetYamlError
 
 if TYPE_CHECKING:
-    from .orchestrator import BoardTask
+    pass
 
+# Retired Hermes playbook name. A request carrying it (as a step id or
+# playbook reference) is refused, never translated (FR-005, FR-014).
 PLAYBOOK_ID = "speckit-orchestrate"
+REFUSED_PLAYBOOKS = frozenset({PLAYBOOK_ID})
+
+# Canonical loop states (AiNative/docs/systems/feature-loop.md). The graph
+# definition is linked, not copied; Hermes only stores these id strings.
+AGENT_LOOP_STATES = (
+    "ready",
+    "specify",
+    "clarify",
+    "plan",
+    "tasks",
+    "analyze",
+    "implement",
+    "converge",
+    "critic",
+    "tester",
+    "pr-review",
+)
+HUMAN_STATES = ("confirm", "uat")
+PARENT_STATES = ("publish",)
+LOOP_STATES = AGENT_LOOP_STATES + HUMAN_STATES + PARENT_STATES
+STATE_KINDS: dict[str, str] = {
+    **{state: "agent" for state in AGENT_LOOP_STATES},
+    **{state: "human" for state in HUMAN_STATES},
+    **{state: "parent" for state in PARENT_STATES},
+}
+# AiNative agent states resolve to docs/agents/<name>/; the rest are
+# Spec Kit skills in the task worktree.
+AINATIVE_STEP_AGENTS = {
+    "ready": "ready",
+    "critic": "critic",
+    "tester": "tester",
+    "pr-review": "pr-reviewer",
+}
+SPEC_KIT_STATES = tuple(
+    state for state in AGENT_LOOP_STATES if state not in AINATIVE_STEP_AGENTS
+)
+
 RESULT_STATUSES = frozenset({"completed", "failed", "needs_human", "stuck"})
 MAX_TEXT = 4096
 MAX_ITEMS = 32
@@ -78,20 +122,6 @@ def coerce_timeout_seconds(value: object) -> float:
 
 
 @dataclass(frozen=True)
-class TaskContext:
-    """The bounded task projection visible to a harness."""
-
-    title: str
-    description: str
-    expected_result: str
-    acceptance_criteria: str
-    priority: str
-    platform: str = ""
-    technical_notes: str = ""
-    dependencies: tuple[str, ...] = ()
-
-
-@dataclass(frozen=True)
 class RepositoryContext:
     """Read-only repository information needed by a harness."""
 
@@ -114,7 +144,7 @@ class SafetyLimits:
 
 @dataclass(frozen=True)
 class ResumeContext:
-    """Safe operator or recovery data passed to a new whole-run attempt."""
+    """Safe operator or recovery data passed to one step attempt."""
 
     answers: tuple[str, ...] = ()
     assumptions: tuple[str, ...] = ()
@@ -133,21 +163,32 @@ class HarnessArtifact:
 
 
 @dataclass(frozen=True)
-class HarnessStartRequest:
-    """One provider-neutral work attempt."""
+class StepStartRequest:
+    """One per-step harness start request.
 
-    project_id: str
-    task_id: str
-    task_context: TaskContext
-    repository_context: RepositoryContext
+    One instance starts exactly one new Pi session for one agent-kind
+    graph state. There is no playbook id and no whole-flow request.
+    """
+
+    step_id: str
+    flow_id: str
+    skill_path: str
     workspace_path: Path
     workspace_branch: str
-    playbook_id: str
     model_profile: str
     timeout_seconds: float
-    safety_limits: SafetyLimits
+    inputs: Mapping[str, object]
     operator_flags: tuple[str, ...] = ()
     resume_context: ResumeContext | None = None
+
+
+@dataclass(frozen=True)
+class StepReport:
+    """Strict per-state compact report parsed by Hermes."""
+
+    step_id: str
+    fields: Mapping[str, str]
+    questions: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -164,6 +205,7 @@ class HarnessResult:
     questions: tuple[str, ...] = ()
     resume_context: ResumeContext | None = None
     harness_id: str = ""
+    report: StepReport | None = None
 
 
 class HarnessAdapter(Protocol):
@@ -171,7 +213,7 @@ class HarnessAdapter(Protocol):
 
     identity: str
 
-    def start(self, request: HarnessStartRequest) -> HarnessResult: ...
+    def start(self, request: StepStartRequest) -> HarnessResult: ...
 
 
 def contains_secret(value: str) -> bool:
@@ -247,57 +289,30 @@ def validate_safety_limits(limits: SafetyLimits) -> SafetyLimits:
     return limits
 
 
-def validate_harness_request(request: HarnessStartRequest) -> HarnessStartRequest:
-    """Validate all request data before any runtime or model starts."""
-    if not isinstance(request, HarnessStartRequest):
-        raise HarnessValidationError("request must be HarnessStartRequest")
-    for field, value in (("project_id", request.project_id), ("task_id", request.task_id)):
-        if not isinstance(value, str) or not value.strip() or _path_like_id(value):
-            raise HarnessValidationError(f"{field} is missing or path-like")
-    task = request.task_context
-    if not isinstance(task, TaskContext):
-        raise HarnessValidationError("task_context is required")
-    for field in (
-        "title",
-        "description",
-        "expected_result",
-        "acceptance_criteria",
-        "priority",
-        "platform",
-        "technical_notes",
-    ):
-        _safe_text(
-            getattr(task, field),
-            f"task_context.{field}",
-            empty=field
-            not in {
-                "title",
-                "description",
-                "expected_result",
-                "acceptance_criteria",
-                "priority",
-            },
-        )
-    _validate_items(task.dependencies, "task dependency")
-    repository = request.repository_context
-    if not isinstance(repository, RepositoryContext):
-        raise HarnessValidationError("repository_context is required")
-    _safe_text(repository.repository, "repository", empty=False)
-    _safe_text(repository.default_branch, "default branch", empty=False)
-    if repository.enrolled_root is not None and not isinstance(repository.enrolled_root, Path):
-        raise HarnessValidationError("enrolled root must be a Path")
+def validate_step_request(request: StepStartRequest) -> StepStartRequest:
+    """Validate one per-step request before any runtime or model starts."""
+    if not isinstance(request, StepStartRequest):
+        raise HarnessValidationError("request must be StepStartRequest")
+    step = request.step_id
+    if not isinstance(step, str) or not step or _path_like_id(step):
+        raise HarnessValidationError("step_id is missing or path-like")
+    if step in REFUSED_PLAYBOOKS or "playbook" in step:
+        raise HarnessValidationError(f"playbook requests are refused: {step}")
+    if STATE_KINDS.get(step) != "agent":
+        raise HarnessValidationError(f"step_id is not an agent state: {step or '(missing)'}")
+    _safe_text(request.flow_id, "flow_id", empty=False)
+    _safe_text(request.skill_path, "skill_path", empty=False)
+    skill = Path(request.skill_path)
+    if skill.is_absolute() or any(part in {"", ".", ".."} for part in skill.parts):
+        raise HarnessValidationError("skill_path must be a normalized relative path")
     if not isinstance(request.workspace_path, Path):
         raise HarnessValidationError("workspace path must be a Path")
     workspace = request.workspace_path.resolve(strict=False)
     if workspace.is_symlink() or not workspace.is_dir():
         raise HarnessValidationError("workspace path is unavailable")
-    if repository.enrolled_root is not None and workspace == repository.enrolled_root.resolve():
-        raise HarnessValidationError("workspace must differ from enrolled root")
     _safe_text(request.workspace_branch, "workspace branch", empty=False)
     if request.workspace_branch in {"main", "master"}:
         raise HarnessValidationError("protected branch is not allowed")
-    if request.playbook_id != PLAYBOOK_ID:
-        raise HarnessValidationError(f"unsupported playbook: {request.playbook_id}")
     _safe_text(request.model_profile, "model profile", empty=False)
     if "/" in request.model_profile or "\\" in request.model_profile:
         raise HarnessValidationError("model profile must be a named reference")
@@ -307,7 +322,17 @@ def validate_harness_request(request: HarnessStartRequest) -> HarnessStartReques
         raise HarnessValidationError(str(exc)) from exc
     if timeout != request.timeout_seconds:
         raise HarnessValidationError("timeout_seconds must be normalized before execution")
-    validate_safety_limits(request.safety_limits)
+    inputs = request.inputs
+    if not isinstance(inputs, Mapping) or not inputs or len(inputs) > MAX_ITEMS:
+        raise HarnessValidationError("inputs must be a small non-empty mapping")
+    for key, value in inputs.items():
+        _safe_text(key, "inputs key", empty=False)
+        if isinstance(value, str):
+            _safe_text(value, f"inputs.{key}")
+        elif isinstance(value, (tuple, list)):
+            _validate_items(value, f"inputs.{key}")
+        else:
+            raise HarnessValidationError(f"inputs.{key} must be a string or string sequence")
     flags = _validate_items(request.operator_flags, "operator flag")
     if any(flag not in {"skip"} for flag in flags):
         raise HarnessValidationError("unsupported operator flag")
@@ -315,33 +340,85 @@ def validate_harness_request(request: HarnessStartRequest) -> HarnessStartReques
     return request
 
 
-def _safe_relative_path(
-    relative: str,
-    workspace: Path,
-    field: str,
-    *,
-    require_file: bool,
-) -> str:
-    _safe_text(relative, field, empty=False)
-    path = Path(relative)
-    if path.is_absolute() or any(part in {"", ".", ".."} for part in path.parts):
-        raise HarnessValidationError(f"{field} must be a normalized relative path")
-    root = workspace.resolve()
-    candidate = (root / path).resolve(strict=False)
-    try:
-        candidate.relative_to(root)
-    except ValueError as exc:
-        raise HarnessValidationError(f"{field} escapes the task worktree") from exc
-    current = root
-    for part in path.parts[:-1]:
-        current /= part
-        if current.is_symlink():
-            raise HarnessValidationError(f"{field} crosses a symlink")
-    if candidate.is_symlink():
-        raise HarnessValidationError(f"{field} is a symlink")
-    if require_file and (not candidate.is_file() or not os.access(candidate, os.R_OK)):
-        raise HarnessValidationError(f"{field} is not a readable file")
-    return path.as_posix()
+def step_skill_path(step_id: str) -> str:
+    """Return the Spec Kit skill path for one Spec Kit graph state."""
+    if step_id not in SPEC_KIT_STATES:
+        raise HarnessValidationError(f"step is not a Spec Kit state: {step_id}")
+    return f".cursor/skills/speckit-{step_id}/SKILL.md"
+
+
+# Per-state compact-report contract (contracts/compact-reports.md).
+REQUIRED_REPORT_FIELDS: dict[str, tuple[str, ...]] = {
+    "ready": ("READY", "FLOW_ID", "BRANCH", "CHECKS", "FIXES"),
+    "specify": ("FLOW_ID", "ARTIFACTS", "STATUS", "SUMMARY"),
+    "clarify": ("FLOW_ID", "ARTIFACTS", "STATUS", "SUMMARY"),
+    "plan": ("FLOW_ID", "ARTIFACTS", "STATUS", "SUMMARY", "ANALYZE"),
+    "tasks": ("FLOW_ID", "ARTIFACTS", "STATUS", "SUMMARY"),
+    "analyze": ("FLOW_ID", "ARTIFACTS", "STATUS", "SUMMARY"),
+    "implement": ("IMPLEMENT_STATUS", "TASKS_DONE", "TASKS_OPEN", "BLOCKER", "SUMMARY"),
+    "converge": ("CONVERGE_OUTCOME", "FINDINGS", "FINGERPRINT", "TASKS_APPENDED", "SUMMARY"),
+    "critic": ("VERDICT", "SUMMARY"),
+    "tester": ("VERDICT", "SUMMARY"),
+    "pr-review": ("VERDICT", "SUMMARY"),
+}
+_REPORT_VALUE_SETS: dict[str, frozenset[str]] = {
+    "READY": frozenset({"ok", "blocked"}),
+    "STATUS": frozenset({"ok", "stuck", "blocked"}),
+    "ANALYZE": frozenset({"yes", "no"}),
+    "CONVERGE_OUTCOME": frozenset({"converged", "tasks_appended", "blocked"}),
+    "VERDICT": frozenset({"PASS", "FAIL"}),
+}
+
+
+def parse_step_report(step_id: str, raw: object) -> StepReport:
+    """Strictly parse one state's compact report; unknown/missing fields fail."""
+    if step_id not in REQUIRED_REPORT_FIELDS:
+        raise HarnessValidationError(f"unknown step report: {step_id}")
+    if not isinstance(raw, dict):
+        raise HarnessValidationError(f"{step_id} report must be an object")
+    required = REQUIRED_REPORT_FIELDS[step_id]
+    allowed = set(required)
+    if step_id == "clarify":
+        allowed.add("questions")
+    unknown = set(raw) - allowed
+    if unknown:
+        raise HarnessValidationError(f"{step_id} report has unsupported fields: {sorted(unknown)}")
+    missing = [field for field in required if field not in raw]
+    if missing:
+        raise HarnessValidationError(f"{step_id} report is missing fields: {missing}")
+    fields: dict[str, str] = {}
+    for key in required:
+        value = _safe_text(raw[key], f"{step_id} report {key}", empty=False)
+        expected = _REPORT_VALUE_SETS.get(key)
+        if expected is not None and value not in expected:
+            raise HarnessValidationError(f"{step_id} report {key} is invalid: {value}")
+        fields[key] = value
+    questions: tuple[str, ...] = ()
+    if "questions" in raw:
+        questions = _validate_items(raw["questions"], f"{step_id} report questions")
+    return StepReport(step_id=step_id, fields=fields, questions=questions)
+
+
+def step_report_from_dict(raw: object) -> StepReport | None:
+    """Deserialize a saved compact report from the existing overlay."""
+    if raw is None:
+        return None
+    if not isinstance(raw, dict):
+        raise ValueError("report must be an object")
+    step = raw.get("step_id")
+    if not isinstance(step, str) or step not in REQUIRED_REPORT_FIELDS:
+        raise ValueError("report step_id is unknown")
+    fields = raw.get("fields")
+    if not isinstance(fields, dict) or not all(
+        isinstance(key, str) and isinstance(value, str) for key, value in fields.items()
+    ):
+        raise ValueError("report fields must be a string mapping")
+    questions = raw.get("questions", ())
+    if not isinstance(questions, (list, tuple)) or not all(
+        isinstance(item, str) for item in questions
+    ):
+        raise ValueError("report questions must be a sequence")
+    return StepReport(step_id=step, fields=fields, questions=tuple(questions))
 
 
 def validate_harness_result(
@@ -349,8 +426,9 @@ def validate_harness_result(
     *,
     workspace_path: Path,
     adapter_id: str | None = None,
+    step_id: str | None = None,
 ) -> HarnessResult:
-    """Validate normalized adapter output before persistence or validation."""
+    """Validate normalized adapter output before persistence or advancing."""
     if not isinstance(result, HarnessResult):
         raise HarnessValidationError("adapter did not return HarnessResult")
     if result.status not in RESULT_STATUSES:
@@ -391,6 +469,12 @@ def validate_harness_result(
         output = _safe_relative_path(output, workspace_path, "output reference", require_file=True)
     resume = validate_resume_context(result.resume_context)
     harness_id = _safe_text(result.harness_id, "harness id")
+    report = result.report
+    if report is not None:
+        if not isinstance(report, StepReport):
+            raise HarnessValidationError("report must be a StepReport")
+        if step_id is not None and report.step_id != step_id:
+            raise HarnessValidationError("report does not match the started step")
     return HarnessResult(
         status=result.status,
         reason=reason,
@@ -402,7 +486,37 @@ def validate_harness_result(
         questions=questions,
         resume_context=resume,
         harness_id=harness_id,
+        report=report,
     )
+
+
+def _safe_relative_path(
+    relative: str,
+    workspace: Path,
+    field: str,
+    *,
+    require_file: bool,
+) -> str:
+    _safe_text(relative, field, empty=False)
+    path = Path(relative)
+    if path.is_absolute() or any(part in {"", ".", ".."} for part in path.parts):
+        raise HarnessValidationError(f"{field} must be a normalized relative path")
+    root = workspace.resolve()
+    candidate = (root / path).resolve(strict=False)
+    try:
+        candidate.relative_to(root)
+    except ValueError as exc:
+        raise HarnessValidationError(f"{field} escapes the task worktree") from exc
+    current = root
+    for part in path.parts[:-1]:
+        current /= part
+        if current.is_symlink():
+            raise HarnessValidationError(f"{field} crosses a symlink")
+    if candidate.is_symlink():
+        raise HarnessValidationError(f"{field} is a symlink")
+    if require_file and (not candidate.is_file() or not os.access(candidate, os.R_OK)):
+        raise HarnessValidationError(f"{field} is not a readable file")
+    return path.as_posix()
 
 
 @dataclass(frozen=True)
@@ -422,8 +536,8 @@ class HarnessConfiguration:
     """Validated harness selection and named profile configuration."""
 
     adapter_id: str
-    playbook_id: str
     model_profile: str
+    step_profiles: Mapping[str, str]
     runtime_path_env: str
     runtime: HarnessRuntime
     timeout_seconds: float
@@ -497,6 +611,24 @@ def load_harness_runtime(
     )
 
 
+def _parse_step_profiles(raw: object) -> dict[str, str]:
+    """Parse the optional per-step model-profile mapping; fail closed."""
+    if raw is None:
+        return {}
+    if not isinstance(raw, dict):
+        raise HarnessConfigurationError("harness.step_profiles must be a mapping")
+    profiles: dict[str, str] = {}
+    for key, value in raw.items():
+        if not isinstance(key, str) or key not in AGENT_LOOP_STATES:
+            raise HarnessConfigurationError(f"unknown harness step profile: {key}")
+        if not isinstance(value, str) or not value.strip():
+            raise HarnessConfigurationError(f"step profile for {key} must be a named reference")
+        if "/" in value or "\\" in value:
+            raise HarnessConfigurationError("model profile must be a named reference")
+        profiles[key] = value.strip()
+    return profiles
+
+
 def load_harness_config(
     config_path: Path,
     *,
@@ -530,12 +662,12 @@ def load_harness_config(
     path_env = selected.get("runtime_path_env", selected.get("path_env"))
     if not isinstance(path_env, str) or not path_env.strip():
         raise HarnessConfigurationError("harness runtime_path_env is required")
-    playbook = raw.get("playbook")
-    if playbook != PLAYBOOK_ID:
-        raise HarnessConfigurationError("only speckit-orchestrate is supported")
+    if "playbook" in raw:
+        raise HarnessConfigurationError("harness.playbook is retired; use per-step states")
     profile = raw.get("model_profile")
     if not isinstance(profile, str) or not profile.strip():
         raise HarnessConfigurationError("harness model_profile is required")
+    step_profiles = _parse_step_profiles(raw.get("step_profiles"))
     if "timeout_seconds" not in raw:
         raise HarnessConfigurationError("harness timeout_seconds is required")
     timeout = coerce_timeout_seconds(raw["timeout_seconds"])
@@ -549,8 +681,8 @@ def load_harness_config(
     )
     return HarnessConfiguration(
         adapter_id="pi",
-        playbook_id=PLAYBOOK_ID,
         model_profile=profile.strip(),
+        step_profiles=step_profiles,
         runtime_path_env=path_env.strip(),
         runtime=runtime,
         timeout_seconds=timeout,
@@ -604,18 +736,5 @@ def harness_result_from_dict(raw: object) -> HarnessResult | None:
         questions=tuple(raw.get("questions", ())),
         resume_context=resume,
         harness_id=str(raw.get("harness_id", "")),
-    )
-
-
-def task_context_from_board(task: BoardTask) -> TaskContext:
-    """Project an existing board task without passing the board object."""
-    return TaskContext(
-        title=task.problem,
-        description=task.expected_result,
-        expected_result=task.expected_result,
-        acceptance_criteria=task.acceptance_criteria,
-        priority=task.priority,
-        platform=task.platform,
-        technical_notes=task.technical_notes,
-        dependencies=task.dependencies,
+        report=step_report_from_dict(raw.get("report")),
     )

@@ -12,7 +12,6 @@ from .ainative import (
     ExecutionContext,
     IncompleteAgentError,
     InvalidMethodologyError,
-    ReadOnlyError,
     Revision,
     RevisionError,
     UnknownAgentError,
@@ -33,10 +32,12 @@ from .executor import (
     MissingWorkspaceError,
     ModelResponse,
     ModelService,
-    UnknownRoleError,
-    UnsafeWorkspaceWriteError,
 )
 from .external_framework import (
+    AGENT_LOOP_STATES,
+    HUMAN_STATES,
+    LOOP_STATES,
+    PARENT_STATES,
     PLAYBOOK_ID,
     HarnessAdapter,
     HarnessArtifact,
@@ -46,19 +47,20 @@ from .external_framework import (
     HarnessResult,
     HarnessRuntime,
     HarnessRuntimeError,
-    HarnessStartRequest,
     HarnessValidationError,
     RepositoryContext,
     ResumeContext,
     SafetyLimits,
-    TaskContext,
+    StepReport,
+    StepStartRequest,
     coerce_timeout_seconds,
     harness_result_from_dict,
     load_harness_config,
     load_harness_runtime,
-    task_context_from_board,
-    validate_harness_request,
+    parse_step_report,
+    step_skill_path,
     validate_harness_result,
+    validate_step_request,
 )
 from .github import (
     ForbiddenGitHubActionError,
@@ -91,6 +93,7 @@ from .orchestrator import (
     IneligibleColumnError,
     InvalidDecisionError,
     InvalidPriorityError,
+    LoopState,
     MemoryTaskBoard,
     MissingTaskBoardError,
     NoReadyTaskError,
@@ -163,6 +166,6 @@ from .workspace import (
     load_workspace_root,
 )
 
-__version__ = "1.4.5"
+__version__ = "1.5.0"
 
 __all__ = [name for name in globals() if not name.startswith("_")]

@@ -7,7 +7,7 @@ alwaysApply: true
 
 ## Workflow
 
-- Always follow: **PIV — Plan → Implementation → Validation** — see `docs/systems/agentic-coding.md`. Validation uses the critic and tester agents.
+- Always follow the live **feature loop** — see `docs/systems/feature-loop.md` (Ready → Spec Kit → critic → tester → UAT → pr-review). The old PIV loop (`agentic-coding.md`) is historical.
 - Do not write code until the plan is confirmed if the change touches 2+ files
 - For ambiguous tasks: ask, do not guess
 - Commit style: Conventional Commits — short messages (see Commit-style rule)

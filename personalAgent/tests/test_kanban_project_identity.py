@@ -130,7 +130,7 @@ def test_next_ready_runs_a_native_id_card_under_the_operational_id(tmp_path: Pat
 
     assert record.project_id == "fixture"
     assert record.task.project_id == "fixture"
-    assert record.state == "PR_CREATED"
+    assert record.state == "HUMAN_DECISION_REQUIRED"
     assert (workspace_root / "fixture" / "123").is_dir()
     assert not (workspace_root / "p_fixture").exists()
 
@@ -159,8 +159,11 @@ def test_resume_accepts_a_declared_alias(tmp_path: Path) -> None:
 
     parked = orchestrator.run_workflow("fixture", "123")
     assert parked.state == "HUMAN_DECISION_REQUIRED"
+    assert parked.current_phase == "clarify"
     confirmed = orchestrator.resume_workflow("p_fixture", "123", "A")
     assert confirmed.state == "HUMAN_DECISION_REQUIRED"
+    for _ in range(2):
+        orchestrator.resume_workflow("p_fixture", "123", "A")
     finished = orchestrator.resume_workflow("p_fixture", "123", "A")
     assert finished.state == "PR_CREATED"
     assert finished.project_id == "fixture"

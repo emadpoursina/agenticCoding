@@ -18,11 +18,11 @@ Each agent is a folder with three core files tuned for one job.
 
 | Agent | Command | Purpose |
 |-------|---------|---------|
-| [scout](./scout/) | `/scout` | Read-only codebase indexer (Tier 3) — System Understanding Brief and on-demand Repo Q&A before/during planning |
-| [plan-reviewer](./plan-reviewer/) | `/plan-reviewer` | Same-model quality gate auto-run by the planner after drafting — ACCEPT or route fix findings back |
-| [critic](./critic/) | `/critic` | Adversarial review of plan and implementation (first half of PIV Validation) |
-| [tester](./tester/) | `/tester` | Prove the code works via the Plan's test flows (second half of PIV Validation) |
-| [pr-reviewer](./pr-reviewer/) | `/pr-reviewer` | Staged PR review — the final gate after Validation passes |
+| [ready](./ready/) | `/ready` | **Live loop agent** — feature-loop pre-flight gate; returns `READY: ok|blocked` ([feature-loop.md](../systems/feature-loop.md)) |
+| [plan-reviewer](./plan-reviewer/) | `/plan-reviewer` | Optional (not on the live graph) — same-model plan quality gate |
+| [critic](./critic/) | `/critic` | **Live loop agent** — adversarial review of plan and implementation after converge ([feature-loop.md](../systems/feature-loop.md)) |
+| [tester](./tester/) | `/tester` | **Live loop agent** — prove the code works and run the project's `validation_commands` ([feature-loop.md](../systems/feature-loop.md)) |
+| [pr-reviewer](./pr-reviewer/) | `/pr-reviewer` | **Live loop agent** — reviews the feature branch; the final gate before publish |
 | [task-groomer](./task-groomer/) | `/task-groomer` | Backlog grooming and Monday/Friday meeting prep |
 | [project-bootstrapper](./project-bootstrapper/) | `/project-bootstrapper` | New-project environment setup from a single spec doc, up to the point PIV Plan starts |
 | [legacy-system-assessment-agent](./legacy-system-assessment-agent/) | `/legacy-system-assessment-agent` | Evidence-backed legacy assessment — strategies, work packages, effort/time/AI-cost estimates with explicit uncertainty |

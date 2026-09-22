@@ -30,7 +30,8 @@ AiNative/
 │   │   ├── release-management-system.md
 │   │   ├── client-compatibility-system.md
 │   │   ├── agentic-system.md          # AI methodology (Harness, Model, Context, Tools, Agents)
-│   │   ├── agentic-coding.md          # PIV — Plan, Implementation, Validation
+│   │   ├── feature-loop.md            # Live feature loop (Hermes / Cursor)
+│   │   ├── agentic-coding.md          # Historical PIV (not live Hermes)
 │   │   ├── validation-layer.md
 │   │   ├── agent-handoff-template.md
 │   │   ├── system-understanding-brief-template.md
@@ -79,7 +80,7 @@ Four folders, one decision each at capture time: **how you work** → `systems/`
 
 ### Layer 1 — Systems (`docs/systems/`)
 
-**What it holds:** Universal operational workflows and AI methodology. How to run a release. How to review a PR. How to manage a task board. The five-part agentic system, PIV methodology, validation-layer architecture, and shared templates.
+**What it holds:** Universal operational workflows and AI methodology. How to run a release. How to review a PR. How to manage a task board. The five-part agentic system, live feature loop, historical PIV, validation-layer architecture, and shared templates.
 
 **Why it exists:** These are the processes you repeat on every team, plus the AI methodology that underpins every per-task agent. Writing them once and running them everywhere eliminates reinvention and gives you a baseline to iterate on rather than a blank page every time.
 
@@ -242,7 +243,8 @@ The structure is designed so retrieval requires no search. The folder names are 
 | A per-task AI agent | `agents/<name>/` — start with `AGENTS.md` |
 | Agentic system (five parts) | `systems/agentic-system.md` |
 | Harness setup (Tmux + Cursor CLI) | `knowledge/setup/harness.md` |
-| PIV methodology (Plan, Implementation, Validation) | `systems/agentic-coding.md` |
+| Live feature loop (Hermes / Cursor) | `systems/feature-loop.md` |
+| Historical PIV (not the live stage list) | `systems/agentic-coding.md` |
 | Validation layer architecture | `systems/validation-layer.md` |
 | PIV Validation — adversarial review | `agents/critic/` |
 | PIV Validation — prove the code works | `agents/tester/` |

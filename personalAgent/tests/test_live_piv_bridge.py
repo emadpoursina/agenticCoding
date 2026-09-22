@@ -32,12 +32,15 @@ def test_validation_failure_keeps_github_untouched(tmp_path: Path) -> None:
     assert host.upserts == []
 
 
-def test_completed_harness_reaches_existing_feature_branch_pr_path(tmp_path: Path) -> None:
+def test_completed_flow_reaches_existing_feature_branch_pr_path(tmp_path: Path) -> None:
     host = MemoryGitHost()
     orchestrator, _runtime, _workspace_root = environment(tmp_path)
     orchestrator.git_host = host
 
-    record = orchestrator.run_workflow("fixture", "123")
+    orchestrator.run_workflow("fixture", "123")
+    orchestrator.resume_workflow("fixture", "123", "A")
+    orchestrator.resume_workflow("fixture", "123", "A")
+    record = orchestrator.resume_workflow("fixture", "123", "A")
 
     assert record.state == "PR_CREATED"
     assert len(host.pushes) == 1
