@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.10.1] - 2026-09-23
+### Fixed
+- `kanban create` no longer rejects `--priority P2` with "invalid int
+  value": the interactive card guide and PRD card import now map their
+  P0–P3 priority to the integer string the CLI flag needs (one shared
+  helper). `## Priority` in the card body stays P0–P3, which the board
+  reads.
+
 ## [1.10.0] - 2026-09-23
 ### Added
 - `--import-prd OWNER/NAME` turns a PRD into card drafts for an

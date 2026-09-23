@@ -419,7 +419,7 @@ def test_create_cards_pushes_validated_drafts_to_the_board(tmp_path: Path) -> No
     args = created[0]
     assert args[0] == "Ship login"
     assert args[args.index("--project") + 1] == NATIVE_ID
-    assert args[args.index("--priority") + 1] == "P1"
+    assert args[args.index("--priority") + 1] == "1"
     assert args[args.index("--idempotency-key") + 1] == "ship-login"
     assert "--triage" not in args
 
@@ -568,7 +568,7 @@ def test_import_prd_creates_cards_for_enrolled_project(tmp_path: Path) -> None:
     assert len(created) == 1
     args = created[0]
     assert args[args.index("--project") + 1] == NATIVE_ID
-    assert args[args.index("--priority") + 1] == "P1"
+    assert args[args.index("--priority") + 1] == "1"
     assert not (tmp_path / "drafts").exists() or any((tmp_path / "drafts").iterdir())
 
 

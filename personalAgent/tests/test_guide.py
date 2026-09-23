@@ -114,7 +114,7 @@ def test_add_card_creates_a_feature_with_the_native_id(
     args = created[0]
     assert args[0] == "Ship search"
     assert args[args.index("--project") + 1] == "p_demo"
-    assert args[args.index("--priority") + 1] == "P2"
+    assert args[args.index("--priority") + 1] == "2"
     body = args[args.index("--body") + 1]
     assert "## Path\nfeature\n" in body
     assert "## Skill" not in body

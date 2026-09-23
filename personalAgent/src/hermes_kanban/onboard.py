@@ -41,6 +41,7 @@ class PrdDraftError(OnboardError):
 
 
 _PRIORITIES = ("P0", "P1", "P2", "P3")
+_PRIORITY_FLAGS = {"P0": "0", "P1": "1", "P2": "2", "P3": "3"}
 _OWNER_NAME = re.compile(r"^[^/\s]+/[^/\s]+$")
 _H2_HEADING = re.compile(r"^##\s+(.+?)\s*$")
 _PRIORITY_LINE = re.compile(r"^priority\s*:\s*(\S+)\s*$", re.IGNORECASE)
@@ -190,6 +191,14 @@ def live_create_card(args: list[str]) -> None:
     _run_hermes(["kanban", "create", *args])
 
 
+def priority_flag(priority: str) -> str:
+    """Map one P0–P3 priority string to the integer string the CLI flag needs."""
+    try:
+        return _PRIORITY_FLAGS[priority.strip().upper()]
+    except KeyError:
+        raise OnboardError(f"invalid priority: {priority or '(empty)'}") from None
+
+
 def _draft_card_args(text: str) -> tuple[str, str]:
     """Extract the card title and priority from one validated draft."""
     title = ""
@@ -232,7 +241,7 @@ def create_cards_from_drafts(
         args = [
             title,
             "--project", native_id,
-            "--priority", priority,
+            "--priority", priority_flag(priority),
             "--body", text,
             "--idempotency-key", _slugify(title),
         ]
