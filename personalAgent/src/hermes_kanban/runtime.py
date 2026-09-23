@@ -16,7 +16,13 @@ from .executor import ModelService
 from .external_framework import load_harness_config
 from .github import GitHost, LiveGitHost
 from .messaging import HermesTelegramChannel, MessagingChannel
-from .onboard import OnboardRequest, OnboardResult, run_onboard
+from .onboard import (
+    ImportPrdRequest,
+    OnboardRequest,
+    OnboardResult,
+    run_import_prd,
+    run_onboard,
+)
 from .orchestrator import (
     MemoryTaskBoard,
     MissingTaskBoardError,
@@ -240,6 +246,7 @@ def _parser() -> argparse.ArgumentParser:
     parser.add_argument("--skip", action="store_true")
     parser.add_argument("--doctor", action="store_true")
     parser.add_argument("--onboard", metavar="OWNER/NAME")
+    parser.add_argument("--import-prd", metavar="OWNER/NAME", dest="import_prd")
     parser.add_argument("--branch", default="main")
     parser.add_argument("--project-id")
     parser.add_argument("--prd", type=Path)
@@ -248,6 +255,7 @@ def _parser() -> argparse.ArgumentParser:
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument("--create-cards", action="store_true")
     parser.add_argument("--allow-todo", action="store_true")
+    parser.add_argument("--push-scaffold", action="store_true", dest="push_scaffold")
     return parser
 
 
@@ -259,6 +267,7 @@ def _print_onboard_result(result: OnboardResult, *, dry_run: bool) -> None:
     print(f"location: {result.location}")
     print(f"default_branch: {result.default_branch}")
     print(f"cloned: {'yes' if result.cloned else 'no'}")
+    print(f"pushed: {'yes' if result.pushed else 'no'}")
     scaffolded = ", ".join(result.scaffolded) if result.scaffolded else "(nothing new)"
     print(f"scaffolded: {scaffolded}")
     if result.already_enrolled:
@@ -282,11 +291,33 @@ def _print_onboard_result(result: OnboardResult, *, dry_run: bool) -> None:
         print("status: dry run — no changes were written")
 
 
+def _print_import_result(result: OnboardResult, *, dry_run: bool) -> None:
+    """Print a short operator summary for one PRD import run."""
+    print(f"import target: {result.repository}")
+    print(f"project_id: {result.project_id}")
+    print(f"native_id: {result.native_id}")
+    if result.incomplete_drafts:
+        print(
+            f"incomplete drafts: {result.incomplete_drafts} "
+            "(fill TODO sections before grooming)"
+        )
+    if result.created_cards:
+        for title in result.created_cards:
+            print(f"card: {title}")
+        if result.triaged_cards:
+            print(f"triaged cards: {result.triaged_cards} (incomplete drafts parked in triage)")
+    elif not dry_run:
+        print("cards: not created (pass --create-cards to publish drafts to the board)")
+    if dry_run:
+        print("status: dry run — the PRD parsed; no drafts or cards were written")
+
+
 def _bare_invocation(args: argparse.Namespace, selectors: int) -> bool:
     """Return whether the process was started with only --config."""
     return (
         selectors == 0
         and not args.onboard
+        and not args.import_prd
         and not args.doctor
         and not args.smoke
         and not args.skip
@@ -296,6 +327,7 @@ def _bare_invocation(args: argparse.Namespace, selectors: int) -> bool:
         and not args.dry_run
         and not args.create_cards
         and not args.allow_todo
+        and not args.push_scaffold
         and args.prd is None
         and args.drafts_out is None
         and args.project_id is None
@@ -312,16 +344,27 @@ def main(argv: list[str] | None = None) -> int:
         else args.task or (worker_task if not args.next_ready and not args.resume else None)
     )
     selectors = sum(bool(value) for value in (task_id, args.next_ready, args.resume))
-    onboard_only = any(
-        value is not None for value in (args.prd, args.drafts_out, args.project_id)
-    ) or args.default_priority != "P2" or args.dry_run or args.create_cards or args.allow_todo
-    if args.onboard and (selectors or args.doctor or args.smoke or args.skip):
+    onboard_only = (
+        any(value is not None for value in (args.drafts_out, args.project_id))
+        or args.default_priority != "P2"
+        or args.dry_run
+        or args.create_cards
+        or args.allow_todo
+        or args.push_scaffold
+    )
+    if args.onboard and (selectors or args.doctor or args.smoke or args.skip or args.import_prd):
         print("--onboard cannot be combined with other workflow selectors", file=sys.stderr)
         return 2
-    if onboard_only and not args.onboard:
+    if args.import_prd and (selectors or args.doctor or args.smoke or args.skip or args.onboard):
+        print("--import-prd cannot be combined with other workflow selectors", file=sys.stderr)
+        return 2
+    if args.import_prd and args.prd is None:
+        print("--import-prd requires --prd", file=sys.stderr)
+        return 2
+    if onboard_only and not args.onboard and not args.import_prd:
         print(
             "--prd/--drafts-out/--project-id/--default-priority/--dry-run/"
-            "--create-cards/--allow-todo require --onboard",
+            "--create-cards/--allow-todo require --onboard or --import-prd",
             file=sys.stderr,
         )
         return 2
@@ -344,10 +387,31 @@ def main(argv: list[str] | None = None) -> int:
             return run_guide(args.config)
         print("choose exactly one task, next-ready, resume, or smoke mode", file=sys.stderr)
         return 2
-    if not args.onboard and not args.doctor and not args.smoke and selectors != 1:
+    if (
+        not args.onboard
+        and not args.import_prd
+        and not args.doctor
+        and not args.smoke
+        and selectors != 1
+    ):
         print("choose exactly one task, next-ready, resume, or smoke mode", file=sys.stderr)
         return 2
     try:
+        if args.import_prd:
+            result = run_import_prd(
+                ImportPrdRequest(
+                    repository=args.import_prd,
+                    prd=args.prd,
+                    drafts_out=args.drafts_out,
+                    default_priority=args.default_priority,
+                    dry_run=args.dry_run,
+                    create_cards=args.create_cards,
+                    allow_todo=args.allow_todo,
+                ),
+                args.config,
+            )
+            _print_import_result(result, dry_run=args.dry_run)
+            return 0
         if args.onboard:
             result = run_onboard(
                 OnboardRequest(
@@ -360,6 +424,7 @@ def main(argv: list[str] | None = None) -> int:
                     dry_run=args.dry_run,
                     create_cards=args.create_cards,
                     allow_todo=args.allow_todo,
+                    push_scaffold=args.push_scaffold,
                 ),
                 args.config,
             )

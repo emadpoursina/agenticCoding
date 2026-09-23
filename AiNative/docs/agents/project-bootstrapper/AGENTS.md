@@ -1,29 +1,35 @@
 # Project bootstrapper agent
 
-Bootstraps a brand-new project repo from a single project documentation file (spec/PRD). Handles everything between "I have an idea written down" and "the repo is ready for PIV Plan": stack setup, git init, dependency install, and agent config — no feature code.
+Bootstraps an **enrolled-but-empty** project repo from a PRD inside the Hermes
+feature loop. Runs as a `job` card: one Pi session in the task worktree of a
+repo the control plane already enrolled. Handles the content between "the repo
+is enrolled" and "feature cards can run": app scaffold, declared dependencies,
+real validation commands, and project `AGENTS.md` — no feature code, no git.
 
 ## When to use
 
-- Starting a new project repo and you have one project doc (spec or PRD) describing what to build
-- You want git, dependencies, and AI agent config (`AGENTS.md`) set up in one pass before implementation starts
+- A repo is enrolled with Hermes (empty or scaffold-only) and a PRD describes what to build
+- You want the app structure, dependency manifests, real `validation_commands`, and agent config in one pass before feature cards run
 
 ## Inputs
 
-- One project documentation file (spec/PRD) describing the product, tech stack, and structure — see [new-project.md](../../knowledge/setup/new-project.md#planning) for the shape expected (business model, app structure, tech stack, PRD)
+- One `job` card (`## Skill: project-bootstrapper`) whose body references a PRD — see [new-project.md](../../knowledge/setup/new-project.md#planning) for the PRD shape (business model, app structure, tech stack, PRD)
+- The enrolled repo's onboarding scaffold (`.ainative/project.yaml`, `AGENTS.md`)
 
 ## Outputs
 
-- Initialized git repo with the confirmed stack scaffolded and dependencies installed
-- `AGENTS.md` at repo root, filled in from [ai-rules-template.md](../../systems/ai-rules-template.md) (minus the legacy Cursor frontmatter) — the open [agents.md](https://agents.md/) format read automatically by opencode and other agents
-- `scratch/` folder + `.gitignore` entry
-- Handoff: user follows [PIV Plan](../../systems/agentic-coding.md) against the spec to break it into work items and implement
+- Confirmed app/repo layout scaffolded in the task worktree
+- Dependency manifests declared; installs and validation runs happen in the loop's tester state
+- `.ainative/project.yaml` with **real** `validation_commands` (placeholder marker removed — the orchestrator blocks workflows while it remains)
+- `AGENTS.md` project rules filled from [ai-rules-template.md](../../systems/ai-rules-template.md), with the `## Hermes control plane` section preserved
+- Handoff: operator approves publish; then imports the PRD as feature cards for the [feature loop](../../systems/feature-loop.md)
 
 ## Supporting files
 
 | File | Purpose |
 |------|---------|
-| [SKILL.md](./SKILL.md) | Bootstrap steps, stack-confirmation checklist, PIV handoff |
-| [rule.md](./rule.md) | Constraints — confirm before installing, no feature code, hand off to PIV Plan |
+| [SKILL.md](./SKILL.md) | Bootstrap steps, park/resume stack confirmation, report shape, feature-loop handoff |
+| [rule.md](./rule.md) | Constraints — confirm before scaffolding, no feature code, no git, preserve control-plane section |
 
 ## Cursor Command
 

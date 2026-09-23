@@ -7,6 +7,7 @@ import os
 import re
 import sqlite3
 import subprocess
+import tempfile
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
@@ -61,6 +62,20 @@ class OnboardRequest:
     dry_run: bool = False
     create_cards: bool = False
     allow_todo: bool = False
+    push_scaffold: bool = False
+
+
+@dataclass(frozen=True)
+class ImportPrdRequest:
+    """Operator-supplied PRD import inputs for one enrolled repository."""
+
+    repository: str
+    prd: Path
+    drafts_out: Path | None = None
+    default_priority: str = "P2"
+    dry_run: bool = False
+    create_cards: bool = False
+    allow_todo: bool = False
 
 
 @dataclass(frozen=True)
@@ -79,6 +94,7 @@ class OnboardResult:
     incomplete_drafts: int = 0
     created_cards: tuple[str, ...] = ()
     triaged_cards: int = 0
+    pushed: bool = False
 
 
 def resolve_projects_db() -> Path:
@@ -545,6 +561,17 @@ def commit_scaffold(location: Path, scaffolded: tuple[str, ...]) -> bool:
 _SCAFFOLD_COMMIT_MESSAGE = "chore: ainative onboarding scaffold"
 
 
+def push_scaffold(location: Path, branch: str) -> None:
+    """Push the scaffold commit to the remote default branch. Operator-initiated."""
+    result = subprocess.run(
+        ["git", "-C", str(location), "push", "origin", branch],
+        capture_output=True,
+        text=True,
+    )
+    if result.returncode != 0:
+        raise OnboardError(f"git push failed: {result.stderr.strip()}")
+
+
 def _verify_manifest(location: Path) -> None:
     manifest_path = location / ".ainative" / "project.yaml"
     if not manifest_path.is_file():
@@ -645,6 +672,10 @@ def run_onboard(
     scaffolded = scaffold_project_files(location, project_id, repository, branch)
     _verify_manifest(location)
     commit_scaffold(location, scaffolded)
+    pushed = False
+    if request.push_scaffold and scaffolded:
+        push_scaffold(location, branch)
+        pushed = True
     entry = _entry_lines(project_id, repository, location, branch, native_id)
     append_project_entry(config_path, entry)
     if request.prd is not None:
@@ -667,6 +698,104 @@ def run_onboard(
         default_branch=branch,
         cloned=cloned,
         scaffolded=scaffolded,
+        already_enrolled=False,
+        drafts=drafts,
+        incomplete_drafts=incomplete,
+        created_cards=created_cards,
+        triaged_cards=triaged,
+        pushed=pushed,
+    )
+
+
+def _resolve_enrolled_project(repository: str, config_path: Path) -> tuple[str, str, Path, str]:
+    """Resolve one enrolled project by owner/name for PRD import."""
+    if not _OWNER_NAME.fullmatch(repository):
+        raise OnboardError(f"repository must be owner/name: {repository}")
+    try:
+        enrolled = load_project_entries(config_path)
+    except (OSError, ProjectRegistryError, InvalidWorkspaceRootError) as exc:
+        raise OnboardError(f"cannot read config: {config_path}") from exc
+
+    def _matches(record_name: str, record_repository: str) -> bool:
+        return (
+            record_name == repository
+            or record_name.endswith(f"/{repository}")
+            or record_repository == repository
+        )
+
+    record = next(
+        (
+            entry
+            for entry in enrolled
+            if _matches(entry.name, entry.repository)
+        ),
+        None,
+    )
+    if record is None:
+        raise OnboardError(f"project is not enrolled: {repository}")
+    if not record.kanban_project_ids:
+        raise OnboardError(
+            f"project {record.id} is enrolled without a native id; declare "
+            "kanban_project_ids manually"
+        )
+    return (
+        record.id,
+        record.kanban_project_ids[0],
+        record.location,
+        record.default_branch,
+    )
+
+
+def run_import_prd(
+    request: ImportPrdRequest,
+    config_path: Path,
+    *,
+    card_creator: CardCreateFn = live_create_card,
+) -> OnboardResult:
+    """Turn a PRD into card drafts for an already-enrolled project."""
+    project_id, native_id, location, default_branch = _resolve_enrolled_project(
+        request.repository.strip(), config_path
+    )
+    drafts_out = request.drafts_out or Path("scratch") / "card-drafts" / project_id
+    if request.dry_run:
+        # Validate the PRD end-to-end without writing drafts or cards.
+        with tempfile.TemporaryDirectory() as temp_dir:
+            drafts, incomplete = import_prd(
+                request.prd,
+                Path(temp_dir),
+                default_priority=request.default_priority,
+            )
+        return OnboardResult(
+            project_id=project_id,
+            repository=request.repository.strip(),
+            native_id=native_id,
+            location=location,
+            default_branch=default_branch,
+            cloned=False,
+            scaffolded=(),
+            already_enrolled=False,
+            drafts=(),
+            incomplete_drafts=incomplete,
+        )
+    drafts, incomplete = import_prd(
+        request.prd,
+        drafts_out,
+        default_priority=request.default_priority,
+    )
+    created_cards: tuple[str, ...] = ()
+    triaged = 0
+    if request.create_cards and drafts:
+        created_cards, triaged = create_cards_from_drafts(
+            drafts, native_id, allow_todo=request.allow_todo, creator=card_creator
+        )
+    return OnboardResult(
+        project_id=project_id,
+        repository=request.repository.strip(),
+        native_id=native_id,
+        location=location,
+        default_branch=default_branch,
+        cloned=False,
+        scaffolded=(),
         already_enrolled=False,
         drafts=drafts,
         incomplete_drafts=incomplete,

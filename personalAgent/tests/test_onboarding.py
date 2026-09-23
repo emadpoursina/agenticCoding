@@ -7,10 +7,12 @@ from pathlib import Path
 import pytest
 
 from hermes_kanban.onboard import (
+    ImportPrdRequest,
     OnboardError,
     OnboardRequest,
     PrdDraftError,
     render_card_draft,
+    run_import_prd,
     run_onboard,
     validate_card_draft,
 )
@@ -520,3 +522,200 @@ def test_onboard_reenroll_does_not_duplicate_agents_section(tmp_path: Path) -> N
     first = run_onboard(request(), config, cloner=fake_cloner, projects_db=projects_db)
     text = (first.location / "AGENTS.md").read_text(encoding="utf-8")
     assert text.count("## Hermes control plane") == 1
+
+
+def _enrolled(tmp_path: Path):
+    workspace = tmp_path / "workspaces"
+    config = write_config(tmp_path, workspace)
+    projects_db = write_projects_db(tmp_path, [(NATIVE_ID, "owner/new-project")])
+    result = run_onboard(request(), config, cloner=fake_cloner, projects_db=projects_db)
+    return config, result
+
+
+def _fake_cards():
+    created: list[list[str]] = []
+
+    def creator(args: list[str]) -> None:
+        created.append(args)
+
+    return creator, created
+
+
+def test_import_prd_creates_cards_for_enrolled_project(tmp_path: Path) -> None:
+    config, enrolled = _enrolled(tmp_path)
+    prd = tmp_path / "prd.md"
+    prd.write_text(
+        "## Ship login\n\nPriority: P1\n\nUsers cannot sign in.\n\n"
+        "Expected result: users can sign in.\n",
+        encoding="utf-8",
+    )
+    creator, created = _fake_cards()
+
+    result = run_import_prd(
+        ImportPrdRequest(
+            repository="owner/new-project",
+            prd=prd,
+            drafts_out=tmp_path / "drafts",
+            create_cards=True,
+        ),
+        config,
+        card_creator=creator,
+    )
+
+    assert result.project_id == "new-project"
+    assert result.native_id == NATIVE_ID
+    assert result.created_cards == ("Ship login",)
+    assert len(created) == 1
+    args = created[0]
+    assert args[args.index("--project") + 1] == NATIVE_ID
+    assert args[args.index("--priority") + 1] == "P1"
+    assert not (tmp_path / "drafts").exists() or any((tmp_path / "drafts").iterdir())
+
+
+def test_import_prd_writes_drafts_without_create_cards(tmp_path: Path) -> None:
+    config, _ = _enrolled(tmp_path)
+    prd = tmp_path / "prd.md"
+    prd.write_text("## Dark mode\n\nUsers want a dark theme.\n", encoding="utf-8")
+    creator, created = _fake_cards()
+
+    result = run_import_prd(
+        ImportPrdRequest(repository="owner/new-project", prd=prd),
+        config,
+        card_creator=creator,
+    )
+
+    assert result.drafts
+    assert all(path.is_file() for path in result.drafts)
+    assert result.created_cards == ()
+    assert created == []
+
+
+def test_import_prd_dry_run_writes_nothing(tmp_path: Path) -> None:
+    config, _ = _enrolled(tmp_path)
+    prd = tmp_path / "prd.md"
+    prd.write_text("## Dark mode\n\nUsers want a dark theme.\n", encoding="utf-8")
+    creator, created = _fake_cards()
+
+    result = run_import_prd(
+        ImportPrdRequest(repository="owner/new-project", prd=prd, dry_run=True),
+        config,
+        card_creator=creator,
+    )
+
+    assert result.drafts == ()
+    assert created == []
+    assert not (tmp_path / "drafts").exists()
+
+
+def test_import_prd_fail_closed_on_unknown_project(tmp_path: Path) -> None:
+    config, _ = _enrolled(tmp_path)
+    prd = tmp_path / "prd.md"
+    prd.write_text("## Dark mode\n\nUsers want a dark theme.\n", encoding="utf-8")
+
+    with pytest.raises(OnboardError, match="not enrolled"):
+        run_import_prd(
+            ImportPrdRequest(repository="owner/other", prd=prd), config
+        )
+
+
+def test_import_prd_fail_closed_on_todo_without_allow(tmp_path: Path) -> None:
+    config, _ = _enrolled(tmp_path)
+    prd = tmp_path / "prd.md"
+    prd.write_text("## Dark mode\n\nUsers want a dark theme.\n", encoding="utf-8")
+    creator, created = _fake_cards()
+
+    with pytest.raises(PrdDraftError, match="TODO sections"):
+        run_import_prd(
+            ImportPrdRequest(
+                repository="owner/new-project",
+                prd=prd,
+                create_cards=True,
+            ),
+            config,
+            card_creator=creator,
+        )
+
+    assert created == []
+
+
+def _seed_remote(tmp_path: Path) -> tuple[str, Path]:
+    """A local bare remote seeded with one commit, like a fresh GitHub repo."""
+    seed = tmp_path / "seed"
+    remote = tmp_path / "remote.git"
+    seed.mkdir()
+    _git("init", "-b", "main", cwd=seed)
+    _git("config", "user.email", "tests@example.com", cwd=seed)
+    _git("config", "user.name", "Tests", cwd=seed)
+    (seed / "seed.txt").write_text("seed", encoding="utf-8")
+    _git("add", ".", cwd=seed)
+    _git("commit", "-m", "seed", cwd=seed)
+    _git("clone", "--bare", str(seed), str(remote), cwd=tmp_path)
+    return str(remote), remote
+
+
+def _cloner_from(remote_url: str):
+    def cloner(url: str, location: Path, branch: str) -> None:
+        subprocess.run(
+            ["git", "clone", "--branch", branch, remote_url, str(location)],
+            check=True,
+            capture_output=True,
+        )
+
+    return cloner
+
+
+def test_onboard_push_scaffold_updates_remote(tmp_path: Path) -> None:
+    remote_url, remote = _seed_remote(tmp_path)
+    workspace = tmp_path / "workspaces"
+    config = write_config(tmp_path, workspace)
+    projects_db = write_projects_db(tmp_path, [(NATIVE_ID, "owner/new-project")])
+
+    result = run_onboard(
+        request(push_scaffold=True),
+        config,
+        cloner=_cloner_from(remote_url),
+        projects_db=projects_db,
+    )
+
+    assert result.pushed is True
+    seed_sha = _git_out("rev-parse", "HEAD", cwd=tmp_path / "seed").strip()
+    remote_sha = _git_out("rev-parse", "refs/heads/main", cwd=remote).strip()
+    assert remote_sha != seed_sha
+
+
+def test_onboard_without_push_flag_keeps_remote_untouched(tmp_path: Path) -> None:
+    remote_url, remote = _seed_remote(tmp_path)
+    workspace = tmp_path / "workspaces"
+    config = write_config(tmp_path, workspace)
+    projects_db = write_projects_db(tmp_path, [(NATIVE_ID, "owner/new-project")])
+
+    result = run_onboard(
+        request(),
+        config,
+        cloner=_cloner_from(remote_url),
+        projects_db=projects_db,
+    )
+
+    assert result.pushed is False
+    seed_sha = _git_out("rev-parse", "HEAD", cwd=tmp_path / "seed").strip()
+    remote_sha = _git_out("rev-parse", "refs/heads/main", cwd=remote).strip()
+    assert remote_sha == seed_sha
+
+
+def test_onboard_push_failure_is_fail_closed(tmp_path: Path) -> None:
+    # fake_cloner registers an unreachable SSH origin; the push must fail and
+    # leave the config untouched.
+    workspace = tmp_path / "workspaces"
+    config = write_config(tmp_path, workspace)
+    projects_db = write_projects_db(tmp_path, [(NATIVE_ID, "owner/new-project")])
+    before = config.read_text(encoding="utf-8")
+
+    with pytest.raises(OnboardError, match="git push failed"):
+        run_onboard(
+            request(push_scaffold=True),
+            config,
+            cloner=fake_cloner,
+            projects_db=projects_db,
+        )
+
+    assert config.read_text(encoding="utf-8") == before

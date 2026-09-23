@@ -139,27 +139,51 @@ def test_ready_receives_card_path(tmp_path) -> None:
     assert runtime.calls[0].inputs["card_path"] == "change"
 
 
-def test_job_path_runs_ready_and_one_named_skill(tmp_path) -> None:
+def test_job_path_parks_for_publish_decision(tmp_path) -> None:
     board = MemoryTaskBoard((task(card_path="job", card_skill="prd-writer"),))
     orchestrator, runtime, _workspace_root = environment(tmp_path, board=board)
 
-    finished = orchestrator.run_workflow("fixture", "123")
+    parked = orchestrator.run_workflow("fixture", "123")
 
     assert tuple(runtime.order) == ("ready", "job")
-    assert finished.state == "COMPLETED"
-    assert finished.current_phase == "job"
+    assert parked.state == "HUMAN_DECISION_REQUIRED"
+    assert parked.current_phase == "job"
+    assert parked.decision is not None
+    assert {choice.letter for choice in parked.decision.options} == {"A", "B"}
     assert "prd-writer" in runtime.calls[-1].skill_path
     assert orchestrator.git_host.pushes == []  # type: ignore[union-attr]
+
+    completed = orchestrator.resume_workflow("fixture", "123", "B")
+    assert completed.state == "COMPLETED"
+    assert orchestrator.git_host.pushes == []  # type: ignore[union-attr]
+
+
+def test_job_publish_approval_creates_pull_request(tmp_path) -> None:
+    board = MemoryTaskBoard((task(card_path="job", card_skill="prd-writer"),))
+    orchestrator, runtime, _workspace_root = environment(tmp_path, board=board)
+
+    parked = orchestrator.run_workflow("fixture", "123")
+    assert parked.workspace_path is not None
+    (parked.workspace_path / "prd.md").write_text("# PRD\n", encoding="utf-8")
+    published = orchestrator.resume_workflow("fixture", "123", "A")
+
+    assert tuple(runtime.order) == ("ready", "job")
+    assert parked.state == "HUMAN_DECISION_REQUIRED"
+    assert published.state == "PR_CREATED", published.error
+    assert published.pull_request is not None
+    assert len(orchestrator.git_host.pushes) == 1  # type: ignore[union-attr]
+    assert len(orchestrator.git_host.upserts) == 1  # type: ignore[union-attr]
 
 
 def test_job_second_skill_name_uses_that_skill(tmp_path) -> None:
     board = MemoryTaskBoard((task(card_path="job", card_skill="project-bootstrapper"),))
     orchestrator, runtime, _workspace_root = environment(tmp_path, board=board)
 
-    finished = orchestrator.run_workflow("fixture", "123")
+    parked = orchestrator.run_workflow("fixture", "123")
+    orchestrator.resume_workflow("fixture", "123", "B")
 
     assert tuple(runtime.order) == ("ready", "job")
-    assert finished.state == "COMPLETED"
+    assert parked.decision is not None
     assert "project-bootstrapper" in runtime.calls[-1].skill_path
 
 
@@ -175,10 +199,15 @@ def test_job_needs_human_parks_and_resume_starts_new_session(tmp_path) -> None:
     assert parked.current_phase == "job"
     assert runtime.order == ["ready", "job"]
 
-    finished = orchestrator.resume_workflow("fixture", "123", "A")
-    assert finished.state == "COMPLETED"
+    # First resume answers the worker question in a NEW session; the second
+    # parks for the publish decision; the third completes without publishing.
+    answered = orchestrator.resume_workflow("fixture", "123", "A")
+    assert answered.state == "HUMAN_DECISION_REQUIRED"
     assert runtime.order == ["ready", "job", "job"]
     assert len(set(runtime.sessions)) == len(runtime.sessions)
+
+    completed = orchestrator.resume_workflow("fixture", "123", "B")
+    assert completed.state == "COMPLETED"
     assert orchestrator.git_host.pushes == []  # type: ignore[union-attr]
 
 

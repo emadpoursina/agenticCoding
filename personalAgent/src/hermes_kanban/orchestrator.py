@@ -754,6 +754,8 @@ class PivOrchestrator:
             return self._resume_clarify_answer(record, choice)
         if phase == "job" and record.question_queue:
             return self._resume_job_answer(record, choice)
+        if phase == "job":
+            return self._resume_job_publish(record, letter)
         if phase == "confirm":
             return self._resume_confirm(record, letter)
         if phase == "uat":
@@ -1137,6 +1139,51 @@ class PivOrchestrator:
             return self._retry_or_park(step, fields.get("SUMMARY", "step stuck"))
         if step == "change":
             return self._enter_state("tester")
+        return self._park_job_publish()
+
+    def _park_job_publish(self) -> WorkflowRecord:
+        """Park a finished job for the operator's publish decision."""
+        record = self._require_record()
+        brief = DecisionBrief(
+            record.project_id,
+            record.task_id,
+            "job",
+            "Job worker finished. Hermes parks; the operator decides on publishing.",
+            "Publishing happens only when the operator approves; the loop "
+            "never auto-publishes a job branch.",
+            (
+                DecisionOption("A", "Publish the job branch as a pull request"),
+                DecisionOption("B", "Complete without publishing"),
+            ),
+            "A",
+        )
+        parked = replace(
+            record,
+            state="HUMAN_DECISION_REQUIRED",
+            current_phase="job",
+            next_action="reply with the option letter",
+            decision=brief,
+        )
+        self._set_record(parked)
+        self._emit(
+            "human_decision",
+            self._decision_payload(brief),
+            f"{record.run_id}:job_publish:{len(record.steps)}",
+        )
+        return parked
+
+    def _resume_job_publish(self, record: WorkflowRecord, letter: str):
+        if letter == "A":
+            publishing = replace(
+                record,
+                state="RUNNING",
+                current_phase="publish",
+                decision=None,
+                chosen_option=letter,
+                next_action="publish the job branch",
+            )
+            self._set_record(publishing)
+            return self._run_github(job_path=True)
         return self._complete("job")
 
     def _complete(self, phase: str) -> WorkflowRecord:
@@ -1467,7 +1514,7 @@ class PivOrchestrator:
         )
         return parked
 
-    def _run_github(self, *, reclaim: bool = False) -> WorkflowRecord:
+    def _run_github(self, *, reclaim: bool = False, job_path: bool = False) -> WorkflowRecord:
         from .external_framework import _path_like_id as _unused  # noqa: F401
         from .github import (
             ForbiddenGitHubActionError,
@@ -1486,7 +1533,15 @@ class PivOrchestrator:
             )
             reclaim = False
             try:
-                assert_publish_gate(record.steps)
+                if job_path:
+                    # The job publish gate is the recorded operator approval;
+                    # the critic/tester/uat/pr-review chain does not apply.
+                    if record.chosen_option != "A" or record.card_path != "job":
+                        return self._block_publish(
+                            "NON_RETRYABLE", "job publish requires operator approval"
+                        )
+                else:
+                    assert_publish_gate(record.steps)
             except PublishError as exc:
                 return self._block_publish("NON_RETRYABLE", str(exc))
             self._set_record(
@@ -1518,8 +1573,12 @@ class PivOrchestrator:
                     title_source=record.task.problem,
                     summary=record.task.expected_result,
                     changes=f"Work on `{branch}`.",
-                    validation=self._last_validation_summary()
-                    or "critic, tester, UAT, and pr-review passed",
+                    validation=(
+                        "job worker report approved by the operator"
+                        if job_path
+                        else self._last_validation_summary()
+                        or "critic, tester, UAT, and pr-review passed"
+                    ),
                     limitations="None recorded for this run.",
                     branch=branch,
                 )

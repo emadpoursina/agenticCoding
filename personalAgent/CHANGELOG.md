@@ -1,5 +1,26 @@
 # Changelog
 
+## [1.10.0] - 2026-09-23
+### Added
+- `--import-prd OWNER/NAME` turns a PRD into card drafts for an
+  already-enrolled project (with `--prd`, optional `--create-cards`,
+  `--drafts-out`, `--default-priority`, `--allow-todo`, `--dry-run`).
+  Dry run validates the PRD end-to-end without writing drafts or cards.
+- Job cards park for the operator's publish decision after the worker
+  reports ok: approval commits, pushes the job branch, and opens a pull
+  request (the gate is the recorded approval; the critic/tester/uat/
+  pr-review chain stays feature-path-only). Decline completes without
+  publishing. Empty job branches still fail visibly ("nothing to publish").
+- `--onboard --push-scaffold` pushes the scaffold commit to the remote
+  default branch (opt-in); push failure aborts enrollment fail-closed.
+  Result output reports `pushed: yes/no`.
+### Changed
+- Rewrote the AiNative `project-bootstrapper` agent for the Hermes job
+  path: no git init or local installs, park/resume stack confirmation,
+  real `validation_commands` in `.ainative/project.yaml`, preserve the
+  `## Hermes control plane` section of `AGENTS.md`, hand off to PRD
+  import and the feature loop.
+
 ## [1.9.0] - 2026-09-23
 ### Added
 - Onboarding commits exactly the files it scaffolds

@@ -137,7 +137,7 @@ A missing path is `feature`.
 |---|---|---|
 | `feature` | Product work that needs a spec, a plan, and review | The graph below |
 | `change` | A small code edit already specified by the card | `ready` → one worker → `tester` |
-| `job` | Work that is not a code change (write a PRD, bootstrap from a PRD) | One worker for the named skill. It may park for a human. It does not enter the feature graph and it does not publish |
+| `job` | Work that is not a code change (write a PRD, bootstrap from a PRD) | One worker for the named skill. It may park for a human. After the worker reports `STATUS: ok` it parks for the operator's publish decision: approval commits, pushes the job branch, and opens a pull request; decline completes without publishing. It does not enter the feature graph |
 
 A `change` or `job` worker that finds the card is really a feature stops
 and reports that. It does not promote itself onto the feature graph.
