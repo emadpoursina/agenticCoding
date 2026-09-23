@@ -53,6 +53,12 @@ harness:
   #   critic: critic
   #   tester: tester
   #   pr-review: pr-review
+  # Optional Pi CLI selection. Unlisted profiles leave the model to Pi,
+  # except a non-default name, which is passed as --model.
+  # models:
+  #   DeepSeekFlash:
+  #     provider: custom
+  #     model: DeepSeekFlash
   timeout_seconds: 1800
 
 # External Spec Kit plan/tasks/implement never look up planner or builder.

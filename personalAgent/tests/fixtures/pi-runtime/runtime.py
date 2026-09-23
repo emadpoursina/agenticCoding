@@ -366,8 +366,27 @@ def _process_result(mode: str) -> dict[str, object] | None:
     return None
 
 
+def _checked_launch(argv: list[str]) -> dict[str, str] | None:
+    """Accept the Hermes Pi argv: rpc, worker contract, optional model and tools."""
+    if len(argv) < 4 or argv[:2] != ["--mode", "rpc"] or argv[2] != "--append-system-prompt":
+        return None
+    if not Path(argv[3]).is_file():
+        return None
+    parsed = {"contract": argv[3]}
+    rest = argv[4:]
+    index = 0
+    while index < len(rest):
+        flag = rest[index]
+        if flag not in {"--provider", "--model", "--tools"} or index + 1 >= len(rest):
+            return None
+        parsed[flag[2:]] = rest[index + 1]
+        index += 2
+    return parsed
+
+
 def _run_rpc_process() -> int:
-    if sys.argv[1:] != ["--mode", "rpc"]:
+    launch = _checked_launch(sys.argv[1:])
+    if launch is None:
         return 2
     raw_input = sys.stdin.readline()
     input_count = 1 if raw_input.strip() else 0
@@ -390,6 +409,7 @@ def _run_rpc_process() -> int:
             json.dumps(
                 {
                     "argv": sys.argv[1:],
+                    "launch": launch,
                     "cwd": os.getcwd(),
                     "input_count": input_count,
                     "command": command,
@@ -400,6 +420,9 @@ def _run_rpc_process() -> int:
         )
     mode = os.environ.get("PI_FIXTURE_MODE", "completed").strip()
     if mode == "timeout":
+        note = os.environ.get("PI_FIXTURE_STDERR", "").strip()
+        if note:
+            print(note, file=sys.stderr, flush=True)
         time.sleep(3600)
     if mode == "early-exit":
         return 3
@@ -435,6 +458,16 @@ def _run_rpc_process() -> int:
     result = _process_result(mode)
     if result is None:
         return 4
+    if (
+        mode in {"completed", "still-running-after-result", "extra-output"}
+        and isinstance(payload, dict)
+        and payload.get("step_id") in {"critic", "pr-review"}
+    ):
+        result = {
+            "status": "completed",
+            "reason": "fixture review completed",
+            "report": {"VERDICT": "PASS", "SUMMARY": "fixture review"},
+        }
     print(
         json.dumps(
             {

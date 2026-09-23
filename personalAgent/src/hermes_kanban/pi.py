@@ -13,7 +13,10 @@ import json
 import os
 import selectors
 import subprocess
+import tempfile
 import time
+import uuid
+from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
 from threading import Event, Thread
@@ -116,6 +119,136 @@ _SAFETY_CONSTRAINTS = {
     "allow_external_writes": False,
     "reject_secrets": True,
 }
+
+_HEARTBEAT_SECONDS = 2.0
+_STDERR_TAIL_MAX = 2000
+# ponytail: critic and pr-review get read-only tools only. They cannot run
+# shell (no git diff). Add bash only behind a read-only wrapper.
+_READ_ONLY_STEPS = frozenset({"critic", "pr-review"})
+_READ_ONLY_TOOLS = "read,grep,find,ls"
+
+
+def _worker_contract_path() -> Path:
+    """Return the fixed worker contract appended to every Pi process."""
+    path = Path(__file__).with_name("pi_worker_contract.md").resolve()
+    if not path.is_file():
+        raise _PiTransportError("Pi worker contract is missing")
+    return path
+
+
+def _model_argv(profile: str, models: Mapping[str, tuple[str, str]]) -> list[str]:
+    """Turn a named profile into Pi provider and model flags."""
+    selected = models.get(profile)
+    if selected is not None:
+        provider, model = selected
+        return ["--provider", provider, "--model", model]
+    if profile == "default":
+        return []
+    return ["--model", profile]
+
+
+def _pi_argv(
+    executable: Path,
+    request: StepStartRequest,
+    models: Mapping[str, tuple[str, str]],
+) -> list[str]:
+    """Build one non-interactive Pi RPC command for this step."""
+    argv = [
+        str(executable),
+        "--mode",
+        "rpc",
+        "--append-system-prompt",
+        str(_worker_contract_path()),
+    ]
+    argv.extend(_model_argv(request.model_profile, models))
+    if request.step_id in _READ_ONLY_STEPS:
+        argv.extend(["--tools", _READ_ONLY_TOOLS])
+    return argv
+
+
+class _PiRunRecord:
+    """Disk status for one live Pi process. The worktree stays untouched."""
+
+    def __init__(self, path: Path) -> None:
+        self.path = path
+        self.stderr_path = path / "stderr.log"
+        self.status_path = path / "status.json"
+        self._stderr_tail = ""
+        self._pid: int | None = None
+        self._lifecycle = "starting"
+        self._last_event: str | None = None
+        self._last_event_at: float | None = None
+        self._current: dict[str, str] | None = None
+        self._last_error: str | None = None
+        path.mkdir(parents=True, exist_ok=False)
+        self.stderr_path.write_text("", encoding="utf-8")
+        self.flush(process_alive=False)
+
+    @classmethod
+    def open(cls, root: Path, request: StepStartRequest) -> _PiRunRecord:
+        """Create a unique run directory outside the task worktree."""
+        directory = root / f"{request.step_id}-{uuid.uuid4().hex[:12]}"
+        record = cls(directory)
+        record._flow_id = request.flow_id
+        record.flush(process_alive=False)
+        return record
+
+    def note_stderr(self, chunk: bytes) -> None:
+        """Append stderr and keep a short tail for the status file."""
+        text = chunk.decode("utf-8", errors="replace")
+        with self.stderr_path.open("a", encoding="utf-8") as handle:
+            handle.write(text)
+        self._stderr_tail = (self._stderr_tail + text)[-_STDERR_TAIL_MAX:]
+
+    def note_event(self, event: dict[str, object]) -> None:
+        """Track which tool is running. Ignore events that are not progress."""
+        event_type = event.get("type")
+        if not isinstance(event_type, str):
+            return
+        self._last_event = event_type
+        self._last_event_at = time.monotonic()
+        if event_type == "tool_execution_start":
+            name = event.get("toolName")
+            self._current = {"kind": "tool", "name": name if isinstance(name, str) else "unknown"}
+        elif event_type == "tool_execution_end":
+            self._current = {"kind": "model"}
+        elif event_type == "agent_settled":
+            self._current = None
+
+    def mark(self, lifecycle: str, *, pid: int | None = None, error: str | None = None) -> None:
+        """Record a lifecycle change and refresh status.json."""
+        self._lifecycle = lifecycle
+        if pid is not None:
+            self._pid = pid
+        if error:
+            self._last_error = error[:240]
+        alive = False
+        if self._pid is not None and lifecycle == "running":
+            try:
+                os.kill(self._pid, 0)
+                alive = True
+            except OSError:
+                alive = False
+        self.flush(process_alive=alive)
+
+    def flush(self, *, process_alive: bool) -> None:
+        """Write status.json atomically."""
+        now = time.monotonic()
+        quiet_ms = None if self._last_event_at is None else int((now - self._last_event_at) * 1000)
+        payload = {
+            "lifecycle": self._lifecycle,
+            "pid": self._pid,
+            "processAlive": process_alive,
+            "lastEventType": self._last_event,
+            "current": self._current,
+            "quietMs": quiet_ms,
+            "lastError": self._last_error,
+            "stderrTail": self._stderr_tail[-_STDERR_TAIL_MAX:] or None,
+            "flowId": getattr(self, "_flow_id", None),
+        }
+        temporary = self.status_path.with_suffix(".json.tmp")
+        temporary.write_text(json.dumps(payload, separators=(",", ":")), encoding="utf-8")
+        temporary.replace(self.status_path)
 
 
 def _prompt_message(request: StepStartRequest) -> str:
@@ -389,11 +522,16 @@ class PiHarnessAdapter:
         *,
         runtime_marker: HarnessRuntime | None = None,
         model_profiles: dict[str, object] | None = None,
+        model_selections: Mapping[str, tuple[str, str]] | None = None,
+        run_root: Path | None = None,
         clock=time.monotonic,
     ) -> None:
         self.runtime = runtime if runtime is not None else UnavailablePiRuntime()
         self.runtime_marker = runtime_marker
         self.model_profiles = model_profiles or {"default": object()}
+        self.model_selections = dict(model_selections or {})
+        self.run_root = run_root or Path(tempfile.gettempdir()) / "hermes-pi"
+        self.last_run_dir: Path | None = None
         self.clock = clock
         self._process_runtime = runtime is None and runtime_marker is not None
 
@@ -404,11 +542,15 @@ class PiHarnessAdapter:
         *,
         sdk: PiSdkPort | None = None,
         model_profiles: dict[str, object] | None = None,
+        model_selections: Mapping[str, tuple[str, str]] | None = None,
+        run_root: Path | None = None,
     ) -> PiHarnessAdapter:
         return cls(
             sdk,
             runtime_marker=runtime,
             model_profiles=model_profiles,
+            model_selections=model_selections,
+            run_root=run_root,
         )
 
     def _private_profile(self, name: str) -> object:
@@ -503,6 +645,8 @@ class PiHarnessAdapter:
             or not os.access(executable, os.X_OK)
         ):
             raise _PiTransportError("configured Pi runtime executable is unavailable")
+        record = _PiRunRecord.open(self.run_root, request)
+        self.last_run_dir = record.path
         process: subprocess.Popen[bytes] | None = None
         selector: selectors.BaseSelector | None = None
         buffer = b""
@@ -512,32 +656,44 @@ class PiHarnessAdapter:
         agent_error = False
         try:
             process = subprocess.Popen(
-                [str(executable), "--mode", "rpc"],
+                _pi_argv(executable, request, self.model_selections),
                 cwd=request.workspace_path,
                 stdin=subprocess.PIPE,
                 stdout=subprocess.PIPE,
-                stderr=subprocess.DEVNULL,
+                stderr=subprocess.PIPE,
             )
             assert process.stdin is not None
             assert process.stdout is not None
+            assert process.stderr is not None
+            record.mark("running", pid=process.pid)
             process.stdin.write(
                 (json.dumps(_rpc_prompt(request), separators=(",", ":")) + "\n").encode("utf-8")
             )
             process.stdin.flush()
             selector = selectors.DefaultSelector()
             selector.register(process.stdout, selectors.EVENT_READ)
+            selector.register(process.stderr, selectors.EVENT_READ)
             deadline = self.clock() + float(request.timeout_seconds)
             settled = False
             while not settled:
                 remaining = deadline - self.clock()
                 if remaining <= 0:
                     raise _PiTransportError("Pi harness timed out")
-                events = selector.select(remaining)
+                events = selector.select(min(remaining, _HEARTBEAT_SECONDS))
+                record.mark("running", pid=process.pid)
                 if not events:
-                    raise _PiTransportError("Pi harness timed out")
+                    continue
                 for key, _ in events:
                     chunk = os.read(key.fileobj.fileno(), 65536)
                     if not chunk:
+                        try:
+                            selector.unregister(key.fileobj)
+                        except (KeyError, ValueError):
+                            pass
+                        continue
+                    if key.fileobj is process.stderr:
+                        record.note_stderr(chunk)
+                        record.flush(process_alive=process.poll() is None)
                         continue
                     buffer += chunk
                     while b"\n" in buffer:
@@ -545,6 +701,7 @@ class PiHarnessAdapter:
                         if not line.strip():
                             continue
                         event = self._decode_rpc_line(line.rstrip(b"\r"))
+                        record.note_event(event)
                         event_type = event["type"]
                         if event_type == "response" and event.get("command") == "prompt":
                             if event.get("success") is not True:
@@ -574,6 +731,7 @@ class PiHarnessAdapter:
                 if process.poll() is not None and not settled:
                     raise _PiTransportError("Pi runtime exited before returning a result")
             if agent_error and result is None:
+                record.mark("failed", error="Pi agent failed before returning a step result")
                 return {
                     "status": "failed",
                     "reason": "Pi agent failed before returning a step result",
@@ -585,12 +743,17 @@ class PiHarnessAdapter:
                 raise _PiTransportError("Pi assistant returned no step result")
             if buffer.strip():
                 raise _PiTransportError("Pi runtime returned an incomplete RPC event")
+            record.mark("completed", pid=process.pid)
             self._stop_process(process)
             return result
+        except _PiTransportError as exc:
+            record.mark("failed", error=str(exc))
+            raise _PiTransportError(f"{exc} run_dir={record.path}") from exc
         except (OSError, ValueError, subprocess.SubprocessError) as exc:
-            if isinstance(exc, _PiTransportError):
-                raise
-            raise _PiTransportError("Pi runtime could not be started") from exc
+            record.mark("failed", error="Pi runtime could not be started")
+            raise _PiTransportError(
+                f"Pi runtime could not be started run_dir={record.path}"
+            ) from exc
         finally:
             if selector is not None:
                 selector.close()
@@ -600,6 +763,8 @@ class PiHarnessAdapter:
                     process.stdin.close()
                 if process.stdout is not None:
                     process.stdout.close()
+                if process.stderr is not None:
+                    process.stderr.close()
 
     def start(self, request: StepStartRequest) -> HarnessResult:
         """Validate, invoke exactly once, and normalize one Pi step run."""

@@ -287,8 +287,69 @@ def test_harness_config_pins_one_pi_runtime_and_named_profile(tmp_path: Path) ->
     assert loaded.adapter_id == "pi"
     assert loaded.model_profile == "default"
     assert loaded.step_profiles == {"ready": "ready", "critic": "critic"}
+    assert loaded.models == {}
     assert loaded.runtime.revision == "fixture"
     assert loaded.timeout_seconds == 1800.0
+
+
+def test_harness_models_map_a_named_profile(tmp_path: Path) -> None:
+    runtime = tmp_path / "runtime"
+    runtime.mkdir()
+    executable = runtime / "pi"
+    executable.write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
+    executable.chmod(executable.stat().st_mode | 0o111)
+    (runtime / "manifest.json").write_text(
+        '{"adapter_id":"pi","version":"1.0.0","revision":"fixture","executable":"pi"}',
+        encoding="utf-8",
+    )
+    config = tmp_path / "config.yaml"
+    config.write_text(
+        """harness:
+  adapters:
+    - id: pi
+      active: true
+      runtime_path_env: HERMES_PI_RUNTIME
+  model_profile: default
+  models:
+    DeepSeekFlash:
+      provider: custom
+      model: DeepSeekFlash
+  timeout_seconds: 1800
+""",
+        encoding="utf-8",
+    )
+
+    loaded = load_harness_config(config, environ={"HERMES_PI_RUNTIME": str(runtime)})
+
+    assert loaded.models == {"DeepSeekFlash": ("custom", "DeepSeekFlash")}
+
+
+def test_harness_models_reject_a_path(tmp_path: Path) -> None:
+    runtime = tmp_path / "runtime"
+    runtime.mkdir()
+    (runtime / "manifest.json").write_text(
+        '{"adapter_id":"pi","version":"1.0.0","revision":"fixture"}',
+        encoding="utf-8",
+    )
+    config = tmp_path / "config.yaml"
+    config.write_text(
+        """harness:
+  adapters:
+    - id: pi
+      active: true
+      runtime_path_env: HERMES_PI_RUNTIME
+  model_profile: default
+  models:
+    default:
+      provider: ../escaped
+      model: DeepSeekFlash
+  timeout_seconds: 1800
+""",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(HarnessConfigurationError):
+        load_harness_config(config, environ={"HERMES_PI_RUNTIME": str(runtime)})
 
 
 def test_unknown_step_profile_fails_closed_at_startup(tmp_path: Path) -> None:
@@ -434,7 +495,12 @@ def test_process_adapter_sends_one_step_job_and_stops_after_one_result(
 
     assert result.status == "completed"
     details = json.loads(record_path.read_text(encoding="utf-8"))
-    assert details["argv"] == ["--mode", "rpc"]
+    assert details["argv"][:2] == ["--mode", "rpc"]
+    assert details["argv"][2:4] == ["--append-system-prompt", details["launch"]["contract"]]
+    assert Path(details["launch"]["contract"]).is_file()
+    assert "provider" not in details["launch"]
+    assert "model" not in details["launch"]
+    assert "tools" not in details["launch"]
     assert details["cwd"] == str(workspace)
     assert details["input_count"] == 1
     assert details["command"]["type"] == "prompt"
@@ -496,3 +562,84 @@ def test_process_adapter_fails_closed_and_cleans_up(
     )
 
     assert result.status == "failed"
+
+
+def test_review_steps_are_read_only_and_leave_a_run_record(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    workspace = tmp_path / "worktree"
+    workspace.mkdir()
+    runtime_path = Path(__file__).parent / "fixtures" / "pi-runtime"
+    record_path = tmp_path / "process-record.json"
+    monkeypatch.setenv("PI_FIXTURE_RECORD", str(record_path))
+    marker = load_harness_runtime(
+        adapter_id="pi",
+        path_env="HERMES_PI_RUNTIME",
+        environ={"HERMES_PI_RUNTIME": str(runtime_path)},
+    )
+
+    adapter = PiHarnessAdapter.from_runtime(marker, run_root=tmp_path / "runs")
+    result = adapter.start(request(workspace, "critic"))
+
+    assert result.status == "completed"
+    details = json.loads(record_path.read_text(encoding="utf-8"))
+    assert details["launch"]["tools"] == "read,grep,find,ls"
+    assert adapter.last_run_dir is not None
+    assert adapter.last_run_dir.is_relative_to(tmp_path / "runs")
+    status = json.loads((adapter.last_run_dir / "status.json").read_text(encoding="utf-8"))
+    assert status["lifecycle"] == "completed"
+    assert not any(workspace.iterdir())
+
+
+def test_configured_model_is_passed_on_the_pi_process(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    workspace = tmp_path / "worktree"
+    workspace.mkdir()
+    runtime_path = Path(__file__).parent / "fixtures" / "pi-runtime"
+    record_path = tmp_path / "process-record.json"
+    monkeypatch.setenv("PI_FIXTURE_RECORD", str(record_path))
+    marker = load_harness_runtime(
+        adapter_id="pi",
+        path_env="HERMES_PI_RUNTIME",
+        environ={"HERMES_PI_RUNTIME": str(runtime_path)},
+    )
+
+    result = PiHarnessAdapter.from_runtime(
+        marker,
+        model_selections={"DeepSeekFlash": ("custom", "DeepSeekFlash")},
+    ).start(replace(request(workspace), model_profile="DeepSeekFlash"))
+
+    assert result.status == "completed"
+    details = json.loads(record_path.read_text(encoding="utf-8"))
+    assert details["launch"]["provider"] == "custom"
+    assert details["launch"]["model"] == "DeepSeekFlash"
+    assert "tools" not in details["launch"]
+
+
+def test_timeout_keeps_stderr_outside_the_worktree(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    workspace = tmp_path / "worktree"
+    workspace.mkdir()
+    runtime_path = Path(__file__).parent / "fixtures" / "pi-runtime"
+    monkeypatch.setenv("PI_FIXTURE_MODE", "timeout")
+    monkeypatch.setenv("PI_FIXTURE_STDERR", "fixture stderr still running")
+    marker = load_harness_runtime(
+        adapter_id="pi",
+        path_env="HERMES_PI_RUNTIME",
+        environ={"HERMES_PI_RUNTIME": str(runtime_path)},
+    )
+
+    adapter = PiHarnessAdapter.from_runtime(marker, run_root=tmp_path / "runs")
+    result = adapter.start(replace(request(workspace), timeout_seconds=0.5))
+
+    assert result.status == "failed"
+    assert adapter.last_run_dir is not None
+    assert f"run_dir={adapter.last_run_dir}" in result.reason
+    assert "fixture stderr still running" in (adapter.last_run_dir / "stderr.log").read_text(
+        encoding="utf-8"
+    )
+    status = json.loads((adapter.last_run_dir / "status.json").read_text(encoding="utf-8"))
+    assert status["lifecycle"] == "failed"
+    assert status["processAlive"] is False

@@ -243,10 +243,14 @@ harness:
 
 The runtime manifest must identify `adapter_id`, `version`, `revision`, and
 the executable. Hermes starts that executable once as `pi --mode rpc` in the
-task worktree, sends one JSON `prompt` command, privately consumes Pi's JSONL
-responses/events until settlement, and extracts one structured result. The
-checked-in timeout accepts positive finite numbers and numeric strings, with no
-new maximum.
+task worktree, with the worker contract on `--append-system-prompt`. A
+profile listed under `harness.models` is passed as `--provider` and
+`--model`; the name `default` with no entry leaves Pi's own model in place.
+Critic and pr-review also get `--tools read,grep,find,ls`. Hermes sends one
+JSON `prompt` command, writes a run record (`status.json`, `stderr.log`)
+outside the worktree, and reads Pi's events until settlement. The checked-in
+timeout accepts positive finite numbers and numeric strings, with no new
+maximum.
 
 Each agent state is exactly one new Pi session, prompted for that step only:
 the Ready pre-flight, the Spec Kit states (specify, clarify, plan, tasks,

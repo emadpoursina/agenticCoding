@@ -561,7 +561,10 @@ class AgentExecutor:
                 if "harness:" in config_path.read_text(encoding="utf-8"):
                     raise
             else:
-                harness_adapter = PiHarnessAdapter.from_runtime(configuration.runtime)
+                harness_adapter = PiHarnessAdapter.from_runtime(
+                    configuration.runtime,
+                    model_selections=dict(configuration.models),
+                )
         return cls(
             adapter,
             registry,

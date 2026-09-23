@@ -16,7 +16,7 @@ import os
 import re
 import shutil
 from collections.abc import Mapping
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING, Literal, Protocol
 
@@ -551,6 +551,7 @@ class HarnessConfiguration:
     runtime_path_env: str
     runtime: HarnessRuntime
     timeout_seconds: float
+    models: Mapping[str, tuple[str, str]] = field(default_factory=dict)
 
 
 def _read_json(path: Path, error: type[HarnessError]) -> dict[str, object]:
@@ -639,6 +640,40 @@ def _parse_step_profiles(raw: object) -> dict[str, str]:
     return profiles
 
 
+_PI_MODEL_TOKEN = re.compile(r"^[A-Za-z0-9._:-]+$")
+
+
+def _parse_pi_models(raw: object) -> dict[str, tuple[str, str]]:
+    """Parse optional profile to provider and model flags; fail closed."""
+    if raw is None:
+        return {}
+    if not isinstance(raw, dict):
+        raise HarnessConfigurationError("harness.models must be a mapping")
+    models: dict[str, tuple[str, str]] = {}
+    for name, spec in raw.items():
+        if not isinstance(name, str) or not name.strip() or "/" in name or "\\" in name:
+            raise HarnessConfigurationError("harness model profile must be a named reference")
+        if not isinstance(spec, dict):
+            raise HarnessConfigurationError(f"harness model {name} must be a mapping")
+        provider = spec.get("provider")
+        model = spec.get("model")
+        if not isinstance(provider, str) or not isinstance(model, str):
+            raise HarnessConfigurationError(f"harness model {name} needs provider and model")
+        provider = provider.strip()
+        model = model.strip()
+        if (
+            not _PI_MODEL_TOKEN.fullmatch(provider)
+            or not _PI_MODEL_TOKEN.fullmatch(model)
+            or contains_secret(provider)
+            or contains_secret(model)
+        ):
+            raise HarnessConfigurationError(
+                f"harness model {name} has an invalid provider or model"
+            )
+        models[name.strip()] = (provider, model)
+    return models
+
+
 def load_harness_config(
     config_path: Path,
     *,
@@ -678,6 +713,7 @@ def load_harness_config(
     if not isinstance(profile, str) or not profile.strip():
         raise HarnessConfigurationError("harness model_profile is required")
     step_profiles = _parse_step_profiles(raw.get("step_profiles"))
+    models = _parse_pi_models(raw.get("models"))
     if "timeout_seconds" not in raw:
         raise HarnessConfigurationError("harness timeout_seconds is required")
     timeout = coerce_timeout_seconds(raw["timeout_seconds"])
@@ -696,6 +732,7 @@ def load_harness_config(
         runtime_path_env=path_env.strip(),
         runtime=runtime,
         timeout_seconds=timeout,
+        models=models,
     )
 
 

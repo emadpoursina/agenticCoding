@@ -103,10 +103,13 @@ push, open a pull request, or mark the card done from direct edits. On
 failure, report and stop.
 
 **Pi sessions.** One `pi --mode rpc` process per agent state, in the task
-worktree. Ready, the Spec Kit states (specify, clarify, plan, tasks,
-analyze, implement, converge), and critic / tester / pr-review each start a
-**new** session that is prompted for that step only. Native
-`specs/<task-id>/` files stay in that worktree. Pi must not publish, push,
+worktree, with the worker contract on `--append-system-prompt`. A configured
+`harness.models` entry is passed as `--provider` and `--model`. Critic and
+pr-review are limited to read-only tools. Each run writes `status.json` and
+`stderr.log` outside the worktree. Ready, the Spec Kit states (specify,
+clarify, plan, tasks, analyze, implement, converge), and critic / tester /
+pr-review each start a **new** session that is prompted for that step only.
+Native `specs/<task-id>/` files stay in that worktree. Pi must not publish, push,
 merge, deploy, or write into AiNative.
 
 **Human gates.** Clarify questions, the one `confirm` continuation, `uat`,

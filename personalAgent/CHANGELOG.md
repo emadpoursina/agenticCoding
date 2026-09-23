@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.8.0] - 2026-09-22
+### Added
+- Pi runs append `pi_worker_contract.md` with `--append-system-prompt`, pass
+  a configured `harness.models` profile as `--provider` and `--model`, and
+  limit critic and pr-review to `read,grep,find,ls`.
+- Each Pi process writes `status.json` and `stderr.log` outside the task
+  worktree, including which tool is current and a stderr tail. Failures
+  include the run directory.
+
 ## [1.7.0] - 2026-09-22
 ### Added
 - Interactive front on the dispatcher: `python -m hermes_kanban --config …`
