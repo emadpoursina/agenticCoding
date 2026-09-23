@@ -194,6 +194,20 @@ The one dispatcher entry is available to an already-started Hermes worker and
 to a shell. Compose mounts this package at `/opt/personal-agent` and sets
 `PYTHONPATH=/opt/personal-agent/src`.
 
+With only `--config`, and a terminal attached, the same command asks what
+you want and then runs the existing enroll or card-create path:
+
+```bash
+python -m hermes_kanban --config /path/to/default.yaml
+```
+
+It offers two conversations: enroll `owner/name` (or a dry run), or add one
+card. The card questions fill `## Path` and `## Skill` (`prd-writer`,
+`project-bootstrapper`, `feature`, or `change`). A non-interactive shell
+with no selector still exits and asks for `--task`, `--next-ready`,
+`--resume`, or `--smoke`. A claimed worker (`HERMES_KANBAN_TASK`) is
+unchanged.
+
 ```bash
 export HERMES_HOME="$HOME/.hermes/personal-agent"
 python -m hermes_kanban --config /path/to/default.yaml --task TASK_ID

@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.7.0] - 2026-09-22
+### Added
+- Interactive front on the dispatcher: `python -m hermes_kanban --config …`
+  with no other selector, in a terminal, asks whether to enroll a repository
+  or add a card, then runs the existing onboard or `hermes kanban create`
+  path. Card answers set `## Path` and `## Skill`. A non-interactive shell
+  and a claimed worker keep the previous selector rules.
+
 ## [1.6.0] - 2026-09-22
 ### Added
 - Card paths: the dispatcher reads `## Path` (`feature`, `change`, `job`;

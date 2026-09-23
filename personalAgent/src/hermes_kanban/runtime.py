@@ -264,6 +264,26 @@ def _print_onboard_result(result: OnboardResult, *, dry_run: bool) -> None:
         print("status: dry run — no changes were written")
 
 
+def _bare_invocation(args: argparse.Namespace, selectors: int) -> bool:
+    """Return whether the process was started with only --config."""
+    return (
+        selectors == 0
+        and not args.onboard
+        and not args.doctor
+        and not args.smoke
+        and not args.skip
+        and not args.repo
+        and args.branch == "main"
+        and args.default_priority == "P2"
+        and not args.dry_run
+        and not args.create_cards
+        and not args.allow_todo
+        and args.prd is None
+        and args.drafts_out is None
+        and args.project_id is None
+    )
+
+
 def main(argv: list[str] | None = None) -> int:
     """Run one named, next-ready, resume, or guarded smoke operation."""
     args = _parser().parse_args(argv)
@@ -298,6 +318,13 @@ def main(argv: list[str] | None = None) -> int:
         return 2
     if args.smoke and selectors != 1:
         print("smoke requires exactly one task or next-ready selector", file=sys.stderr)
+        return 2
+    if _bare_invocation(args, selectors):
+        if sys.stdin.isatty():
+            from .guide import run_guide
+
+            return run_guide(args.config)
+        print("choose exactly one task, next-ready, resume, or smoke mode", file=sys.stderr)
         return 2
     if not args.onboard and not args.doctor and not args.smoke and selectors != 1:
         print("choose exactly one task, next-ready, resume, or smoke mode", file=sys.stderr)
