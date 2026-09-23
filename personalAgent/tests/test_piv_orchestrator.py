@@ -7,6 +7,8 @@ import shutil
 import subprocess
 from pathlib import Path
 
+import pytest
+
 from hermes_kanban.executor import AssembledContext, ModelResponse
 from hermes_kanban.github import MemoryGitHost
 from hermes_kanban.messaging import MemoryMessagingChannel
@@ -14,6 +16,7 @@ from hermes_kanban.orchestrator import (
     BoardTask,
     MemoryTaskBoard,
     PivOrchestrator,
+    PlaceholderValidationError,
 )
 from hermes_kanban.pi import PiHarnessAdapter
 from hermes_kanban.startup_context import StartupContextSnapshot
@@ -178,6 +181,48 @@ def test_full_run_records_one_new_session_per_agent_state(tmp_path: Path) -> Non
     assert (worktree / "specs/123/plan.md").is_file()
     assert (worktree / "specs/123/tasks.md").is_file()
     assert len(orchestrator.git_host.pushes) == 1  # type: ignore[union-attr]
+
+
+def test_placeholder_validation_blocks_run_before_any_pi_session(tmp_path: Path) -> None:
+    orchestrator, runtime, workspace_root = environment(
+        tmp_path,
+        validation_command=(
+            'echo "TODO: declare real validation commands in .ainative/project.yaml"'
+        ),
+    )
+
+    with pytest.raises(PlaceholderValidationError, match="placeholder"):
+        orchestrator.run_workflow("fixture", "123")
+
+    assert runtime.order == []
+    assert not (workspace_root / "fixture" / "123").exists()
+    assert orchestrator._record is None
+
+
+def test_empty_validation_blocks_run_before_any_pi_session(tmp_path: Path) -> None:
+    # A command embedding the scaffold marker anywhere is refused, not only a
+    # bare echo, so renaming the binary cannot smuggle the placeholder through.
+    orchestrator, runtime, _workspace_root = environment(tmp_path)
+
+    manifest = (
+        orchestrator.registry.load_project_context("fixture").location
+        / ".ainative"
+        / "project.yaml"
+    )
+    manifest.write_text(
+        "name: fixture-project\n"
+        "repository: github.com/example/fixture\n"
+        "default_branch: main\n"
+        "validation:\n"
+        "  commands:\n"
+        '    - sh -c "echo TODO: declare real validation commands"\n',
+        encoding="utf-8",
+    )
+
+    with pytest.raises(PlaceholderValidationError, match="placeholder"):
+        orchestrator.run_workflow("fixture", "123")
+
+    assert runtime.order == []
 
 
 def test_human_gates_never_start_pi(tmp_path: Path) -> None:

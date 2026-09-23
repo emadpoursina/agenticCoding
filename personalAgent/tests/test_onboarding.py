@@ -93,7 +93,7 @@ def test_onboard_reuses_existing_matching_clone(tmp_path: Path) -> None:
     )
 
     assert result.cloned is False
-    assert result.scaffolded == ("README.md", "AGENTS.md", ".ainative/project.yaml")
+    assert set(result.scaffolded) == {"README.md", "AGENTS.md", ".ainative/project.yaml"}
 
 
 def test_onboard_fails_closed_when_native_creation_fails(tmp_path: Path) -> None:
@@ -255,6 +255,50 @@ def test_onboard_rejects_bad_repository_format(tmp_path: Path) -> None:
         run_onboard(request(repository="just-a-name"), config, cloner=fake_cloner)
 
 
+def test_onboard_enrolls_via_overlay_when_config_is_read_only(tmp_path: Path) -> None:
+    workspace = tmp_path / "workspaces"
+    overlay_dir = tmp_path / "overlay"
+    overlay_dir.mkdir()
+    workspace.mkdir(parents=True, exist_ok=True)
+    config = tmp_path / "config.yaml"
+    base_location = workspace / "ich-mag-dich"
+    base_location.mkdir()
+    config.write_text(
+        "projects:\n"
+        "  - id: ich-mag-dich\n"
+        "    name: owner/ich-mag-dich\n"
+        "    repository: github.com/owner/ich-mag-dich\n"
+        f"    location: {base_location}\n"
+        "    default_branch: main\n"
+        f"workspace:\n  root: {workspace}\n"
+        f"execution:\n  overlay_dir: {overlay_dir}\n",
+        encoding="utf-8",
+    )
+    before = config.read_text(encoding="utf-8")
+    projects_db = write_projects_db(tmp_path, [(NATIVE_ID, "owner/new-project")])
+    mode = tmp_path.stat().st_mode
+    tmp_path.chmod(mode & ~0o222)
+    try:
+        result = run_onboard(
+            request(), config, cloner=fake_cloner, projects_db=projects_db
+        )
+    finally:
+        tmp_path.chmod(mode)
+
+    assert result.cloned is True
+    assert result.native_id == NATIVE_ID
+    assert config.read_text(encoding="utf-8") == before
+    assert not (config.parent / "config.yaml.onboard-tmp").exists()
+    overlay = overlay_dir / "enrolled-projects.yaml"
+    assert "id: new-project" in overlay.read_text(encoding="utf-8")
+    registry = ProjectRegistry.from_config(config)
+    base = registry.get_project("ich-mag-dich")
+    assert base.location == workspace / "ich-mag-dich"
+    record = registry.get_project("new-project")
+    assert record.kanban_project_ids == (NATIVE_ID,)
+    assert registry.canonical_id(NATIVE_ID) == "new-project"
+
+
 PRD = """# My project PRD
 
 Intro paragraph that is ignored.
@@ -410,3 +454,69 @@ def test_without_create_cards_drafts_stay_files(tmp_path: Path) -> None:
 
     assert result.created_cards == ()
     assert created == []
+
+
+def _git_out(*args: str, cwd: Path) -> str:
+    return subprocess.run(
+        ["git", *args], cwd=cwd, check=True, capture_output=True, text=True
+    ).stdout
+
+
+def test_onboard_commits_scaffold_files(tmp_path: Path) -> None:
+    workspace = tmp_path / "workspaces"
+    config = write_config(tmp_path, workspace)
+    projects_db = write_projects_db(tmp_path, [(NATIVE_ID, "owner/new-project")])
+
+    result = run_onboard(request(), config, cloner=fake_cloner, projects_db=projects_db)
+
+    status = _git_out("status", "--porcelain", cwd=result.location)
+    assert status == ""
+    last = _git_out("log", "-1", "--format=%s", cwd=result.location).strip()
+    assert last == "chore: ainative onboarding scaffold"
+    names = _git_out(
+        "show", "--name-only", "--format=", "HEAD", cwd=result.location
+    ).splitlines()
+    assert set(names) == {"README.md", "AGENTS.md", ".ainative/project.yaml"}
+
+
+def test_onboard_does_not_commit_preexisting_unrelated_files(tmp_path: Path) -> None:
+    workspace = tmp_path / "workspaces"
+    config = write_config(tmp_path, workspace)
+    projects_db = write_projects_db(tmp_path, [(NATIVE_ID, "owner/new-project")])
+    location = workspace / "new-project"
+    fake_cloner("git@github.com:owner/new-project.git", location, "main")
+    (location / "operator-note.txt").write_text("mine", encoding="utf-8")
+
+    result = run_onboard(request(), config, projects_db=projects_db)
+
+    status = _git_out("status", "--porcelain", cwd=result.location).splitlines()
+    assert status == ["?? operator-note.txt"]
+
+
+def test_onboard_composes_existing_agents_md_once(tmp_path: Path) -> None:
+    workspace = tmp_path / "workspaces"
+    config = write_config(tmp_path, workspace)
+    projects_db = write_projects_db(tmp_path, [(NATIVE_ID, "owner/new-project")])
+    location = workspace / "new-project"
+    fake_cloner("git@github.com:owner/new-project.git", location, "main")
+    (location / "AGENTS.md").write_text(
+        "# Project rules\n\n- Custom project rule.\n", encoding="utf-8"
+    )
+
+    run_onboard(request(), config, projects_db=projects_db)
+
+    text = (location / "AGENTS.md").read_text(encoding="utf-8")
+    assert text.startswith("# Project rules\n")
+    assert "Custom project rule." in text
+    assert "## Hermes control plane" in text
+    assert text.count("## Hermes control plane") == 1
+
+
+def test_onboard_reenroll_does_not_duplicate_agents_section(tmp_path: Path) -> None:
+    workspace = tmp_path / "workspaces"
+    config = write_config(tmp_path, workspace)
+    projects_db = write_projects_db(tmp_path, [(NATIVE_ID, "owner/new-project")])
+
+    first = run_onboard(request(), config, cloner=fake_cloner, projects_db=projects_db)
+    text = (first.location / "AGENTS.md").read_text(encoding="utf-8")
+    assert text.count("## Hermes control plane") == 1

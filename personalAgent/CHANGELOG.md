@@ -1,5 +1,35 @@
 # Changelog
 
+## [1.9.0] - 2026-09-23
+### Added
+- Onboarding commits exactly the files it scaffolds
+  (`chore: ainative onboarding scaffold`) in the enrolled copy before the
+  config entry is appended; a commit failure aborts enrollment fail-closed.
+  Operator-initiated onboard may commit; claimed Kanban workers still cannot.
+- An existing project `AGENTS.md` is composed instead of skipped: onboarding
+  appends one `## Hermes control plane` section (idempotent by marker) so
+  repos created by the `project-bootstrapper` job card still receive the
+  control-plane rules without losing project content.
+- `--doctor` reports `placeholder_validation_projects`: enrolled projects
+  whose `validation_commands` are the scaffold TODO marker (or otherwise
+  cannot prove anything).
+### Changed
+- Scaffolded manifest declares `workflow.default: feature-loop` instead of
+  the legacy `piv` (metadata only; the executor reads the control-plane
+  config).
+### Fixed
+- `run_workflow` refuses to start (no worktree, no Pi session) when the
+  project's declared `validation_commands` contain the scaffold TODO marker;
+  a vacuous tester PASS is no longer reachable through onboarding.
+
+## [1.8.1] - 2026-09-23
+### Fixed
+- Project enroll now succeeds when the operational config mount is
+  read-only: `append_project_entry` falls back to appending the new project
+  entry to `enrolled-projects.yaml` under `execution.overlay_dir` (the
+  writable volume), and `load_project_entries` merges that overlay file
+  after the base `projects:` list.
+
 ## [1.8.0] - 2026-09-22
 ### Added
 - Pi runs append `pi_worker_contract.md` with `--append-system-prompt`, pass

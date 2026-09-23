@@ -14,6 +14,7 @@ from hermes_kanban.projects import (
     ProjectRegistry,
     UnknownProjectError,
     UnsafePathError,
+    is_placeholder_validation,
 )
 
 FIXTURE_ROOT = Path(__file__).parent / "fixtures" / "projects" / "standard"
@@ -397,3 +398,18 @@ def test_near_miss_and_unknown_aliases_do_not_resolve(tmp_path: Path, candidate:
         registry.canonical_id(candidate)
     with pytest.raises(UnknownProjectError):
         registry.get_project(candidate)
+
+
+def test_placeholder_marker_command_is_detected() -> None:
+    assert is_placeholder_validation(
+        ('echo "TODO: declare real validation commands in .ainative/project.yaml"',)
+    )
+
+
+def test_real_validation_commands_are_not_placeholder() -> None:
+    assert not is_placeholder_validation(("uv run pytest",))
+    assert not is_placeholder_validation(("uv run pytest", "uv run ruff check"))
+
+
+def test_empty_validation_commands_are_placeholder() -> None:
+    assert is_placeholder_validation(())

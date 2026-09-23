@@ -99,6 +99,7 @@ class StartupDiagnostic:
     persistent_state_path: Path
     context_registrations: tuple[StartupContextRegistration, ...]
     project_kanban_ids: Mapping[str, tuple[str, ...]] = field(default_factory=dict)
+    placeholder_validation_projects: tuple[str, ...] = ()
 
     def to_dict(self) -> dict[str, object]:
         """Return only safe diagnostic metadata suitable for JSON output."""
@@ -120,6 +121,9 @@ class StartupDiagnostic:
                 }
                 for registration in self.context_registrations
             ],
+            "placeholder_validation_projects": list(
+                self.placeholder_validation_projects
+            ),
         }
 
     def render(self) -> str:

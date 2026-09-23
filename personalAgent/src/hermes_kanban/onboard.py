@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import errno
 import os
 import re
 import sqlite3
@@ -13,7 +14,11 @@ from pathlib import Path
 from .projects import (
     ProjectRegistryError,
     _manifest_from_file,
+    _parse_document,
     _path_like_id,
+    _records_from_text,
+    _SubsetYamlError,
+    _validate_records,
     load_project_entries,
 )
 from .workspace import InvalidWorkspaceRootError, load_workspace_root
@@ -40,6 +45,7 @@ _H2_HEADING = re.compile(r"^##\s+(.+?)\s*$")
 _PRIORITY_LINE = re.compile(r"^priority\s*:\s*(\S+)\s*$", re.IGNORECASE)
 _EXPECTED_LINE = re.compile(r"^expected(?:\s+result)?\s*:\s*(.+?)\s*$", re.IGNORECASE)
 _SLUG_NOISE = re.compile(r"[^a-z0-9]+")
+_READ_ONLY_CONFIG_ERRNOS = {errno.EROFS, errno.EACCES, errno.EPERM}
 
 
 @dataclass(frozen=True)
@@ -243,6 +249,14 @@ def _entry_lines(
     return lines
 
 
+def _discard_temp(path: Path) -> None:
+    """Remove a temporary file, tolerating a second failure."""
+    try:
+        path.unlink(missing_ok=True)
+    except OSError:
+        pass
+
+
 def append_project_entry(config_path: Path, entry_lines: list[str]) -> None:
     """Append one project entry to the projects list and revalidate the file."""
     try:
@@ -269,15 +283,89 @@ def append_project_entry(config_path: Path, entry_lines: list[str]) -> None:
     temp_path = config_path.with_name(config_path.name + ".onboard-tmp")
     try:
         temp_path.write_text(candidate, encoding="utf-8")
+    except OSError as exc:
+        if exc.errno not in _READ_ONLY_CONFIG_ERRNOS:
+            _discard_temp(temp_path)
+            raise OnboardError(f"cannot write config: {config_path}") from exc
+        _append_overlay_entry(config_path, original, entry_lines)
+        return
+    try:
         load_project_entries(temp_path)
     except (OSError, ProjectRegistryError) as exc:
-        temp_path.unlink(missing_ok=True)
+        _discard_temp(temp_path)
         raise OnboardError(f"onboarding would produce an invalid config: {exc}") from exc
     try:
         temp_path.replace(config_path)
     except OSError as exc:
-        temp_path.unlink(missing_ok=True)
+        _discard_temp(temp_path)
         raise OnboardError(f"cannot write config: {config_path}") from exc
+
+
+def _overlay_enrolment_path(config_path: Path, config_text: str) -> Path:
+    """Resolve enrolled-projects.yaml under execution.overlay_dir from the config."""
+    try:
+        document = _parse_document(config_text)
+    except _SubsetYamlError as exc:
+        raise OnboardError(f"cannot read config: {config_path}") from exc
+    execution = document.get("execution")
+    raw_directory = execution.get("overlay_dir") if isinstance(execution, dict) else None
+    if not isinstance(raw_directory, str) or not raw_directory.strip():
+        raise OnboardError(
+            f"cannot write config {config_path}: no execution.overlay_dir fallback"
+        )
+    return Path(raw_directory.strip()) / "enrolled-projects.yaml"
+
+
+def _append_overlay_entry(
+    config_path: Path, config_text: str, entry_lines: list[str]
+) -> None:
+    """Append only the new entry to the overlay file when the config is read-only."""
+    overlay_path = _overlay_enrolment_path(config_path, config_text)
+    if not overlay_path.parent.is_dir():
+        overlay_path.parent.mkdir(parents=True, exist_ok=True)
+    existing = ""
+    if overlay_path.is_file():
+        try:
+            existing = overlay_path.read_text(encoding="utf-8")
+        except (OSError, UnicodeError) as exc:
+            raise OnboardError(f"cannot read project overlay: {overlay_path}") from exc
+    base_records = _records_from_text(config_text, config_path)
+    if not existing.strip():
+        candidate = "projects:\n" + "\n".join(entry_lines) + "\n"
+    else:
+        candidate_lines = existing.splitlines()
+        start = None
+        for index, raw in enumerate(candidate_lines):
+            if re.fullmatch(r"projects\s*:", raw.strip()):
+                start = index
+                break
+        if start is None:
+            candidate_lines = candidate_lines + ["projects:"] + entry_lines
+        else:
+            end = start + 1
+            while (
+                end < len(candidate_lines)
+                and candidate_lines[end].strip()
+                and candidate_lines[end][:1] in {" ", "\t"}
+            ):
+                end += 1
+            while end > start + 1 and not candidate_lines[end - 1].strip():
+                end -= 1
+            candidate_lines = candidate_lines[:end] + entry_lines + candidate_lines[end:]
+        trailing = "\n" if existing.endswith("\n") or not existing else ""
+        candidate = "\n".join(candidate_lines) + trailing
+    merged = _records_from_text(candidate, overlay_path)
+    _validate_records(base_records + merged)
+    temp_path = overlay_path.with_name(overlay_path.name + ".onboard-tmp")
+    try:
+        temp_path.write_text(candidate, encoding="utf-8")
+        temp_path.replace(overlay_path)
+    except OSError as exc:
+        try:
+            temp_path.unlink(missing_ok=True)
+        except OSError:
+            pass
+        raise OnboardError(f"cannot write project overlay: {overlay_path}") from exc
 
 
 def live_clone(url: str, location: Path, branch: str) -> None:
@@ -304,6 +392,41 @@ def _remote_matches_owner(location: Path, repository: str) -> bool:
     return repository in result.stdout
 
 
+_AGENTS_SECTION_SUFFIX = "## Hermes control plane"
+
+
+def _control_plane_section(project_id: str, repository: str, branch: str) -> str:
+    return "\n".join(
+        (
+            "## Hermes control plane",
+            "",
+            "This repository is enrolled with the Hermes personal-agent"
+            f" control plane (project id `{project_id}`, repository"
+            f" `{repository}`, default branch `{branch}`).",
+            "",
+            "- Pi owns implementation; the control plane publishes feature branches only.",
+            "- Publish runs only after critic PASS and tester PASS, on the feature branch.",
+            "- Keep validation commands in `.ainative/project.yaml` current.",
+            "- Never commit secrets or push protected branches.",
+        )
+    )
+
+
+def _compose_agents_text(
+    existing: str, project_id: str, repository: str, branch: str
+) -> str:
+    """Append the control-plane section to an existing project AGENTS.md."""
+    if _AGENTS_SECTION_SUFFIX in existing:
+        return existing
+    if existing.endswith("\n\n"):
+        separator = ""
+    elif existing.endswith("\n"):
+        separator = "\n"
+    else:
+        separator = "\n\n"
+    return existing + separator + _control_plane_section(project_id, repository, branch) + "\n"
+
+
 def _readme_text(project_id: str, repository: str, branch: str) -> str:
     return (
         f"# {project_id}\n"
@@ -326,8 +449,9 @@ def _agents_text(project_id: str, repository: str, branch: str) -> str:
         "- Pi owns implementation; the control plane publishes feature branches only.\n"
         "- Keep validation commands in `.ainative/project.yaml` current.\n"
         "- Never commit secrets or push protected branches.\n"
+        "\n"
+        f"{_control_plane_section(project_id, repository, branch)}\n"
     )
-
 
 def _manifest_text(project_id: str, repository: str, branch: str) -> str:
     return (
@@ -337,7 +461,7 @@ def _manifest_text(project_id: str, repository: str, branch: str) -> str:
         f"default_branch: {branch}\n"
         "\n"
         "workflow:\n"
-        "  default: piv\n"
+        "  default: feature-loop\n"
         "\n"
         "validation:\n"
         "  commands:\n"
@@ -345,13 +469,18 @@ def _manifest_text(project_id: str, repository: str, branch: str) -> str:
     )
 
 
+SUGGESTED_VALIDATION_COMMANDS = (
+    "uv run pytest",
+    "uv run ruff check src tests",
+)
+
+
 def scaffold_project_files(
     location: Path, project_id: str, repository: str, branch: str
 ) -> tuple[str, ...]:
-    """Create missing onboarding files without overwriting existing ones."""
+    """Create missing onboarding files; compose an existing AGENTS.md."""
     files = {
         "README.md": _readme_text(project_id, repository, branch),
-        "AGENTS.md": _agents_text(project_id, repository, branch),
         ".ainative/project.yaml": _manifest_text(project_id, repository, branch),
     }
     created: list[str] = []
@@ -365,7 +494,55 @@ def scaffold_project_files(
         except OSError as exc:
             raise OnboardError(f"cannot scaffold {relative}: {exc}") from exc
         created.append(relative)
+    agents_path = location / "AGENTS.md"
+    if agents_path.is_file():
+        try:
+            existing = agents_path.read_text(encoding="utf-8")
+        except (OSError, UnicodeError) as exc:
+            raise OnboardError(f"cannot read existing AGENTS.md: {exc}") from exc
+        composed = _compose_agents_text(existing, project_id, repository, branch)
+        if composed != existing:
+            try:
+                agents_path.write_text(composed, encoding="utf-8")
+            except OSError as exc:
+                raise OnboardError(f"cannot update AGENTS.md: {exc}") from exc
+            created.append("AGENTS.md")
+    else:
+        try:
+            agents_path.write_text(
+                _agents_text(project_id, repository, branch), encoding="utf-8"
+            )
+        except OSError as exc:
+            raise OnboardError(f"cannot scaffold AGENTS.md: {exc}") from exc
+        created.append("AGENTS.md")
     return tuple(created)
+
+
+def commit_scaffold(location: Path, scaffolded: tuple[str, ...]) -> bool:
+    """Commit scaffold-created files in the enrolled copy. Operator-initiated."""
+    if not scaffolded:
+        return False
+
+    def _git(*args: str) -> str:
+        result = subprocess.run(
+            ["git", "-C", str(location), *args], capture_output=True, text=True
+        )
+        if result.returncode != 0:
+            raise OnboardError(
+                f"cannot commit scaffold (git {' '.join(args)}): "
+                f"{result.stderr.strip() or result.stdout.strip()}"
+            )
+        return result.stdout
+    _git("add", "--", *scaffolded)
+    staged = _git("diff", "--cached", "--name-only")
+    if not staged.strip():
+        # Nothing staged: files were already committed or identical. Not an error.
+        return False
+    _git("commit", "-m", _SCAFFOLD_COMMIT_MESSAGE)
+    return True
+
+
+_SCAFFOLD_COMMIT_MESSAGE = "chore: ainative onboarding scaffold"
 
 
 def _verify_manifest(location: Path) -> None:
@@ -467,6 +644,7 @@ def run_onboard(
         cloned = True
     scaffolded = scaffold_project_files(location, project_id, repository, branch)
     _verify_manifest(location)
+    commit_scaffold(location, scaffolded)
     entry = _entry_lines(project_id, repository, location, branch, native_id)
     append_project_entry(config_path, entry)
     if request.prd is not None:

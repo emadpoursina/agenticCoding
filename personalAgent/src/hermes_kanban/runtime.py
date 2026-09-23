@@ -27,8 +27,10 @@ from .orchestrator import (
 from .projects import (
     ProjectRecord,
     ProjectRegistry,
+    ProjectRegistryError,
     UnknownProjectError,
     _parse_document,
+    is_placeholder_validation,
 )
 from .startup_context import (
     StartupContextSnapshot,
@@ -77,7 +79,23 @@ def build_startup_diagnostic(
             for project in orchestrator.registry.list_projects()
             if project.kanban_project_ids
         },
+        placeholder_validation_projects=tuple(
+            project.id
+            for project in orchestrator.registry.list_projects()
+            if _project_has_placeholder_validation(project.id, orchestrator.registry)
+        ),
     )
+
+
+def _project_has_placeholder_validation(
+    project_id: str, registry: ProjectRegistry
+) -> bool:
+    """Check one enrolled project's manifest for placeholder validation."""
+    try:
+        context = registry.load_project_context(project_id)
+    except ProjectRegistryError:
+        return False
+    return is_placeholder_validation(context.validation_commands)
 
 
 def _telegram_enabled(config_path: Path) -> bool:

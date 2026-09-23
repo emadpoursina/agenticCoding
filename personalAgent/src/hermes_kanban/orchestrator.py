@@ -50,6 +50,7 @@ from .projects import (
     ProjectRegistry,
     UnknownProjectError,
     _path_like_id,
+    is_placeholder_validation,
 )
 from .workspace import (
     InvalidTaskIdError,
@@ -175,6 +176,10 @@ class InvalidCardPathError(OrchestratorError):
 
 class InvalidJobSkillError(OrchestratorError):
     pass
+
+
+class PlaceholderValidationError(OrchestratorError):
+    """Raised when a project's declared validation commands cannot prove anything."""
 
 
 _CARD_PATHS = frozenset({"feature", "change", "job"})
@@ -621,7 +626,13 @@ class PivOrchestrator:
         if not isinstance(task_id, str) or _path_like_id(task_id):
             raise InvalidTaskIdError(f"invalid task id: {task_id}")
         self.registry.resolve_eligible_project(project_id)
-        self.registry.load_project_context(project_id)
+        context = self.registry.load_project_context(project_id)
+        if is_placeholder_validation(context.validation_commands):
+            raise PlaceholderValidationError(
+                f"project {project_id} declares placeholder or empty "
+                "validation_commands; set real validation commands in "
+                f"{context.location / '.ainative' / 'project.yaml'} before running work"
+            )
         task = self.task_board.get(task_id)
         if task.project_id != project_id:
             raise TaskProjectMismatchError(f"task {task_id} belongs to {project_id}")

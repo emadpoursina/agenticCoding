@@ -383,13 +383,12 @@ def _validate_records(projects: list[ProjectRecord]) -> list[ProjectRecord]:
     return validated
 
 
-def load_project_entries(config_path: Path) -> list[ProjectRecord]:
-    """Load and validate the explicit managed project set."""
+def _records_from_text(text: str, source: Path | str) -> list[ProjectRecord]:
+    """Build one unvalidated project record list from a projects YAML document."""
     try:
-        text = config_path.read_text(encoding="utf-8")
         raw_projects = _projects_document(text)
-    except (OSError, UnicodeError, _SubsetYamlError) as exc:
-        raise InvalidProjectConfigError(f"cannot read project config: {config_path}") from exc
+    except _SubsetYamlError as exc:
+        raise InvalidProjectConfigError(f"cannot read project config: {source}") from exc
     if raw_projects is None:
         raw_projects = []
     if not isinstance(raw_projects, list):
@@ -440,7 +439,43 @@ def load_project_entries(config_path: Path) -> list[ProjectRecord]:
                 kanban_project_ids=_alias_tuple(raw_project.get("kanban_project_ids")),
             )
         )
-    return _validate_records(projects)
+    return projects
+
+
+def _overlay_enrolled_file(config_path: Path, text: str) -> Path | None:
+    """Return the overlay enrolled-projects file, or None when it is absent."""
+    try:
+        document = _parse_document(text)
+    except _SubsetYamlError:
+        return None
+    execution = document.get("execution")
+    raw_directory = execution.get("overlay_dir") if isinstance(execution, dict) else None
+    if not isinstance(raw_directory, str) or not raw_directory.strip():
+        return None
+    candidate = Path(raw_directory.strip()) / "enrolled-projects.yaml"
+    return candidate if candidate.is_file() else None
+
+
+def _overlay_records(config_path: Path, text: str) -> list[ProjectRecord]:
+    """Load records that enrollment appended on a read-only configuration."""
+    overlay_path = _overlay_enrolled_file(config_path, text)
+    if overlay_path is None:
+        return []
+    try:
+        overlay_text = overlay_path.read_text(encoding="utf-8")
+    except (OSError, UnicodeError) as exc:
+        raise InvalidProjectConfigError(f"cannot read project overlay: {overlay_path}") from exc
+    return _records_from_text(overlay_text, overlay_path)
+
+
+def load_project_entries(config_path: Path) -> list[ProjectRecord]:
+    """Load and validate the explicit managed project set."""
+    try:
+        text = config_path.read_text(encoding="utf-8")
+    except (OSError, UnicodeError) as exc:
+        raise InvalidProjectConfigError(f"cannot read project config: {config_path}") from exc
+    projects = _records_from_text(text, config_path)
+    return _validate_records(projects + _overlay_records(config_path, text))
 
 
 def _readable_directory(path: Path) -> bool:
@@ -467,6 +502,19 @@ def _safe_path(root: Path, relative: str) -> Path:
 
 def _read_utf8(path: Path) -> str:
     return path.read_bytes().decode("utf-8")
+
+
+# The scaffold writes this echo placeholder as the only validation command.
+# A run against it would make the tester state pass vacuously, so the
+# orchestrator refuses to start any workflow for such a project.
+PLACEHOLDER_VALIDATION_MARKER = "TODO: declare real validation commands"
+
+
+def is_placeholder_validation(commands: tuple[str, ...]) -> bool:
+    """Return whether declared validation commands cannot prove anything."""
+    if not commands:
+        return True
+    return any(PLACEHOLDER_VALIDATION_MARKER in command for command in commands)
 
 
 def _manifest_from_file(path: Path) -> ProjectManifest:
