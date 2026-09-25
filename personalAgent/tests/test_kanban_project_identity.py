@@ -12,7 +12,7 @@ from hermes_kanban.board import SqliteTaskBoard
 from hermes_kanban.orchestrator import NoReadyTaskError
 from hermes_kanban.projects import ProjectRegistry
 from hermes_kanban.runtime import _native_board_path
-from test_piv_orchestrator import _runtime_class, environment
+from test_piv_orchestrator import _runtime_class, _sqlite_card_creator, environment
 
 _ALIAS = "    kanban_project_ids:\n      - p_fixture\n"
 
@@ -123,6 +123,7 @@ def test_next_ready_runs_a_native_id_card_under_the_operational_id(tmp_path: Pat
     orchestrator, _runtime, workspace_root = environment(
         tmp_path,
         board=board,
+        card_creator=_sqlite_card_creator(db_path),
         project_extra=_ALIAS,
     )
 
@@ -130,9 +131,14 @@ def test_next_ready_runs_a_native_id_card_under_the_operational_id(tmp_path: Pat
 
     assert record.project_id == "fixture"
     assert record.task.project_id == "fixture"
-    assert record.state == "HUMAN_DECISION_REQUIRED"
+    assert record.state == "AWAITING_CHILDREN"
     assert (workspace_root / "fixture" / "123").is_dir()
     assert not (workspace_root / "p_fixture").exists()
+    # The created child cards belong to the native project and are
+    # canonicalized to the operational id through the board resolver.
+    children = [task for task in board.list() if task.parent_id == "123"]
+    assert children
+    assert all(task.project_id == "fixture" for task in children)
 
 
 def test_next_ready_names_an_unmapped_native_id(tmp_path: Path) -> None:
@@ -160,12 +166,8 @@ def test_resume_accepts_a_declared_alias(tmp_path: Path) -> None:
     parked = orchestrator.run_workflow("fixture", "123")
     assert parked.state == "HUMAN_DECISION_REQUIRED"
     assert parked.current_phase == "clarify"
-    confirmed = orchestrator.resume_workflow("p_fixture", "123", "A")
-    assert confirmed.state == "HUMAN_DECISION_REQUIRED"
-    for _ in range(2):
-        orchestrator.resume_workflow("p_fixture", "123", "A")
     finished = orchestrator.resume_workflow("p_fixture", "123", "A")
-    assert finished.state == "PR_CREATED"
+    assert finished.state == "AWAITING_CHILDREN"
     assert finished.project_id == "fixture"
 
 

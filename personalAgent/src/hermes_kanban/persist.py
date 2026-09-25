@@ -20,6 +20,30 @@ OverlaySchema = Literal["v0"]
 Clock = Callable[[], float]
 
 _ALIVE_TTL = 60.0
+# Canonical overlay phases, including the 019 parent record state parked
+# between decomposition and validation (invisible on the board, FR-010).
+_CANONICAL_PHASES = frozenset(
+    {
+        "ready",
+        "specify",
+        "clarify",
+        "confirm",
+        "plan",
+        "tasks",
+        "analyze",
+        "implement",
+        "converge",
+        "critic",
+        "tester",
+        "uat",
+        "pr-review",
+        "publish",
+        "change",
+        "job",
+        "human",
+        "awaiting_children",
+    }
+)
 _PHASE_ALIASES = {}
 _SECRET_NAME = re.compile(r"(?:KEY|TOKEN|SECRET|PASSWORD|CREDENTIAL)", re.IGNORECASE)
 
@@ -155,7 +179,48 @@ def alive_is_fresh(directory: Path, *, clock: Clock = time.time, ttl_s: float = 
 
 
 def _canonical_phase(value: str) -> str:
-    return _PHASE_ALIASES.get(value, value)
+    phase = _PHASE_ALIASES.get(value, value)
+    return phase
+
+
+def append_decision(directory: Path, entry: dict[str, object]) -> None:
+    """Append one JSONL decision to <overlay_dir>/decisions.jsonl (fsync'd).
+
+    Fail-closed: a write failure raises PersistError and the caller halts the
+    evaluation rather than completing past a lost decision (FR-029).
+    """
+    validate_overlay_dir(directory)
+    if not isinstance(entry, dict):
+        raise PersistError("decision entry must be an object")
+    line = json.dumps(_jsonable(entry), sort_keys=True, separators=(",", ":"))
+    target = directory / "decisions.jsonl"
+    try:
+        with target.open("a", encoding="utf-8") as stream:
+            stream.write(line + "\n")
+            stream.flush()
+            os.fsync(stream.fileno())
+    except OSError as exc:
+        raise PersistError(f"cannot append decision journal: {target}") from exc
+
+
+def read_decisions(directory: Path) -> tuple[dict[str, object], ...]:
+    """Read the decision journal entries; a missing file means no decisions."""
+    validate_overlay_dir(directory)
+    target = directory / "decisions.jsonl"
+    if not target.exists():
+        return ()
+    entries: list[dict[str, object]] = []
+    try:
+        for line in target.read_text(encoding="utf-8").splitlines():
+            if not line.strip():
+                continue
+            payload = json.loads(line)
+            if not isinstance(payload, dict):
+                raise ValueError("decision entry must be an object")
+            entries.append(payload)
+    except (OSError, UnicodeError, json.JSONDecodeError, ValueError) as exc:
+        raise PersistError(f"cannot read decision journal: {target}") from exc
+    return tuple(entries)
 
 
 def _redact(value: str) -> str:
@@ -229,11 +294,15 @@ def _record_from_dict(raw: object) -> WorkflowRecord:
         "column",
         "card_path",
         "card_skill",
+        "parent_id",
+        "profile",
     }
     task_values = {name: task_raw[name] for name in task_fields if name in task_raw}
     task_values["dependencies"] = tuple(task_values.get("dependencies", ()))
     task_values.setdefault("card_path", "feature")
     task_values.setdefault("card_skill", "")
+    task_values.setdefault("parent_id", "")
+    task_values.setdefault("profile", "")
     task = BoardTask(**task_values)
 
     options: tuple[DecisionOption, ...] = ()
@@ -335,6 +404,14 @@ def _record_from_dict(raw: object) -> WorkflowRecord:
     card_path = raw.get("card_path", "feature")
     if not isinstance(card_path, str) or not card_path.strip():
         card_path = "feature"
+    parent_task_id = raw.get("parent_task_id")
+    if parent_task_id is not None and not isinstance(parent_task_id, str):
+        raise ValueError("parent_task_id must be a string or null")
+    children_raw = raw.get("children", ())
+    if not isinstance(children_raw, (list, tuple)) or not all(
+        isinstance(item, str) and item.strip() for item in children_raw
+    ):
+        raise ValueError("children must be a sequence of task ids")
     return WorkflowRecord(
         run_id=str(raw["run_id"]),
         execution_id=str(raw.get("execution_id", raw["run_id"])),
@@ -373,6 +450,8 @@ def _record_from_dict(raw: object) -> WorkflowRecord:
         uat_checklist=tuple(uat_checklist_raw),
         analyze_requested=analyze_requested,
         card_path=card_path,
+        parent_task_id=parent_task_id,
+        children=tuple(children_raw),
     )
 
 

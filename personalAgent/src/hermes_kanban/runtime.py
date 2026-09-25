@@ -264,6 +264,8 @@ def _print_onboard_result(result: OnboardResult, *, dry_run: bool) -> None:
     print(f"onboard target: {result.repository}")
     print(f"project_id: {result.project_id}")
     print(f"native_id: {result.native_id}")
+    if result.board_path is not None:
+        print(f"board: {result.board_path}")
     print(f"location: {result.location}")
     print(f"default_branch: {result.default_branch}")
     print(f"cloned: {'yes' if result.cloned else 'no'}")
@@ -296,6 +298,8 @@ def _print_import_result(result: OnboardResult, *, dry_run: bool) -> None:
     print(f"import target: {result.repository}")
     print(f"project_id: {result.project_id}")
     print(f"native_id: {result.native_id}")
+    if result.board_path is not None:
+        print(f"board: {result.board_path}")
     if result.incomplete_drafts:
         print(
             f"incomplete drafts: {result.incomplete_drafts} "

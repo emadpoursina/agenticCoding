@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.36.0] - 2026-09-24
+### Changed
+- 019 implement pass: the Kanban board is the user-facing work queue
+  (`specs/019-hermes-onboarding-contract/` on branch
+  `hermes-onboarding-contract`). Feature Cards decompose into child Task
+  Cards on the primary board, executors run children independently, and the
+  parent completes through the automated validator with board-authoritative
+  manual edits journaled fail-closed. Human gates surface as board markers;
+  `confirm`/`uat` park only on real raises. See
+  `personalAgent/CHANGELOG.md` (1.11.0) for the Hermes package detail and
+  `specs/019-hermes-onboarding-contract/tasks.md` for the validation record.
+
 ## [0.35.0] - 2026-09-21
 ### Changed
 - 018 apply slice implemented on Hermes only: live execution is the

@@ -5,7 +5,9 @@ from __future__ import annotations
 import sys
 from collections.abc import Callable
 from pathlib import Path
+from types import SimpleNamespace
 
+from .executor import PATH_PROFILE_DEFAULTS, profile_for_card
 from .onboard import (
     CardDraft,
     OnboardError,
@@ -102,7 +104,13 @@ def card_text(
             technical_notes="",
         )
     )
-    lines = [text.rstrip("\n"), "", "## Path", path]
+    # The card is created with the Path-selected default execution profile
+    # (FR-014a); the operator may override the section on the board later.
+    default_profile = profile_for_card(
+        SimpleNamespace(profile="", card_path=path),
+        path_defaults=PATH_PROFILE_DEFAULTS,
+    )
+    lines = [text.rstrip("\n"), "", "## Path", path, "", "## Profile", default_profile]
     if skill:
         lines.extend(["", "## Skill", skill])
     rendered = "\n".join(lines) + "\n"

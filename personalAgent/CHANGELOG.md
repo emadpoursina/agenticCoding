@@ -1,5 +1,47 @@
 # Changelog
 
+## [1.11.0] - 2026-09-24
+### Added
+- Kanban as the user-facing work queue (specs/019-hermes-onboarding-contract):
+  after enrollment the primary board is the work queue — Path `feature`
+  cards run the task-generator role through the existing planning loop and
+  decompose at the `tasks` artifact into child Task Cards on the same board
+  (`## Parent` + `## Path: change` + `## Profile: executor`, idempotent per
+  parent + title); each child is independently claimable by one executor
+  (single workflow slot); when every non-deleted child is complete the
+  parent record (new `AWAITING_CHILDREN` overlay state, never a board card)
+  runs the automated feature validator (critic → tester) and completes with
+  zero operator actions absent a raised gate.
+- `confirm`/`uat` parks are narrowed to real raises: confirm parks only
+  when a clarify report still carries unresolved questions (skip behavior
+  unchanged), uat only when the tester verdict flags acceptance items or a
+  blocked dependency; every other gate behaves exactly as before.
+- Human gates are surfaced on the board: every park posts a visible marker
+  (gate kind, decision, options, `--resume project task option` hint) via
+  the new `live_add_card_note` seam (`hermes kanban comment`), a closing
+  note is posted on resume/complete, and the park state is unchanged when
+  the marker CLI write fails (fail-closed, operator retries).
+- Board-authoritative manual edits (FR-029): completed child cards count
+  toward the parent, deleted children are dropped from the requirement set
+  (never restored or demoted), and every decision is appended (fsync'd,
+  fail-closed) to `decisions.jsonl` in the existing overlay directory —
+  no second task database.
+- `OnboardResult.board_path`: onboarding verifies the native Kanban board
+  is present/readable (read-only check, fail-closed before any scaffold
+  work) and reports it; the enroll/import reports gain a `board: <path>`
+  line.
+- Card-body contract extended: `## Profile` (roles `task-generator`/
+  `executor`/`validator` with optional named strategy; provider/vendor
+  names rejected), `## Parent` shape validation (dangling/self rejected),
+  workflow-state names rejected as Path/Profile values for every card
+  path (FR-027). PRD import and the card guide compose `## Path` and the
+  Path-selected default profile (feature → task-generator, change/job →
+  executor; `profiles.defaults` config override).
+- New hermetic check files `tests/test_onboarding_contract.py` and
+  `tests/test_feature_parent_completion.py` (FR-021..FR-029, restart
+  matrix, journal semantics); `tests/test_onboarding.py` is untouched and
+  remains the preserved baseline.
+
 ## [1.10.1] - 2026-09-23
 ### Fixed
 - `kanban create` no longer rejects `--priority P2` with "invalid int

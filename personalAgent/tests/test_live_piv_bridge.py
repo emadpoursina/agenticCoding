@@ -27,19 +27,21 @@ def test_validation_failure_keeps_github_untouched(tmp_path: Path) -> None:
 
     record = orchestrator.run_workflow("fixture", "123")
 
-    assert record.state in {"HUMAN_DECISION_REQUIRED", "FAILED", "BLOCKED"}
+    assert record.state == "AWAITING_CHILDREN"
     assert host.pushes == []
     assert host.upserts == []
 
 
 def test_completed_flow_reaches_existing_feature_branch_pr_path(tmp_path: Path) -> None:
+    """Job paths keep the publish path: PR after explicit operator approval."""
     host = MemoryGitHost()
-    orchestrator, _runtime, _workspace_root = environment(tmp_path)
+    board = MemoryTaskBoard((task(card_path="job", card_skill="prd-writer"),))
+    orchestrator, _runtime, _workspace_root = environment(tmp_path, board=board)
     orchestrator.git_host = host
 
-    orchestrator.run_workflow("fixture", "123")
-    orchestrator.resume_workflow("fixture", "123", "A")
-    orchestrator.resume_workflow("fixture", "123", "A")
+    parked = orchestrator.run_workflow("fixture", "123")
+    assert parked.workspace_path is not None
+    (parked.workspace_path / "prd.md").write_text("# PRD\n", encoding="utf-8")
     record = orchestrator.resume_workflow("fixture", "123", "A")
 
     assert record.state == "PR_CREATED"
@@ -54,6 +56,7 @@ def test_next_ready_keeps_task_selection_in_hermes(tmp_path: Path) -> None:
     record = orchestrator.run_next_workflow()
 
     assert record.task_id == "ready"
+    assert record.state == "AWAITING_CHILDREN"
 
 
 def test_live_entry_prefers_dispatcher_board_path(

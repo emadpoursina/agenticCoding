@@ -21,6 +21,7 @@ from typing import TYPE_CHECKING, Protocol
 from .executor import (
     AgentExecutor,
     ModelService,
+    profile_for_card,
 )
 from .external_framework import (
     AGENT_LOOP_STATES,
@@ -33,12 +34,22 @@ from .external_framework import (
     StepReport,
 )
 from .messaging import MessagingChannel, SendRecord, SendStatus, parse_option_letter
+from .onboard import (
+    CardCreateFn,
+    child_card_args,
+    live_add_card_note,
+    live_complete_card,
+    live_create_card,
+)
 from .persist import (
     InvalidOverlayDirError,
     OverlaySnapshot,
+    PersistError,
     SlotHeldError,
     alive_is_fresh,
+    append_decision,
     load_overlay_dir,
+    read_decisions,
     read_overlay,
     touch_alive,
     validate_overlay_dir,
@@ -72,6 +83,10 @@ _ACTIVE_STATES = {
     "BLOCKED",
 }
 _TERMINAL_STATES = {"COMPLETED", "FAILED", "PR_CREATED"}
+# Parent record parked between decomposition and validation. It is durable in
+# the overlay (never a board card, FR-010) but keeps the single workflow slot
+# free so child Task Cards stay claimable (FR-025).
+_AWAITING_CHILDREN = "AWAITING_CHILDREN"
 _RECOVERY_BUDGET = 3
 _PUBLISH_BUDGET = 3
 # The 013 overlay phase machine and the older removed stage names. Records
@@ -204,6 +219,8 @@ class BoardTask:
     column: str = ""
     card_path: str = "feature"
     card_skill: str = ""
+    parent_id: str = ""
+    profile: str = ""
 
 
 @dataclass(frozen=True)
@@ -283,6 +300,8 @@ class WorkflowRecord:
     uat_checklist: tuple[str, ...] = ()
     analyze_requested: bool = False
     card_path: str = "feature"
+    parent_task_id: str | None = None
+    children: tuple[str, ...] = ()
 
 
 class TaskBoard(Protocol):
@@ -385,6 +404,9 @@ class PivOrchestrator:
         allow_running_task_id: str | None = None,
         harness_adapter: HarnessAdapter | None = None,
         startup_context: StartupContextSnapshot | None = None,
+        card_creator: CardCreateFn | None = None,
+        card_note_fn: Callable[[str, str], None] | None = None,
+        card_complete_fn: Callable[[str], None] | None = None,
     ) -> None:
         from .executor import AgentExecutor
         from .github import LiveGitHost
@@ -407,6 +429,13 @@ class PivOrchestrator:
         self.harness_adapter = harness_adapter or executor.harness_adapter
         self.startup_context = startup_context
         self.startup_diagnostic = None
+        # Native board write seams (constitution III: writes ride the native
+        # CLI; SqliteTaskBoard stays read-only). Injectable for checks.
+        self.card_creator = card_creator if card_creator is not None else live_create_card
+        self.card_note_fn = card_note_fn if card_note_fn is not None else live_add_card_note
+        self.card_complete_fn = (
+            card_complete_fn if card_complete_fn is not None else live_complete_card
+        )
         self._record: WorkflowRecord | None = None
         self._ready = False
         self._heartbeat_stop: threading.Event | None = None
@@ -425,6 +454,9 @@ class PivOrchestrator:
         allow_running_task_id: str | None = None,
         harness_adapter: HarnessAdapter | None = None,
         startup_context: StartupContextSnapshot | None = None,
+        card_creator: CardCreateFn | None = None,
+        card_note_fn: Callable[[str, str], None] | None = None,
+        card_complete_fn: Callable[[str], None] | None = None,
     ) -> PivOrchestrator:
         from .github import LiveGitHost
 
@@ -447,6 +479,9 @@ class PivOrchestrator:
             allow_running_task_id=allow_running_task_id,
             harness_adapter=executor.harness_adapter,
             startup_context=startup_context,
+            card_creator=card_creator,
+            card_note_fn=card_note_fn,
+            card_complete_fn=card_complete_fn,
         )
         orchestrator.become_ready()
         return orchestrator
@@ -472,6 +507,15 @@ class PivOrchestrator:
             return record
         if alive_is_fresh(self.overlay_dir, clock=self.clock):
             raise SlotHeldError("another control-plane copy holds the workflow slot")
+        if record.state == _AWAITING_CHILDREN:
+            # Restarted while waiting for children: children truth is
+            # re-derived from the board, never from a stored snapshot (D7).
+            evaluated, incomplete = self._evaluate_children(record)
+            self._set_record(evaluated)
+            self._ready = True
+            if incomplete:
+                return evaluated
+            return self.run_validator(evaluated)
         self._set_record(record)
         if record.state in {"HUMAN_DECISION_REQUIRED", "BLOCKED"}:
             self._ready = True
@@ -651,7 +695,16 @@ class PivOrchestrator:
             )
             return self._enter_state("ready")
         except Exception:
-            self._set_record(None)
+            record = self._record
+            if record is not None and record.state in {
+                "HUMAN_DECISION_REQUIRED",
+                "BLOCKED",
+            }:
+                # A surfaced post-park failure (e.g. a gate marker CLI error)
+                # leaves the park state unchanged for the operator (FR-017).
+                self._set_record(record)
+            else:
+                self._set_record(None)
             raise
 
     def run_next_workflow(
@@ -664,6 +717,14 @@ class PivOrchestrator:
         self._assert_slot_free()
         if project_id is not None:
             project_id = self._canonical_project_id(project_id)
+        # A resident parent record re-derives children truth from the board
+        # on every scan (FR-029, D2); manual completion and deletion count.
+        resident = self._record
+        if resident is not None and resident.state == _AWAITING_CHILDREN:
+            evaluated, incomplete = self._evaluate_children(resident)
+            self._set_record(evaluated)
+            if not incomplete:
+                return self.run_validator(evaluated)
         ready: list[BoardTask] = []
         unmapped: list[str] = []
         for task in self.task_board.list():
@@ -675,6 +736,13 @@ class PivOrchestrator:
                 continue
             if not self._has_required_fields(task):
                 continue
+            if task.card_path == "feature" and self._board_children(
+                task.id, task.project_id
+            ):
+                # An in-flight parent is never re-claimed as a fresh
+                # workflow; its board observations are journaled instead.
+                self._observe_board_children(task)
+                continue
             try:
                 self.registry.resolve_eligible_project(task.project_id)
             except UnknownProjectError:
@@ -685,6 +753,9 @@ class PivOrchestrator:
                 continue
             ready.append(task)
         if not ready:
+            parent_task = self._parent_for_validation(project_id)
+            if parent_task is not None:
+                return self.run_validator(self._awaiting_record(parent_task))
             if unmapped:
                 listed = ", ".join(sorted(dict.fromkeys(unmapped)))
                 raise NoReadyTaskError(f"no ready task; unmapped project ids: {listed}")
@@ -719,6 +790,16 @@ class PivOrchestrator:
         if letter not in choices:
             raise InvalidDecisionError("option must be a listed letter")
         choice = choices[letter]
+
+        # A resolved gate is recorded durably and the parked card gets a
+        # closing note so no stale open gate remains (FR-017, SC-006).
+        self._close_gate(record, letter, choice.text)
+
+        if record.children and record.state == "HUMAN_DECISION_REQUIRED":
+            # The parent record re-derives children truth from the board
+            # before resuming; a child deleted while parked is dropped.
+            evaluated, incomplete = self._evaluate_children(record)
+            record = evaluated
 
         if record.legacy_migration_reason is not None:
             # Superseded records park for a human; acknowledgement never
@@ -844,6 +925,10 @@ class PivOrchestrator:
                 + (StepRecord("UAT_PASSED", "uat", None, "pass", (), "operator confirmed pass"),),
             )
             self._set_record(passed)
+            if record.children:
+                # The operator accepted the feature: the parent completes with
+                # zero further gates (FR-028); publish stays operator-owned.
+                return self._complete_feature(passed)
             return self._enter_state("pr-review")
         problem = replace(record, failure_class="NON_RETRYABLE", error="UAT found a problem")
         self._set_record(problem)
@@ -903,6 +988,9 @@ class PivOrchestrator:
             raise InvalidCardPathError(f"invalid card path: {task.card_path}")
         if task.card_path == "job" and task.card_skill not in _JOB_SKILLS:
             raise InvalidJobSkillError(f"invalid job skill: {task.card_skill}")
+        # The card `## Profile` is external input validated at the trust
+        # boundary (FR-014); absent profiles take the Path default (FR-014a).
+        profile_for_card(task, path_defaults=self.executor.settings.path_profile_defaults)
         if not self._dependencies_met(task):
             raise UnmetDependenciesError(f"unmet dependencies for task: {task.id}")
 
@@ -927,6 +1015,262 @@ class PivOrchestrator:
         except UnknownTaskError:
             return False
 
+    def _board_children(self, parent_id: str, project_id: str) -> tuple[BoardTask, ...]:
+        """Child Task Cards of one parent, derived from a fresh board read.
+
+        The board is authoritative (D2): children are never taken from a
+        stored snapshot, so manual completion and deletion are visible.
+        Project ids are compared through the canonical resolver so native
+        ids match their operational enrollment.
+        """
+        return tuple(
+            task
+            for task in self.task_board.list()
+            if task.id != parent_id
+            and task.parent_id == parent_id
+            and self._canonical_project_id(task.project_id) == project_id
+        )
+
+    def _journal(
+        self,
+        kind: str,
+        project_id: str,
+        parent_id: str,
+        child_id: str | None,
+        evidence: str,
+    ) -> None:
+        """Append one durable decision; fail-closed on a journal failure."""
+        try:
+            append_decision(
+                self.overlay_dir,
+                {
+                    "ts": self.clock(),
+                    "kind": kind,
+                    "project_id": project_id,
+                    "parent_id": parent_id,
+                    "child_id": child_id or "",
+                    "evidence": evidence,
+                },
+            )
+        except PersistError as exc:
+            raise OrchestratorError(f"decision journal write failed: {exc}") from exc
+
+    def _journaled(
+        self,
+        kind: str,
+        project_id: str,
+        parent_id: str,
+        child_id: str | None = None,
+    ) -> bool:
+        """Return whether an identical decision is already journaled."""
+        try:
+            entries = read_decisions(self.overlay_dir)
+        except PersistError as exc:
+            raise OrchestratorError(f"decision journal read failed: {exc}") from exc
+        for entry in entries:
+            if entry.get("kind") != kind:
+                continue
+            if entry.get("project_id") != project_id or entry.get("parent_id") != parent_id:
+                continue
+            if child_id is not None and entry.get("child_id") != child_id:
+                continue
+            return True
+        return False
+
+    def _evaluate_children(self, record: WorkflowRecord) -> tuple[WorkflowRecord, tuple[str, ...]]:
+        """Re-derive child truth from the board and journal observations (FR-029).
+
+        A child now `done`/`archived` counts toward the parent; a child absent
+        from the board was deleted and is dropped from the requirement set.
+        The orchestrator never restores a deleted or demotes a completed child.
+        """
+        children = self._board_children(record.task_id, record.project_id)
+        current_ids = {child.id for child in children}
+        for child_id in sorted(set(record.children) | current_ids):
+            if child_id not in current_ids:
+                if not self._journaled(
+                    "child-deleted", record.project_id, record.task_id, child_id
+                ):
+                    self._journal(
+                        "child-deleted",
+                        record.project_id,
+                        record.task_id,
+                        child_id,
+                        "absent from the board (manual deletion)",
+                    )
+                continue
+            child = self.task_board.get(child_id)
+            if child.complete and not self._journaled(
+                "child-completed", record.project_id, record.task_id, child_id
+            ):
+                self._journal(
+                    "child-completed",
+                    record.project_id,
+                    record.task_id,
+                    child_id,
+                    f"board column {child.column or '(board)'}",
+                )
+        incomplete = tuple(child.id for child in children if not child.complete)
+        return replace(record, children=tuple(sorted(current_ids))), incomplete
+
+    def evaluate_parent(self, parent_id: str) -> WorkflowRecord:
+        """Re-read the board and re-evaluate one Feature Card's children."""
+        self._ensure_ready()
+        record = self._require_record()
+        if record.task_id != parent_id or record.state != _AWAITING_CHILDREN:
+            raise OrchestratorError(
+                f"workflow is not awaiting children for task: {parent_id}"
+            )
+        evaluated, incomplete = self._evaluate_children(record)
+        self._set_record(evaluated)
+        if not incomplete:
+            return self.run_validator(evaluated)
+        return evaluated
+
+    def decompose_children(self, record: WorkflowRecord) -> WorkflowRecord:
+        """Create child Task Cards from the tasks artifact; park AWAITING_CHILDREN.
+
+        Zero children is a durable surfaced failure: the parent stays open and
+        never completes empty (spec edge case; FR-011).
+        """
+        artifact = _artifact_for_step("tasks", record.task_id)
+        workspace = record.workspace_path
+        if workspace is None or artifact is None or not (workspace / artifact).is_file():
+            self._set_record(
+                replace(record, error=f"missing native artifact: {artifact}")
+            )
+            return self._block("tasks", None)
+        try:
+            tasks_text = (workspace / artifact).read_text(encoding="utf-8")
+        except (OSError, UnicodeError) as exc:
+            raise OrchestratorError(f"cannot read tasks artifact: {artifact}") from exc
+        native_id = self._native_card_project(record.project_id)
+        args_list = child_card_args(
+            tasks_text,
+            parent_id=record.task_id,
+            priority=record.task.priority,
+            native_id=native_id,
+        )
+        if not args_list:
+            self._set_record(
+                replace(record, error="task generation produced no child cards")
+            )
+            return self._block("tasks", None)
+        for args in args_list:
+            # Fail-closed: a creation failure propagates and no record state
+            # advances; the idempotency keys make a re-run safe.
+            self.card_creator(args)
+        children = self._board_children(record.task_id, record.project_id)
+        if not children:
+            self._set_record(
+                replace(record, error="task generation produced no board children")
+            )
+            return self._block("tasks", None)
+        parked = replace(
+            record,
+            state=_AWAITING_CHILDREN,
+            current_phase="awaiting_children",
+            next_action="await child task completion",
+            decision=None,
+            error=None,
+            children=tuple(child.id for child in children),
+        )
+        self._set_record(parked)
+        return parked
+
+    def run_validator(self, record: WorkflowRecord) -> WorkflowRecord:
+        """Run the automated validator (critic → tester) on the parent (FR-026)."""
+        record = self._recover_for_validation(record)
+        self._set_record(
+            replace(
+                record,
+                state="QUEUED",
+                current_phase="critic",
+                current_worker=None,
+                next_action="run the critic step",
+                decision=None,
+                error=None,
+            )
+        )
+        return self._enter_state("critic")
+
+    def _recover_for_validation(self, record: WorkflowRecord) -> WorkflowRecord:
+        """Point the parent record at its existing worktree before validation.
+
+        The parent worktree was prepared when the Feature Card was claimed and
+        children ran in their own worktrees, so an inspection is enough; a
+        missing worktree is a fail-closed block, never a silent skip.
+        """
+        if record.workspace_path is not None and record.workspace_branch:
+            return record
+        try:
+            inspection = self.workspaces.inspect_workspace(
+                record.project_id, record.task_id
+            )
+        except WorkspaceError as exc:
+            self._set_record(replace(record, error=str(exc)))
+            return self._block(record.current_phase, None)
+        return replace(
+            record,
+            workspace_path=inspection.path,
+            workspace_branch=inspection.branch,
+            error=None,
+        )
+
+    def _native_card_project(self, project_id: str) -> str:
+        """Return the native project id used for card-creation CLI calls."""
+        try:
+            record = self.registry.get_project(project_id)
+        except Exception:
+            return project_id
+        if record.kanban_project_ids:
+            return record.kanban_project_ids[0]
+        return project_id
+
+    def _observe_board_children(self, parent: BoardTask) -> None:
+        """Journal manually completed children observed on the board (FR-029)."""
+        for child in self._board_children(parent.id, parent.project_id):
+            if child.complete and not self._journaled(
+                "child-completed", parent.project_id, parent.id, child.id
+            ):
+                self._journal(
+                    "child-completed",
+                    parent.project_id,
+                    parent.id,
+                    child.id,
+                    f"board column {child.column or '(board)'}",
+                )
+
+    def _parent_for_validation(self, project_id: str | None) -> BoardTask | None:
+        """Find a Feature Card whose non-deleted children are all complete."""
+        for task in self.task_board.list():
+            if project_id is not None and task.project_id != project_id:
+                continue
+            if task.card_path != "feature" or task.complete:
+                continue
+            children = self._board_children(task.id, task.project_id)
+            if not children or any(not child.complete for child in children):
+                continue
+            if self._journaled("parent-completed", task.project_id, task.id):
+                continue
+            return task
+        return None
+
+    def _awaiting_record(self, task: BoardTask) -> WorkflowRecord:
+        """Build the minimal AWAITING_CHILDREN record for a Feature Card."""
+        return WorkflowRecord(
+            run_id=uuid.uuid4().hex,
+            execution_id=uuid.uuid4().hex,
+            state=_AWAITING_CHILDREN,
+            workflow_name=self.executor.settings.workflow_name,
+            current_phase="awaiting_children",
+            project_id=task.project_id,
+            task_id=task.id,
+            task=task,
+            next_action="await child task completion",
+            children=tuple(child.id for child in self._board_children(task.id, task.project_id)),
+        )
+
     def _queued(self, task: BoardTask, *, operator_flags: tuple[str, ...] = ()) -> WorkflowRecord:
         return WorkflowRecord(
             run_id=uuid.uuid4().hex,
@@ -941,6 +1285,7 @@ class PivOrchestrator:
             steps=(StepRecord("QUEUED", "ready"),),
             operator_flags=operator_flags,
             card_path=task.card_path,
+            parent_task_id=task.parent_id or None,
         )
 
     def _enter_state(self, step: str) -> WorkflowRecord:
@@ -1063,9 +1408,11 @@ class PivOrchestrator:
         if step == "tasks":
             if record.analyze_requested:
                 return self._enter_state("analyze")
-            return self._enter_state("implement")
+            # The tasks artifact is the decomposition boundary (FR-011, D4):
+            # the task-generator role lands child Task Cards on the board.
+            return self.decompose_children(record)
         if step == "analyze":
-            return self._enter_state("implement")
+            return self.decompose_children(record)
         if step == "implement":
             return self._enter_state("converge")
         if step == "converge":
@@ -1076,8 +1423,8 @@ class PivOrchestrator:
 
     def _after_clarify(self, report: StepReport, result: HarnessResult) -> WorkflowRecord:
         # A completed clarify session (self-answered under skip, or answers
-        # encoded from the relay) advances to the confirm human gate.
-        del result
+        # encoded from the relay) either parks confirm when it still carries
+        # unresolved questions, or advances straight to planning.
         record = self._require_record()
         if "skip" in record.operator_flags and record.resume_context is None:
             context = ResumeContext(assumptions=_SKIP_ASSUMPTIONS, prior_reason="skip")
@@ -1105,9 +1452,20 @@ class PivOrchestrator:
                 f"{record.run_id}:choice_report",
             )
             self._emit("human_decision", self._decision_payload(brief), f"{record.run_id}:continue")
+            self._post_gate_note(parked, brief)
             return parked
         self._set_record(replace(record, question_queue=()))
-        return self._enter_state("confirm")
+        # confirm raises only when the clarify report still carries
+        # unresolved questions; absent a raise, planning continues (FR-028).
+        if self._confirm_raised(result):
+            return self._enter_state("confirm")
+        return self._enter_state("plan")
+
+    @staticmethod
+    def _confirm_raised(result: HarnessResult) -> bool:
+        """confirm parks only on unresolved clarify questions or skip."""
+        report_questions = result.report.questions if result.report is not None else ()
+        return bool(result.questions) or bool(report_questions)
 
     def _after_converge(self, report: StepReport) -> WorkflowRecord:
         record = self._require_record()
@@ -1170,6 +1528,7 @@ class PivOrchestrator:
             self._decision_payload(brief),
             f"{record.run_id}:job_publish:{len(record.steps)}",
         )
+        self._post_gate_note(parked, brief)
         return parked
 
     def _resume_job_publish(self, record: WorkflowRecord, letter: str):
@@ -1187,8 +1546,11 @@ class PivOrchestrator:
         return self._complete("job")
 
     def _complete(self, phase: str) -> WorkflowRecord:
-        """Mark one short path COMPLETED with no publish."""
+        """Mark one completed card: board card done, then child hooks."""
         record = self._require_record()
+        # The board owns lifecycle; the orchestrator completes the card
+        # through the native CLI seam, fail-closed (FR-015).
+        self.card_complete_fn(record.task_id)
         completed = replace(
             record,
             state="COMPLETED",
@@ -1200,7 +1562,89 @@ class PivOrchestrator:
             + (StepRecord("COMPLETED", phase, record.current_worker, "ok", (), ""),),
         )
         self._set_record(completed)
+        return self._after_child_completion(completed)
+
+    def _complete_feature(self, record: WorkflowRecord) -> WorkflowRecord:
+        """Complete the parent Feature Card after the validator (FR-026/028).
+
+        Zero additional operator actions: the card is marked done on the board
+        and `parent-completed` is recorded in the decision journal.
+        """
+        if not self._journaled("parent-completed", record.project_id, record.task_id):
+            self._journal(
+                "parent-completed",
+                record.project_id,
+                record.task_id,
+                None,
+                "automated validator passed with no raised gate",
+            )
+        completed = replace(
+            record,
+            state="COMPLETED",
+            current_phase="tester",
+            next_action="",
+            decision=None,
+            error=None,
+            steps=record.steps
+            + (StepRecord("COMPLETED", "tester", record.current_worker, "ok", (), ""),),
+        )
+        self._set_record(completed)
+        self.card_complete_fn(completed.task_id)
         return self._require_record()
+
+    def _after_child_completion(self, record: WorkflowRecord) -> WorkflowRecord:
+        """Journal one child completion and re-evaluate its parent (FR-029)."""
+        parent_id = record.task.parent_id
+        if not parent_id:
+            return record
+        if not self._journaled("child-completed", record.project_id, parent_id, record.task_id):
+            self._journal(
+                "child-completed",
+                record.project_id,
+                parent_id,
+                record.task_id,
+                f"board column {record.task.column or '(board)'}",
+            )
+        try:
+            parent_task = self.task_board.get(parent_id)
+        except UnknownTaskError:
+            # A deleted parent keeps its child records terminal (board truth).
+            return record
+        children = self._board_children(parent_id, record.project_id)
+        incomplete = tuple(
+            child.id for child in children if not child.complete
+        )
+        if incomplete:
+            # Parent stays open (AWAITING_CHILDREN); the remaining children
+            # stay claimable through the next run_next_workflow scan.
+            parent_record = WorkflowRecord(
+                run_id=uuid.uuid4().hex,
+                execution_id=uuid.uuid4().hex,
+                state=_AWAITING_CHILDREN,
+                workflow_name=self.executor.settings.workflow_name,
+                current_phase="awaiting_children",
+                project_id=parent_task.project_id,
+                task_id=parent_id,
+                task=parent_task,
+                next_action="await child task completion",
+                children=tuple(child.id for child in children),
+            )
+            self._set_record(parent_record)
+            return record
+        return self.run_validator(
+            WorkflowRecord(
+                run_id=uuid.uuid4().hex,
+                execution_id=uuid.uuid4().hex,
+                state=_AWAITING_CHILDREN,
+                workflow_name=self.executor.settings.workflow_name,
+                current_phase="awaiting_children",
+                project_id=parent_task.project_id,
+                task_id=parent_id,
+                task=parent_task,
+                next_action="run the automated validator",
+                children=tuple(child.id for child in children),
+            )
+        )
 
     def _after_verdict_step(
         self, step: str, report: StepReport, result: HarnessResult
@@ -1227,15 +1671,25 @@ class PivOrchestrator:
         if verdict == "PASS":
             if step == "tester":
                 self._set_record(replace(record, validation_status="pass"))
+                record = self._require_record()
                 if record.card_path == "change":
                     return self._complete("tester")
-                return self._enter_state("uat")
+                # Feature validation passed. uat raises only when the verdict
+                # flags acceptance items or a blocked dependency (FR-028).
+                if self._uat_raised(report):
+                    return self._enter_state("uat")
+                return self._complete_feature(record)
             if step == "critic":
                 return self._enter_state("tester")
             return self._park_pr_review_complete(passed=True)
         if result.retryable:
             return self._retry_or_park(step, report.fields["SUMMARY"])
         return self._block(step, None)
+
+    def _uat_raised(self, report: StepReport) -> bool:
+        """uat parks only when the tester verdict flags acceptance items."""
+        summary = report.fields.get("SUMMARY", "").casefold()
+        return any(token in summary for token in ("acceptance", "unverified", "blocked"))
 
     def _park_step_human(self, step: str, result: HarnessResult) -> WorkflowRecord:
         record = self._require_record()
@@ -1276,6 +1730,7 @@ class PivOrchestrator:
             self._decision_payload(brief),
             f"{record.run_id}:human:{step}:{len(record.steps)}",
         )
+        self._post_gate_note(parked, brief)
         return parked
 
     def _park_job(self, record: WorkflowRecord) -> WorkflowRecord:
@@ -1302,6 +1757,7 @@ class PivOrchestrator:
             self._decision_payload(brief),
             f"{record.run_id}:job:{len(record.steps)}",
         )
+        self._post_gate_note(parked, brief)
         return parked
 
     def _park_clarify(self, record: WorkflowRecord) -> WorkflowRecord:
@@ -1328,6 +1784,7 @@ class PivOrchestrator:
             self._decision_payload(brief),
             f"{record.run_id}:clarify:{len(record.steps)}",
         )
+        self._post_gate_note(parked, brief)
         return parked
 
     def _park_confirm(self) -> WorkflowRecord:
@@ -1359,6 +1816,7 @@ class PivOrchestrator:
             self._decision_payload(brief),
             f"{record.run_id}:confirm",
         )
+        self._post_gate_note(parked, brief)
         return parked
 
     def _park_uat(self) -> WorkflowRecord:
@@ -1388,6 +1846,7 @@ class PivOrchestrator:
         )
         self._set_record(parked)
         self._emit("human_decision", payload, f"{record.run_id}:uat")
+        self._post_gate_note(parked, brief)
         return parked
 
     def _uat_checklist(self) -> tuple[str, ...]:
@@ -1447,6 +1906,7 @@ class PivOrchestrator:
             self._decision_payload(brief),
             f"{record.run_id}:pr_review:{len(record.steps)}",
         )
+        self._post_gate_note(parked, brief)
         return parked
 
     def _retry_or_park(
@@ -1512,6 +1972,7 @@ class PivOrchestrator:
             self._decision_payload(brief),
             f"{record.run_id}:stuck:{step}:{record.state_attempts.get(step, 0)}",
         )
+        self._post_gate_note(parked, brief)
         return parked
 
     def _run_github(self, *, reclaim: bool = False, job_path: bool = False) -> WorkflowRecord:
@@ -1695,6 +2156,7 @@ class PivOrchestrator:
             self._decision_payload(brief),
             f"{record.run_id}:blocked:{record.current_phase}:{record.attempt}",
         )
+        self._post_gate_note(parked, brief)
         return parked
 
     def _fail(self, phase: str, worker: str, error: str) -> WorkflowRecord:
@@ -1716,6 +2178,68 @@ class PivOrchestrator:
             f"{record.run_id}:unexpected_failure",
         )
         return failed
+
+    def _gate_note_text(
+        self, brief: DecisionBrief, *, resolution: str | None = None
+    ) -> str:
+        """Render the flat board marker text from one decision brief (D5)."""
+        if resolution is not None:
+            return (
+                f"HERMES GATE CLOSED — {brief.phase}\n"
+                f"{resolution}\n"
+                f"Card {brief.task_id} continues; no open gate remains."
+            )
+        options = "\n".join(
+            f"  {option.letter}) {option.text}" for option in brief.options
+        )
+        return (
+            f"HERMES GATE — {brief.phase}\n"
+            f"Decision needed: {brief.decision}\n"
+            f"Why it matters: {brief.why_it_matters}\n"
+            f"Options:\n{options}\n"
+            f"Recommended: {brief.recommended or '-'}\n"
+            f"Resolve with: --resume {brief.project_id} {brief.task_id} <option letter>"
+        )
+
+    def _post_gate_note(self, record: WorkflowRecord, brief: DecisionBrief) -> None:
+        """Post the visible gate marker on the parked card (FR-017).
+
+        Fail-closed: a marker CLI failure surfaces and leaves the park state
+        unchanged; the operator resolves (or retries) on the board.
+        """
+        self.card_note_fn(record.task_id, self._gate_note_text(brief))
+        if not self._journaled("gate-raised", record.project_id, record.task_id):
+            self._journal(
+                "gate-raised",
+                record.project_id,
+                record.task_id,
+                None,
+                f"gate {brief.phase}: {brief.decision}",
+            )
+
+    def _close_gate(self, record: WorkflowRecord, letter: str, choice_text: str) -> None:
+        """Record the gate resolution and post the closing note (SC-006)."""
+        self._journal(
+            "gate-resolved",
+            record.project_id,
+            record.task_id,
+            None,
+            f"operator chose {letter}: {choice_text}",
+        )
+        self.card_note_fn(
+            record.task_id,
+            self._gate_note_text(
+                DecisionBrief(
+                    record.project_id,
+                    record.task_id,
+                    record.current_phase,
+                    choice_text,
+                    "The operator resolved the gate on the board.",
+                    (),
+                ),
+                resolution=f"operator chose {letter}: {choice_text}",
+            ),
+        )
 
     def _decision_payload(
         self,

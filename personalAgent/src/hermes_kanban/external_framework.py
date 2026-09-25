@@ -30,6 +30,27 @@ if TYPE_CHECKING:
 PLAYBOOK_ID = "speckit-orchestrate"
 REFUSED_PLAYBOOKS = frozenset({PLAYBOOK_ID})
 
+# Internal workflow-state names that never belong in a card body section
+# value (FR-027). Matches the denylist in contracts/card-body.md (converge
+# included); `change`/`job` are card paths, not states.
+WORKFLOW_STATE_NAMES = frozenset(
+    {
+        "ready",
+        "specify",
+        "clarify",
+        "confirm",
+        "plan",
+        "tasks",
+        "implement",
+        "converge",
+        "critic",
+        "tester",
+        "uat",
+        "pr-review",
+        "publish",
+    }
+)
+
 # Canonical loop states (AiNative/docs/systems/feature-loop.md). The graph
 # definition is linked, not copied; Hermes only stores these id strings.
 # `change` and `job` are short card paths; the feature graph is unchanged.
@@ -75,6 +96,10 @@ SPEC_KIT_STATES = tuple(
 RESULT_STATUSES = frozenset({"completed", "failed", "needs_human", "stuck"})
 MAX_TEXT = 4096
 MAX_ITEMS = 32
+# Execution roles expressed as card profiles (FR-013). Profiles name strategy
+# roles, never a provider or vendor (FR-014); runtime/model selection stays in
+# the Hermes harness config.
+EXECUTION_ROLES = ("task-generator", "executor", "validator")
 _ENV_NAME = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
 _SECRET_NAME = re.compile(r"(?:KEY|TOKEN|SECRET|PASSWORD|CREDENTIAL)", re.IGNORECASE)
 _PROVIDER_LEAK = re.compile(
@@ -223,6 +248,67 @@ class HarnessAdapter(Protocol):
     def start(self, request: StepStartRequest) -> HarnessResult: ...
 
 
+def validate_profile_value(value: str) -> str:
+    """Validate one card `## Profile` value; return the normalized value.
+
+    Allowed shapes: an execution role or `role:named-strategy-ref` (same
+    named-reference rule as harness model profiles). Workflow-state names and
+    provider/vendor forms are rejected fail-closed (FR-014, FR-027).
+    """
+    if not isinstance(value, str):
+        raise HarnessValidationError("card profile must be a string")
+    normalized = value.strip()
+    if not normalized:
+        raise HarnessValidationError("card profile must be non-empty")
+    if "/" in normalized or "\\" in normalized:
+        raise HarnessValidationError("card profile must be a named reference")
+    if _PROVIDER_LEAK.search(normalized):
+        raise HarnessValidationError(
+            "card profile expresses execution strategy, never a provider"
+        )
+    role, separator, strategy = normalized.partition(":")
+    if separator and not strategy.strip():
+        raise HarnessValidationError("card profile must be a named reference")
+    if role.strip().casefold() in WORKFLOW_STATE_NAMES:
+        raise HarnessValidationError(
+            "card profile must not encode an internal workflow state"
+        )
+    if role.strip() not in EXECUTION_ROLES:
+        raise HarnessValidationError(
+            "card profile role must be one of: " + ", ".join(EXECUTION_ROLES)
+        )
+    return normalized
+
+
+def validate_card_path_value(value: str) -> str:
+    """Validate one card `## Path` value; reject workflow-state names."""
+    normalized = value.strip().lower()
+    if not normalized:
+        raise HarnessValidationError("card path must be non-empty")
+    if normalized in WORKFLOW_STATE_NAMES:
+        raise HarnessValidationError(
+            "card path must not encode an internal workflow state"
+        )
+    if normalized not in _CARD_PATH_VALUES:
+        raise HarnessValidationError(
+            f"card path must be one of: {', '.join(sorted(_CARD_PATH_VALUES))}"
+        )
+    return normalized
+
+
+def validate_parent_reference(value: str, *, own_title: str = "") -> str:
+    """Validate one card `## Parent` reference shape (FR-023)."""
+    lines = [line.strip() for line in value.splitlines() if line.strip()]
+    if len(lines) != 1:
+        raise HarnessValidationError("card parent must be exactly one task id")
+    parent_id = lines[0]
+    if _path_like_id(parent_id):
+        raise HarnessValidationError("card parent must be a task id")
+    if own_title and parent_id == own_title:
+        raise HarnessValidationError("card parent must not reference the card itself")
+    return parent_id
+
+
 def contains_secret(value: str) -> bool:
     """Return whether text contains a likely credential or private key."""
     if not isinstance(value, str):
@@ -353,6 +439,9 @@ def step_skill_path(step_id: str) -> str:
         raise HarnessValidationError(f"step is not a Spec Kit state: {step_id}")
     return f".cursor/skills/speckit-{step_id}/SKILL.md"
 
+
+# Canonical card paths (the dispatcher's `## Path` values).
+_CARD_PATH_VALUES = frozenset({"feature", "change", "job"})
 
 # Per-state compact-report contract (contracts/compact-reports.md).
 REQUIRED_REPORT_FIELDS: dict[str, tuple[str, ...]] = {

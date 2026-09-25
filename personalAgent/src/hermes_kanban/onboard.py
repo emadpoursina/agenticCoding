@@ -12,6 +12,12 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 
+from .external_framework import (
+    HarnessValidationError,
+    validate_card_path_value,
+    validate_parent_reference,
+    validate_profile_value,
+)
 from .projects import (
     ProjectRegistryError,
     _manifest_from_file,
@@ -46,6 +52,7 @@ _OWNER_NAME = re.compile(r"^[^/\s]+/[^/\s]+$")
 _H2_HEADING = re.compile(r"^##\s+(.+?)\s*$")
 _PRIORITY_LINE = re.compile(r"^priority\s*:\s*(\S+)\s*$", re.IGNORECASE)
 _EXPECTED_LINE = re.compile(r"^expected(?:\s+result)?\s*:\s*(.+?)\s*$", re.IGNORECASE)
+_CHECKBOX_ITEM = re.compile(r"^\s*-\s+\[[ xX]\]\s+(.+?)\s*$")
 _SLUG_NOISE = re.compile(r"[^a-z0-9]+")
 _READ_ONLY_CONFIG_ERRNOS = {errno.EROFS, errno.EACCES, errno.EPERM}
 
@@ -96,6 +103,7 @@ class OnboardResult:
     created_cards: tuple[str, ...] = ()
     triaged_cards: int = 0
     pushed: bool = False
+    board_path: Path | None = None
 
 
 def resolve_projects_db() -> Path:
@@ -186,9 +194,68 @@ def live_create_native_project(repository: str) -> None:
     _run_hermes(["project", "create", slug, "--slug", slug])
 
 
+def resolve_kanban_db(native_id: str | None = None) -> Path | None:
+    """Resolve the native Kanban database for the project, or None when unknown.
+
+    Resolution order: HERMES_KANBAN_DB, then the per-project board under
+    HERMES_HOME, then the legacy single HERMES_HOME/kanban.db. When neither
+    environment variable is set the board location is unknown and the caller
+    skips the hard check (isolated test environments only; the live control
+    plane always runs with HERMES_HOME).
+    """
+    override = os.environ.get("HERMES_KANBAN_DB", "").strip()
+    if override:
+        return Path(override)
+    hermes_home = os.environ.get("HERMES_HOME", "").strip()
+    if not hermes_home:
+        return None
+    home = Path(hermes_home)
+    if native_id:
+        per_project = home / "kanban" / "boards" / native_id / "kanban.db"
+        if per_project.is_file():
+            return per_project
+    return home / "kanban.db"
+
+
+def verify_board_discoverable(board_path: Path | None) -> Path | None:
+    """Return the board path after a read-only present/readable check.
+
+    Fail-closed (FR-008, FR-021): a resolved but missing/unreadable board is an
+    OnboardError with no partial enrollment. A None path means the environment
+    declares no board location and nothing can be checked.
+    """
+    if board_path is None:
+        return None
+    if not board_path.is_file() or not os.access(board_path, os.R_OK):
+        raise OnboardError(f"native Kanban board is missing or unreadable: {board_path}")
+    return board_path
+
+
 def live_create_card(args: list[str]) -> None:
     """Create one native Kanban card via the Hermes CLI."""
     _run_hermes(["kanban", "create", *args])
+
+
+def live_add_card_note(card_id: str, text: str) -> None:
+    """Post one visible note on a card via the native CLI (FR-017).
+
+    Same seam shape as live_create_card: fail-closed, injectable for checks.
+    The native CLI action is `hermes kanban comment <task_id> <text>`.
+    """
+    if not card_id.strip() or not text.strip():
+        raise OnboardError("a card note needs a card id and text")
+    _run_hermes(["kanban", "comment", card_id, text])
+
+
+def live_complete_card(card_id: str) -> None:
+    """Mark one native Kanban card done via the native CLI.
+
+    Same seam shape as live_create_card: fail-closed, injectable for checks.
+    The native CLI action is `hermes kanban complete <task_id>`.
+    """
+    if not card_id.strip():
+        raise OnboardError("a card completion needs a card id")
+    _run_hermes(["kanban", "complete", card_id])
 
 
 def priority_flag(priority: str) -> str:
@@ -238,11 +305,15 @@ def create_cards_from_drafts(
             raise PrdDraftError(
                 f"card draft '{title}' still has TODO sections; complete it or pass --allow-todo"
             )
+        # PRD sections land as top-level Feature Cards (FR-019, FR-014a):
+        # the body gains `## Path: feature` + the default task-generator
+        # profile before the CLI call; draft files themselves stay untouched.
+        body = compose_feature_card_body(text)
         args = [
             title,
             "--project", native_id,
             "--priority", priority_flag(priority),
-            "--body", text,
+            "--body", body,
             "--idempotency-key", _slugify(title),
         ]
         if todo:
@@ -604,6 +675,7 @@ def run_onboard(
     *,
     cloner: CloneFn = live_clone,
     projects_db: Path | None = None,
+    board_db: Path | None = None,
     native_project_creator: Callable[[str], None] = live_create_native_project,
     card_creator: CardCreateFn = live_create_card,
 ) -> OnboardResult:
@@ -641,6 +713,11 @@ def run_onboard(
             cloned=False,
             scaffolded=(),
             already_enrolled=True,
+            board_path=verify_board_discoverable(
+                board_db if board_db is not None else resolve_kanban_db(
+                    existing.kanban_project_ids[0]
+                )
+            ),
         )
     try:
         native_id = native_project_id(projects_db or resolve_projects_db(), repository)
@@ -649,6 +726,9 @@ def run_onboard(
             raise
         native_project_creator(repository)
         native_id = native_project_id(projects_db or resolve_projects_db(), repository)
+    board_path = verify_board_discoverable(
+        board_db if board_db is not None else resolve_kanban_db(native_id)
+    )
     clone_url = f"git@github.com:{repository}.git"
     cloned = False
     scaffolded: tuple[str, ...] = ()
@@ -666,6 +746,7 @@ def run_onboard(
             already_enrolled=False,
             drafts=(),
             incomplete_drafts=0,
+            board_path=board_path,
         )
     if location.exists():
         if not location.is_dir():
@@ -713,6 +794,7 @@ def run_onboard(
         created_cards=created_cards,
         triaged_cards=triaged,
         pushed=pushed,
+        board_path=board_path,
     )
 
 
@@ -765,6 +847,7 @@ def run_import_prd(
     project_id, native_id, location, default_branch = _resolve_enrolled_project(
         request.repository.strip(), config_path
     )
+    board_path = verify_board_discoverable(resolve_kanban_db(native_id))
     drafts_out = request.drafts_out or Path("scratch") / "card-drafts" / project_id
     if request.dry_run:
         # Validate the PRD end-to-end without writing drafts or cards.
@@ -785,6 +868,7 @@ def run_import_prd(
             already_enrolled=False,
             drafts=(),
             incomplete_drafts=incomplete,
+            board_path=board_path,
         )
     drafts, incomplete = import_prd(
         request.prd,
@@ -810,6 +894,7 @@ def run_import_prd(
         incomplete_drafts=incomplete,
         created_cards=created_cards,
         triaged_cards=triaged,
+        board_path=board_path,
     )
 
 
@@ -903,8 +988,129 @@ def render_card_draft(draft: CardDraft) -> str:
     return "\n".join(parts) + "\n"
 
 
-def validate_card_draft(text: str) -> None:
-    """Reject card drafts that miss a required heading or a valid priority."""
+def compose_feature_card_body(text: str) -> str:
+    """Append the Feature Card sections to a validated draft body (FR-014a).
+
+    PRD-import cards land as top-level Feature Cards: `## Path: feature` and
+    the default `task-generator` profile. Existing sections are never
+    rewritten (idempotency: legacy cards stay untouched).
+    """
+    sections = _card_sections(text)
+    if "Path" not in sections:
+        text = text.rstrip("\n") + "\n\n## Path\nfeature\n"
+    if "Profile" not in sections:
+        text = text.rstrip("\n") + "\n\n## Profile\ntask-generator\n"
+    validate_card_draft(text)
+    return text
+
+
+def child_card_body(
+    *,
+    title: str,
+    priority: str,
+    problem: str,
+    expected_result: str,
+    acceptance_criteria: str,
+    parent_id: str,
+) -> str:
+    """Render one child Task Card body (FR-023, FR-025, D4).
+
+    Children carry `## Parent` (the Feature Card id), the short executor
+    path `change`, and the `executor` profile; values pass the same
+    fail-closed validation as every other card body.
+    """
+    body = render_card_draft(
+        CardDraft(
+            title=title,
+            priority=priority,
+            problem=problem,
+            expected_result=expected_result,
+            technical_notes="",
+        )
+    )
+    rendered = "\n".join(
+        (
+            body.rstrip("\n"),
+            "",
+            "## Acceptance Criteria",
+            acceptance_criteria,
+            "",
+            "## Path",
+            "change",
+            "",
+            "## Profile",
+            "executor",
+            "",
+            "## Parent",
+            parent_id,
+        )
+    ) + "\n"
+    validate_card_draft(rendered)
+    return rendered
+
+
+def child_card_bodies(
+    tasks_text: str,
+    *,
+    parent_id: str,
+    priority: str,
+) -> tuple[tuple[str, str, str], ...]:
+    """Parse a tasks artifact into (title, idempotency-key, body) children.
+
+    One checkbox item in `specs/<feature-id>/tasks.md` becomes one child Task
+    Card. Zero items means the caller must not complete the parent empty
+    (spec edge case: decomposition produced nothing).
+    """
+    parent_id = validate_parent_reference(parent_id)
+    items: list[str] = []
+    for line in tasks_text.splitlines():
+        match = _CHECKBOX_ITEM.match(line)
+        if match:
+            text = match.group(1).strip()
+            if text:
+                items.append(text)
+    drafts: list[tuple[str, str, str]] = []
+    for item in items:
+        title = item[:120].strip() or "Child task"
+        body = child_card_body(
+            title=title,
+            priority=priority if priority in _PRIORITIES else "P2",
+            problem=item,
+            expected_result=(
+                f"Task completed as specified in specs/{parent_id}/tasks.md."
+            ),
+            acceptance_criteria=item,
+            parent_id=parent_id,
+        )
+        key = _slugify(f"{parent_id}-{title}")
+        drafts.append((title, key, body))
+    return tuple(drafts)
+
+
+def child_card_args(
+    tasks_text: str,
+    *,
+    parent_id: str,
+    priority: str,
+    native_id: str,
+) -> tuple[list[str], ...]:
+    """Build native CLI card-creation args for every child Task Card."""
+    return tuple(
+        [
+            title,
+            "--project", native_id,
+            "--priority", priority_flag(priority),
+            "--body", body,
+            "--idempotency-key", key,
+        ]
+        for title, key, body in child_card_bodies(
+            tasks_text, parent_id=parent_id, priority=priority
+        )
+    )
+
+
+def _card_sections(text: str) -> dict[str, str]:
+    """Map `## Heading` names to their first non-empty line's value."""
     headings: dict[str, list[str]] = {}
     current = ""
     for line in text.splitlines():
@@ -914,6 +1120,28 @@ def validate_card_draft(text: str) -> None:
             headings.setdefault(current, [])
         elif current:
             headings[current].append(line)
+    return {
+        name: next((value.strip() for value in lines if value.strip()), "")
+        for name, lines in headings.items()
+    }
+
+
+def validate_card_draft(text: str) -> None:
+    """Reject card drafts that miss a required heading, an invalid priority,
+    or a Path/Profile/Parent value that breaks the card-body contract."""
+    headings: dict[str, list[str]] = {}
+    current = ""
+    title = ""
+    for line in text.splitlines():
+        match = _H2_HEADING.match(line)
+        if match:
+            current = match.group(1).strip()
+            headings.setdefault(current, [])
+        else:
+            if current:
+                headings[current].append(line)
+            if not title and line.startswith("# "):
+                title = line[2:].strip()
     for required in ("Priority", "Problem", "Expected Result"):
         if required not in headings:
             raise PrdDraftError(f"card draft is missing the '{required}' heading")
@@ -923,6 +1151,17 @@ def validate_card_draft(text: str) -> None:
     for required in ("Problem", "Expected Result"):
         if not any(value.strip() for value in headings.get(required, [])):
             raise PrdDraftError(f"card draft has an empty '{required}' section")
+    try:
+        if "Path" in headings:
+            validate_card_path_value((headings.get("Path") or [""])[0])
+        if "Profile" in headings:
+            validate_profile_value((headings.get("Profile") or [""])[0])
+        if "Parent" in headings:
+            validate_parent_reference(
+                "\n".join(headings.get("Parent", ())), own_title=title
+            )
+    except HarnessValidationError as exc:
+        raise PrdDraftError(str(exc)) from exc
 
 
 def import_prd(

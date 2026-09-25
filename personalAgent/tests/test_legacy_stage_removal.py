@@ -92,6 +92,9 @@ def test_legacy_acknowledgement_stays_parked_for_a_human(tmp_path: Path) -> None
         orchestrator.git_host,
         overlay_dir=orchestrator.overlay_dir,
         harness_adapter=orchestrator.harness_adapter,
+        card_creator=orchestrator.card_creator,
+        card_note_fn=orchestrator.card_note_fn,
+        card_complete_fn=orchestrator.card_complete_fn,
     )
     parked = restarted.become_ready()
     assert parked is not None

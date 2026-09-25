@@ -51,16 +51,18 @@ def test_overlay_never_reloads_a_temporary_file(tmp_path: Path) -> None:
 def test_reclaim_resumes_the_interrupted_step(tmp_path: Path) -> None:
     orchestrator, runtime, _workspace_root = environment(tmp_path)
     orchestrator.run_workflow("fixture", "123")
-    uat_parked = orchestrator.resume_workflow("fixture", "123", "A")
-    assert uat_parked.current_phase == "uat"
-    interrupted = replace(
-        uat_parked,
+    # A child card interrupted during its tester step re-enters that step.
+    children = [
+        item for item in orchestrator.task_board.list() if item.parent_id == "123"
+    ]
+    child_running = replace(
+        orchestrator.run_next_workflow("fixture"),
         state="RUNNING",
         current_phase="tester",
         next_action="run the tester step",
-        steps=uat_parked.steps[:-1],
+        steps=orchestrator._record.steps[:-1],
     )
-    write_overlay(orchestrator.overlay_dir, OverlaySnapshot(interrupted, "occupied"))
+    write_overlay(orchestrator.overlay_dir, OverlaySnapshot(child_running, "occupied"))
     (orchestrator.overlay_dir / "alive").unlink(missing_ok=True)
     runtime.calls.clear()
     restarted = PivOrchestrator(
@@ -71,10 +73,14 @@ def test_reclaim_resumes_the_interrupted_step(tmp_path: Path) -> None:
         orchestrator.git_host,
         overlay_dir=orchestrator.overlay_dir,
         harness_adapter=orchestrator.harness_adapter,
+        card_creator=orchestrator.card_creator,
+        card_note_fn=orchestrator.card_note_fn,
+        card_complete_fn=orchestrator.card_complete_fn,
     )
 
     reclaimed = restarted.become_ready()
 
     assert reclaimed is not None
     assert len(runtime.calls) == 1
-    assert reclaimed.run_id == uat_parked.run_id
+    assert reclaimed.run_id == child_running.run_id
+    del children

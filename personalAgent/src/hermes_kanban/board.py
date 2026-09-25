@@ -8,6 +8,7 @@ from collections.abc import Callable
 from datetime import UTC, datetime
 from pathlib import Path
 
+from .external_framework import WORKFLOW_STATE_NAMES  # noqa: F401  (re-exported denylist)
 from .orchestrator import (
     BoardTask,
     MissingTaskBoardError,
@@ -150,6 +151,9 @@ class SqliteTaskBoard:
         raw_path = body.get("Path", "").strip().lower()
         card_path = raw_path or "feature"
         card_skill = body.get("Skill", "").strip().lower()
+        parent_words = body.get("Parent", "").split()
+        parent_id = parent_words[0] if parent_words else ""
+        profile = body.get("Profile", "").strip()
         return BoardTask(
             id=str(row["id"]),
             project_id=self._canonical_project_id(str(row["project_id"] or "").strip()),
@@ -167,6 +171,8 @@ class SqliteTaskBoard:
             column=status,
             card_path=card_path,
             card_skill=card_skill,
+            parent_id=parent_id,
+            profile=profile,
         )
 
     def get(self, task_id: str) -> BoardTask:

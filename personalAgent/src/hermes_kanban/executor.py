@@ -40,6 +40,7 @@ from .external_framework import (
     load_harness_config,
     step_skill_path,
     validate_harness_result,
+    validate_profile_value,
     validate_step_request,
 )
 from .pi import PiHarnessAdapter
@@ -60,6 +61,14 @@ from .workspace import (
 
 _MODEL_SLOTS = ("planning", "implementation", "validation")
 _RESULT_STATUSES = frozenset({"success", "failure", "blocked"})
+# Path-selected default execution roles (FR-014a): `feature` cards run the
+# task-generator role; `change`/`job` cards are executed by the executor role.
+# Project config may override per path via `profiles.defaults`.
+PATH_PROFILE_DEFAULTS = {
+    "feature": "task-generator",
+    "change": "executor",
+    "job": "executor",
+}
 # 9router (and some OpenAI-compatible hosts) append an SSE closer after one JSON object.
 _TRAILING_SSE_DONE = re.compile(r"\A\s*(?:data:\s*\[DONE\]\s*)?\Z")
 _OPENCODE_SESSION_HEADER = "x-opencode-session"
@@ -185,6 +194,7 @@ class ExecutionSettings:
     harness_model_profile: str
     harness_step_profiles: dict[str, str]
     harness_timeout_seconds: float
+    path_profile_defaults: dict[str, str]
 
     @classmethod
     def from_config(cls, config_path: Path) -> ExecutionSettings:
@@ -233,6 +243,7 @@ class ExecutionSettings:
         harness_model_profile = "default"
         harness_step_profiles: dict[str, str] = {}
         harness_timeout_seconds = 1800.0
+        path_profile_defaults: dict[str, str] = {}
         if isinstance(raw_harness, dict):
             if isinstance(raw_harness.get("model_profile"), str):
                 harness_model_profile = raw_harness["model_profile"].strip()
@@ -255,6 +266,24 @@ class ExecutionSettings:
                 )
             except HarnessConfigurationError as exc:
                 raise ExecutorError(str(exc)) from exc
+        raw_profiles = document.get("profiles")
+        if raw_profiles is not None:
+            if not isinstance(raw_profiles, dict):
+                raise ExecutorError("profiles must be a mapping")
+            raw_defaults = raw_profiles.get("defaults")
+            if raw_defaults is not None:
+                if not isinstance(raw_defaults, dict):
+                    raise ExecutorError("profiles.defaults must be a mapping")
+                for path_key, role in raw_defaults.items():
+                    if path_key not in PATH_PROFILE_DEFAULTS:
+                        raise ExecutorError(f"unknown profiles.defaults path: {path_key}")
+                    try:
+                        validate_profile_value(role)
+                    except HarnessValidationError as exc:
+                        raise ExecutorError(
+                            f"profiles.defaults.{path_key}: {exc}"
+                        ) from exc
+                    path_profile_defaults[path_key] = role.strip()
         return cls(
             workflow_name,
             model_roles,
@@ -263,11 +292,30 @@ class ExecutionSettings:
             harness_model_profile,
             harness_step_profiles,
             harness_timeout_seconds,
+            path_profile_defaults,
         )
 
     def profile_for_step(self, step_id: str) -> str:
         """Resolve one step's model profile; unknown steps use the default."""
         return self.harness_step_profiles.get(step_id, self.harness_model_profile)
+
+
+def profile_for_card(task: object, *, path_defaults: dict[str, str] | None = None) -> str:
+    """Resolve one card's execution profile role at claim time (FR-014a).
+
+    The card's `## Profile` wins when present (validated); otherwise the
+    Path-selected project default applies. The card body is never mutated.
+    """
+    explicit = getattr(task, "profile", "") or ""
+    if explicit.strip():
+        try:
+            validate_profile_value(explicit)
+        except HarnessValidationError as exc:
+            raise ExecutorError(str(exc)) from exc
+        return explicit.strip()
+    card_path = getattr(task, "card_path", "feature") or "feature"
+    defaults = PATH_PROFILE_DEFAULTS if path_defaults is None else path_defaults
+    return defaults.get(card_path, PATH_PROFILE_DEFAULTS["feature"])
 
 
 class ModelService(Protocol):

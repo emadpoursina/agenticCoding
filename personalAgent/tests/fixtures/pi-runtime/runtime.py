@@ -43,6 +43,9 @@ class PiFixtureRuntime:
         change_scope_feature: bool = False,
         job_scope_feature: bool = False,
         job_question: bool = False,
+        empty_tasks: bool = False,
+        tester_acceptance_flag: bool = False,
+        clarify_unresolved: bool = False,
     ) -> None:
         self.needs_analysis = needs_analysis
         self.question = question
@@ -59,6 +62,9 @@ class PiFixtureRuntime:
         self.change_scope_feature = change_scope_feature
         self.job_scope_feature = job_scope_feature
         self.job_question = job_question
+        self.empty_tasks = empty_tasks
+        self.tester_acceptance_flag = tester_acceptance_flag
+        self.clarify_unresolved = clarify_unresolved
         self.calls: list[PiRunRequest] = []
         self.order: list[str] = []
         self.sessions: list[str] = []
@@ -168,6 +174,9 @@ class PiFixtureRuntime:
                     ARTIFACTS="spec.md",
                     STATUS="ok",
                     SUMMARY="no open questions",
+                    questions=(
+                        ["Choose the fixture scope."] if self.clarify_unresolved else []
+                    ),
                 ),
             )
         if step == "plan":
@@ -186,7 +195,15 @@ class PiFixtureRuntime:
                 ),
             )
         if step == "tasks":
-            if not self.missing_artifact:
+            if not self.missing_artifact and not self.empty_tasks:
+                feature.mkdir(parents=True, exist_ok=True)
+                (feature / "tasks.md").write_text(
+                    "# Fixture tasks\n\n"
+                    "- [ ] Child one fixes the widget\n"
+                    "- [ ] Child two updates the docs\n",
+                    encoding="utf-8",
+                )
+            elif not self.missing_artifact:
                 feature.mkdir(parents=True, exist_ok=True)
                 (feature / "tasks.md").write_text("# Fixture tasks\n", encoding="utf-8")
             return PiRunResponse(
@@ -278,12 +295,17 @@ class PiFixtureRuntime:
         if step == "tester":
             self.validation_command_observes.append(request.inputs.get("validation_commands"))
             verdict = "FAIL" if self.tester_fail else "PASS"
+            summary = (
+                "fixture tester report with unresolved acceptance items"
+                if self.tester_acceptance_flag
+                else "fixture tester report"
+            )
             return PiRunResponse(
                 "completed",
                 f"fixture tester verdict {verdict}",
                 report=_report(
                     VERDICT=verdict,
-                    SUMMARY="fixture tester report",
+                    SUMMARY=summary,
                 ),
             )
         if step == "pr-review":
