@@ -10,10 +10,13 @@ from types import SimpleNamespace
 from .executor import PATH_PROFILE_DEFAULTS, profile_for_card
 from .onboard import (
     CardDraft,
+    GitIdentity,
     OnboardError,
     OnboardRequest,
     OnboardResult,
     _slugify,
+    check_git_access,
+    git_identity_for_repository,
     live_create_card,
     priority_flag,
     render_card_draft,
@@ -26,6 +29,8 @@ InputFn = Callable[[str], str]
 OutputFn = Callable[[str], None]
 OnboardFn = Callable[[OnboardRequest, Path], OnboardResult]
 CardCreateFn = Callable[[list[str]], None]
+GitAccessCheckFn = Callable[[str, str], None]
+GitIdentityReaderFn = Callable[[Path, str], GitIdentity]
 
 _PRIORITIES = ("P0", "P1", "P2", "P3")
 _KINDS = (
@@ -125,6 +130,8 @@ def run_guide(
     output_fn: OutputFn = print,
     onboard: OnboardFn = run_onboard,
     card_creator: CardCreateFn = live_create_card,
+    git_access_check: GitAccessCheckFn = check_git_access,
+    git_identity_reader: GitIdentityReaderFn = git_identity_for_repository,
 ) -> int:
     """Interview the operator, then enroll a repository or create one card."""
     try:
@@ -135,7 +142,14 @@ def run_guide(
             output_fn,
         )
         if action == "project":
-            return _enroll(config_path, input_fn, output_fn, onboard)
+            return _enroll(
+                config_path,
+                input_fn,
+                output_fn,
+                onboard,
+                git_access_check,
+                git_identity_reader,
+            )
         return _add_card(config_path, input_fn, output_fn, card_creator)
     except (GuideError, OnboardError) as exc:
         print(str(exc), file=sys.stderr)
@@ -147,6 +161,8 @@ def _enroll(
     input_fn: InputFn,
     output_fn: OutputFn,
     onboard: OnboardFn,
+    git_access_check: GitAccessCheckFn,
+    git_identity_reader: GitIdentityReaderFn,
 ) -> int:
     """Collect enroll answers and run the existing onboard command."""
     repository = _required("Repository (owner/name): ", input_fn, output_fn)
@@ -157,14 +173,73 @@ def _enroll(
         input_fn,
         output_fn,
     )
+    git_user_name = None
+    git_user_email = None
+    if mode == "enroll":
+        git_user_name, git_user_email = _git_preflight(
+            config_path,
+            repository,
+            branch,
+            input_fn,
+            output_fn,
+            git_access_check,
+            git_identity_reader,
+        )
     from .runtime import _print_onboard_result
 
     result = onboard(
-        OnboardRequest(repository=repository, branch=branch, dry_run=mode == "dry-run"),
+        OnboardRequest(
+            repository=repository,
+            branch=branch,
+            dry_run=mode == "dry-run",
+            git_user_name=git_user_name,
+            git_user_email=git_user_email,
+        ),
         config_path,
     )
     _print_onboard_result(result, dry_run=mode == "dry-run")
     return 0
+
+
+def _git_preflight(
+    config_path: Path,
+    repository: str,
+    branch: str,
+    input_fn: InputFn,
+    output_fn: OutputFn,
+    git_access_check: GitAccessCheckFn,
+    git_identity_reader: GitIdentityReaderFn,
+) -> tuple[str | None, str | None]:
+    """Check remote access and collect only missing repository author values."""
+    while True:
+        try:
+            git_access_check(repository, branch)
+        except OnboardError as exc:
+            output_fn(f"Git preflight failed: {exc}")
+            action = _choose(
+                "Retry after fixing SSH access, or cancel to change the repo or branch?",
+                (("retry", "Retry Git access check"), ("cancel", "Cancel enrollment")),
+                input_fn,
+                output_fn,
+            )
+            if action == "cancel":
+                raise GuideError("enrollment cancelled; fix Git access and run again") from exc
+            continue
+        output_fn(f"Git access: OK ({repository}, branch {branch})")
+        break
+
+    name, email = git_identity_reader(config_path, repository)
+    name = name.strip() if name and name.strip() else None
+    email = email.strip() if email and email.strip() else None
+    output_fn(f"Git user.name: {name if name else 'not configured'}")
+    output_fn(f"Git user.email: {email if email else 'not configured'}")
+    if name is None or email is None:
+        output_fn(
+            "Any values you provide will be saved only in the repository's local Git config."
+        )
+    name_to_set = None if name else _required("Git user.name: ", input_fn, output_fn)
+    email_to_set = None if email else _required("Git user.email: ", input_fn, output_fn)
+    return name_to_set, email_to_set
 
 
 def _add_card(

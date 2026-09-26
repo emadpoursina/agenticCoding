@@ -11,6 +11,8 @@ from hermes_kanban.onboard import (
     OnboardError,
     OnboardRequest,
     PrdDraftError,
+    check_git_access,
+    git_identity_for_repository,
     render_card_draft,
     run_import_prd,
     run_onboard,
@@ -479,6 +481,95 @@ def test_onboard_commits_scaffold_files(tmp_path: Path) -> None:
         "show", "--name-only", "--format=", "HEAD", cwd=result.location
     ).splitlines()
     assert set(names) == {"README.md", "AGENTS.md", ".ainative/project.yaml"}
+
+
+def test_onboard_saves_prompted_git_identity_in_repo_config(tmp_path: Path) -> None:
+    workspace = tmp_path / "workspaces"
+    config = write_config(tmp_path, workspace)
+    projects_db = write_projects_db(tmp_path, [(NATIVE_ID, "owner/new-project")])
+
+    result = run_onboard(
+        request(git_user_name="Emad Poursina", git_user_email="emad@example.test"),
+        config,
+        cloner=fake_cloner,
+        projects_db=projects_db,
+    )
+
+    assert _git_out("config", "--local", "user.name", cwd=result.location).strip() == (
+        "Emad Poursina"
+    )
+    assert _git_out("config", "--local", "user.email", cwd=result.location).strip() == (
+        "emad@example.test"
+    )
+
+
+def test_git_access_checks_the_requested_remote_branch(monkeypatch: pytest.MonkeyPatch) -> None:
+    calls: list[tuple[list[str], dict[str, object]]] = []
+
+    def fake_run(args: list[str], **kwargs: object) -> subprocess.CompletedProcess[str]:
+        calls.append((args, kwargs))
+        return subprocess.CompletedProcess(args, 0, "abc\trefs/heads/master\n", "")
+
+    monkeypatch.setattr("hermes_kanban.onboard.subprocess.run", fake_run)
+
+    check_git_access(REPOSITORY, "master")
+
+    assert calls[0][0] == [
+        "git",
+        "ls-remote",
+        "--exit-code",
+        "--heads",
+        f"git@github.com:{REPOSITORY}.git",
+        "refs/heads/master",
+    ]
+    assert calls[0][1]["timeout"] == 30
+
+
+def test_git_access_reports_missing_branch(monkeypatch: pytest.MonkeyPatch) -> None:
+    def fake_run(args: list[str], **kwargs: object) -> subprocess.CompletedProcess[str]:
+        return subprocess.CompletedProcess(args, 2, "", "")
+
+    monkeypatch.setattr("hermes_kanban.onboard.subprocess.run", fake_run)
+
+    with pytest.raises(OnboardError, match="branch master was not found"):
+        check_git_access(REPOSITORY, "master")
+
+
+def test_git_access_reports_authentication_failure(monkeypatch: pytest.MonkeyPatch) -> None:
+    def fake_run(args: list[str], **kwargs: object) -> subprocess.CompletedProcess[str]:
+        return subprocess.CompletedProcess(args, 128, "", "Permission denied (publickey)")
+
+    monkeypatch.setattr("hermes_kanban.onboard.subprocess.run", fake_run)
+
+    with pytest.raises(OnboardError, match="GitHub access check failed.*Permission denied"):
+        check_git_access(REPOSITORY, "master")
+
+
+def test_git_identity_reads_values_from_target_checkout(tmp_path: Path) -> None:
+    workspace = tmp_path / "workspaces"
+    config = write_config(tmp_path, workspace)
+    location = workspace / "new-project"
+    location.mkdir()
+    _git("init", "-b", "main", cwd=location)
+    _git("config", "user.name", "Local Operator", cwd=location)
+    _git("config", "user.email", "local@example.test", cwd=location)
+
+    assert git_identity_for_repository(config, REPOSITORY) == (
+        "Local Operator",
+        "local@example.test",
+    )
+
+
+def test_git_identity_reports_missing_global_values(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    config = write_config(tmp_path, tmp_path / "workspaces")
+    empty_global = tmp_path / "gitconfig"
+    empty_global.write_text("", encoding="utf-8")
+    monkeypatch.setenv("GIT_CONFIG_GLOBAL", str(empty_global))
+    monkeypatch.setenv("GIT_CONFIG_NOSYSTEM", "1")
+
+    assert git_identity_for_repository(config, REPOSITORY) == (None, None)
 
 
 def test_onboard_does_not_commit_preexisting_unrelated_files(tmp_path: Path) -> None:

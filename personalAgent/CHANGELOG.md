@@ -1,5 +1,11 @@
 # Changelog
 
+## [Unreleased]
+### Added
+- Interactive project enrollment checks GitHub SSH access to the selected
+  repository branch before making changes, reports Git author settings, and
+  prompts for missing name/email values for repo-local configuration.
+
 ## [1.11.0] - 2026-09-24
 ### Added
 - Kanban as the user-facing work queue (specs/019-hermes-onboarding-contract):

@@ -32,6 +32,7 @@ from .workspace import InvalidWorkspaceRootError, load_workspace_root
 
 CloneFn = Callable[[str, Path, str], None]
 CardCreateFn = Callable[[list[str]], None]
+GitIdentity = tuple[str | None, str | None]
 
 
 class OnboardError(Exception):
@@ -71,6 +72,8 @@ class OnboardRequest:
     create_cards: bool = False
     allow_todo: bool = False
     push_scaffold: bool = False
+    git_user_name: str | None = None
+    git_user_email: str | None = None
 
 
 @dataclass(frozen=True)
@@ -614,6 +617,34 @@ def scaffold_project_files(
     return tuple(created)
 
 
+def configure_git_identity(
+    location: Path,
+    *,
+    name: str | None = None,
+    email: str | None = None,
+) -> None:
+    """Save operator-provided Git author values only in the target checkout."""
+    for key, value in (("user.name", name), ("user.email", email)):
+        if value is None:
+            continue
+        if not value.strip():
+            raise OnboardError(f"Git {key} cannot be empty")
+        try:
+            result = subprocess.run(
+                ["git", "-C", str(location), "config", "--local", key, value],
+                capture_output=True,
+                text=True,
+                check=False,
+                stdin=subprocess.DEVNULL,
+                timeout=5,
+            )
+        except (OSError, subprocess.TimeoutExpired) as exc:
+            raise OnboardError(f"cannot set repo-local Git {key}: {exc}") from exc
+        if result.returncode != 0:
+            detail = result.stderr.strip() or result.stdout.strip()
+            raise OnboardError(f"cannot set repo-local Git {key}: {detail or result.returncode}")
+
+
 def commit_scaffold(location: Path, scaffolded: tuple[str, ...]) -> bool:
     """Commit scaffold-created files in the enrolled copy. Operator-initiated."""
     if not scaffolded:
@@ -669,6 +700,76 @@ def _derive_project_id(repository: str) -> str:
     return slug
 
 
+def check_git_access(repository: str, branch: str) -> None:
+    """Verify SSH read access to the repository's selected branch."""
+    if not _OWNER_NAME.fullmatch(repository):
+        raise OnboardError(f"repository must be owner/name: {repository}")
+    branch = branch.strip() or "main"
+    url = f"git@github.com:{repository}.git"
+    try:
+        result = subprocess.run(
+            ["git", "ls-remote", "--exit-code", "--heads", url, f"refs/heads/{branch}"],
+            capture_output=True,
+            text=True,
+            check=False,
+            stdin=subprocess.DEVNULL,
+            timeout=30,
+        )
+    except subprocess.TimeoutExpired as exc:
+        raise OnboardError(f"timed out checking GitHub access to {repository}") from exc
+    except OSError as exc:
+        raise OnboardError(f"cannot check GitHub access to {repository}: {exc}") from exc
+    if result.returncode == 2:
+        raise OnboardError(
+            f"GitHub is reachable, but branch {branch} was not found in {repository}"
+        )
+    if result.returncode != 0:
+        detail = result.stderr.strip() or result.stdout.strip() or f"git exited {result.returncode}"
+        raise OnboardError(f"GitHub access check failed for {repository}: {detail}")
+    if not result.stdout.strip():
+        raise OnboardError(
+            f"GitHub is reachable, but branch {branch} was not found in {repository}"
+        )
+
+
+def git_identity_for_repository(config_path: Path, repository: str) -> GitIdentity:
+    """Read effective Git author settings for the repository's target checkout."""
+    if not _OWNER_NAME.fullmatch(repository):
+        raise OnboardError(f"repository must be owner/name: {repository}")
+    try:
+        location = load_workspace_root(config_path) / _derive_project_id(repository)
+    except (OSError, ProjectRegistryError, InvalidWorkspaceRootError) as exc:
+        raise OnboardError(f"cannot read config: {config_path}") from exc
+    command = ["git"]
+    cwd: Path | None = Path("/")
+    if (location / ".git").exists():
+        command.extend(["-C", str(location)])
+        cwd = None
+    values: list[str | None] = []
+    for key in ("user.name", "user.email"):
+        try:
+            result = subprocess.run(
+                [*command, "config", "--get", key],
+                cwd=cwd,
+                capture_output=True,
+                text=True,
+                check=False,
+                stdin=subprocess.DEVNULL,
+                timeout=5,
+            )
+        except (OSError, subprocess.TimeoutExpired) as exc:
+            raise OnboardError(f"cannot read Git {key}: {exc}") from exc
+        if result.returncode == 1:
+            values.append(None)
+        elif result.returncode != 0:
+            detail = result.stderr.strip() or result.stdout.strip()
+            raise OnboardError(f"cannot read Git {key}: {detail or result.returncode}")
+        else:
+            value = result.stdout.strip()
+            values.append(value or None)
+    return values[0], values[1]
+
+
 def run_onboard(
     request: OnboardRequest,
     config_path: Path,
@@ -703,6 +804,12 @@ def run_onboard(
             raise OnboardError(
                 f"project {project_id} is enrolled without a native id; declare "
                 "kanban_project_ids manually"
+            )
+        if (location / ".git").exists():
+            configure_git_identity(
+                location,
+                name=request.git_user_name,
+                email=request.git_user_email,
             )
         return OnboardResult(
             project_id=project_id,
@@ -759,6 +866,11 @@ def run_onboard(
         location.parent.mkdir(parents=True, exist_ok=True)
         cloner(clone_url, location, branch)
         cloned = True
+    configure_git_identity(
+        location,
+        name=request.git_user_name,
+        email=request.git_user_email,
+    )
     scaffolded = scaffold_project_files(location, project_id, repository, branch)
     _verify_manifest(location)
     commit_scaffold(location, scaffolded)

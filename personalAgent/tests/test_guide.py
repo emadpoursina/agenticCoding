@@ -6,7 +6,7 @@ import pytest
 
 import hermes_kanban.runtime as runtime
 from hermes_kanban.guide import card_text, run_guide
-from hermes_kanban.onboard import OnboardRequest, OnboardResult
+from hermes_kanban.onboard import OnboardError, OnboardRequest, OnboardResult
 
 
 def answers(*values: str):
@@ -79,6 +79,10 @@ def test_enroll_dry_run_uses_existing_onboard(tmp_path: Path):
         input_fn=answers("1", "owner/app", "", "2"),
         output_fn=lambda line: None,
         onboard=onboard,
+        git_access_check=lambda repository, branch: pytest.fail("dry run must not check Git"),
+        git_identity_reader=lambda config, repository: pytest.fail(
+            "dry run must not read Git identity"
+        ),
     )
     assert code == 0
     request = seen["request"]
@@ -86,6 +90,76 @@ def test_enroll_dry_run_uses_existing_onboard(tmp_path: Path):
     assert request.repository == "owner/app"
     assert request.branch == "main"
     assert request.dry_run is True
+
+
+def test_enroll_retries_git_access_and_prompts_for_missing_identity(tmp_path: Path):
+    seen: dict[str, object] = {}
+    output: list[str] = []
+    access_calls: list[tuple[str, str]] = []
+
+    def access_check(repository: str, branch: str) -> None:
+        access_calls.append((repository, branch))
+        if len(access_calls) == 1:
+            raise OnboardError("Permission denied (publickey)")
+
+    def onboard(request: OnboardRequest, config_path: Path) -> OnboardResult:
+        seen["request"] = request
+        return OnboardResult(
+            project_id="app",
+            repository=request.repository,
+            native_id="p_app",
+            location=tmp_path / "app",
+            default_branch=request.branch,
+            cloned=False,
+            scaffolded=(),
+            already_enrolled=False,
+        )
+
+    code = run_guide(
+        tmp_path / "config.yaml",
+        input_fn=answers(
+            "1", "owner/app", "master", "1", "1", "Emad Poursina", "emad@example.test"
+        ),
+        output_fn=output.append,
+        onboard=onboard,
+        git_access_check=access_check,
+        git_identity_reader=lambda config, repository: (None, None),
+    )
+
+    assert code == 0
+    assert access_calls == [("owner/app", "master"), ("owner/app", "master")]
+    request = seen["request"]
+    assert isinstance(request, OnboardRequest)
+    assert request.git_user_name == "Emad Poursina"
+    assert request.git_user_email == "emad@example.test"
+    assert any("Git preflight failed" in line for line in output)
+    assert "Git access: OK (owner/app, branch master)" in output
+    assert "Git user.name: not configured" in output
+    assert "Git user.email: not configured" in output
+
+
+def test_enroll_can_cancel_when_git_access_is_unavailable(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+):
+    def denied_access(repository: str, branch: str) -> None:
+        raise OnboardError("SSH access denied")
+
+    def onboard(request: OnboardRequest, config_path: Path) -> OnboardResult:
+        pytest.fail("cancelled enrollment must not onboard")
+
+    code = run_guide(
+        tmp_path / "config.yaml",
+        input_fn=answers("1", "owner/app", "main", "1", "2"),
+        output_fn=lambda line: None,
+        onboard=onboard,
+        git_access_check=denied_access,
+        git_identity_reader=lambda config, repository: pytest.fail(
+            "identity must not be checked when access fails"
+        ),
+    )
+
+    assert code == 1
+    assert "enrollment cancelled" in capsys.readouterr().err
 
 
 def test_add_card_creates_a_feature_with_the_native_id(
