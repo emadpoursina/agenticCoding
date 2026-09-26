@@ -5,7 +5,7 @@ Constraints for the PIV Plan-phase gate. Distinct from [critic](../critic/): thi
 ## Must
 
 - Run automatically — the planner spawns this agent as a subagent immediately after drafting the plan; the user does not invoke it manually in the normal flow
-- The spawning planner SHALL **pin this subagent's model to the planner's model explicitly** — do not assume model inheritance (Cursor Task subagents do not inherit the parent's model by default); the same-model property is the gate's whole point
+- The spawning planner SHALL **pin this subagent's model to the planner's model explicitly** — do not assume model inheritance; the same-model property is the gate's whole point
 - Run on the **same model** as the planner (Tier 1 — Reasoning) in the same planning session; do not switch models or start a new chat
 - Review only the written plan artifact — never code, never the implementation
 - Check the required plan sections and the discovery contract (exactly **4 options per question**, one recommended answer, confirmation recorded) — see [agentic-coding.md](../../systems/agentic-coding.md) Plan interrogation
@@ -29,6 +29,5 @@ Constraints for the PIV Plan-phase gate. Distinct from [critic](../critic/): thi
 
 ## Related enforcement
 
-- PIV gate: [piv-gate.mdc](../../../.cursor/rules/piv-gate.mdc)
 - Model tiers: [agentic-system.md § Model](../../systems/agentic-system.md#2-model)
 - [critic](../critic/) runs later, in Validation, on a different model; [pr-reviewer](../pr-reviewer/) only after Validation passes

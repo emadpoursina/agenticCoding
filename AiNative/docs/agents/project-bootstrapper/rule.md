@@ -38,7 +38,7 @@ board, validation runs, and publishing.
 - Pick dependency versions without checking latest via the PRD's package manager
 - Skip the stack-confirmation park before scaffolding multiple files/directories
 - Overwrite or delete the `## Hermes control plane` section of `AGENTS.md`
-- Emit editor-specific config files (`.cursor/`, `.opencode/`, `.github/copilot-instructions.md`, etc.) — `AGENTS.md` is the only agent config target
+- Emit editor-specific rules, commands, or agent config — `AGENTS.md` is the only agent-instructions target
 - Create symlinks — no AiNative symlink setup is needed
 
 ## Stop conditions

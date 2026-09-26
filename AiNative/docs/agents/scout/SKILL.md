@@ -45,7 +45,7 @@ The brief is one of the scout's two outputs. It is a **report of what exists**, 
 
 1. **Every cited hop must come from an actual file read.** Use file-reading tools (Read, Grep, Glob). Never generate `file:line` from memory — a hallucinated citation defeats the brief. If you did not open the file, do not cite it.
 2. **No citation = assumption = ❓.** If a hop is unknown, mark it ❓ and move on. Do not guess. Honesty about gaps is the point.
-3. **Walk the call graph, do not stop at the entry point.** Follow callers and callees of the in-surface functions. A missed sibling caller is a sibling bug later (see `ponytail.mdc`: "grep every caller").
+3. **Walk the call graph, do not stop at the entry point.** Follow callers and callees of the in-surface functions. A missed sibling caller can hide a related behavior or regression.
 4. **No design opinions.** Do not propose the change, sketch solutions, or recommend approaches. That is the planner's job. The brief describes the present, not the future.
 5. **Progressive disclosure.** Load only docs files that map to the blast radius — not the whole index. See [agentic-coding.md § AI layer](../../systems/agentic-coding.md#ai-layer).
 

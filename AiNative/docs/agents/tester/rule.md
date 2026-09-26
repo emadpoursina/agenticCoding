@@ -35,5 +35,5 @@ Constraints for the PIV Validation executor. Architecture: [validation-layer.md]
 
 ## Related enforcement
 
-- PIV gate: `.cursor/rules/piv-gate.mdc`
+- Live managed-project gates: [feature-loop.md](../../systems/feature-loop.md)
 - Diamond model guidance: [validation-layer.md](../../systems/validation-layer.md)

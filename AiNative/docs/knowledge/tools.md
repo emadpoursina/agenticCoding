@@ -28,7 +28,6 @@
 
 ### LLM / AI dev
 
-- [Ponytail](https://github.com/DietrichGebert/ponytail) — lazy-senior Cursor rule (less code, safety kept); setup: [ponytail.md](./setup/ponytail.md)
 - [9Router](https://github.com/decolua/9router) — local AI router + token saver; routes Claude Code/Cursor/etc. to 40+ providers with auto-fallback (subscription → cheap → free) and built-in RTK compression; evaluation: [2026-08-9router.md](../records/evaluations/2026-08-9router.md)
 - [RTK](https://github.com/rtk-ai/rtk) — CLI proxy that compresses bash output your agent reads (up to ~90% less); auto-rewrite hook for Claude Code/OpenCode/Cursor; evaluation: [2026-08-rtk.md](../records/evaluations/2026-08-rtk.md)
 - [DeepSeek Chat](https://chat.deepseek.com/)

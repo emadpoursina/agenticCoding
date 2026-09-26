@@ -1,71 +1,43 @@
-# AI rules template
+# Project rules template
 
-Copy into `.cursor/rules/ai-rules.mdc` (Cursor). Fill in placeholders; keep it short.
-
-See live example: [ai-rules.mdc](../../.cursor/rules/ai-rules.mdc) in this repo.
-
----
+Use this as source material for the project-specific section of the enrolled
+repo's `AGENTS.md`. Keep the existing `## Hermes control plane` section intact
+and replace every placeholder with verified project facts. Keep the result
+short enough for a worker to read at the start of a task.
 
 ```markdown
----
-description: Core AI workflow, code style, and constraints for [PROJECT_NAME]
-alwaysApply: true
----
+# Project rules — [PROJECT_NAME]
 
-# [PROJECT_NAME] — AI Rules
+## Project context
 
-## Project Context
-
-- **Type**: [e.g. REST API / Full-stack SaaS / CLI tool]
-- **Stack**: [e.g. NestJS · PostgreSQL · Redis · Docker]
-- **Repo layout**:
-  ```
-  src/
-  ├── modules/      # NestJS feature modules
-  ├── common/       # Shared guards, pipes, interceptors
-  └── config/       # Config service and env schema
-  ```
+- **Purpose:** [What the project does]
+- **Stack:** [Languages, frameworks, database, infrastructure]
+- **Layout:** [Important source, test, and configuration directories]
 
 ## Workflow
 
-- Always follow the **feature loop** ([feature-loop.md](./feature-loop.md)): Ready → Spec Kit → critic → tester → UAT → pr-review (Validation via critic and tester agents)
-- Do not write code until the plan is confirmed if the change touches 2+ files
-- During Plan, before proposing new code: library (worth it?) → in-repo reuse → build from scratch
-- After making changes, update related documentation if it exists
-- For ambiguous tasks: ask, do not guess
-- Commit style: Conventional Commits (`feat:`, `fix:`, `chore:`, `refactor:`, `test:`)
-- Capture raw notes in `scratch/` during work; promote on Friday review
-- Never commit `scratch/` contents (folder is gitignored except `scratch/README.md`)
+- Work is submitted through this project's Hermes Kanban board.
+- Follow the card's `## Path` and the workflow stage assigned by Hermes.
+- Keep `validation_commands` in `.ainative/project.yaml` accurate; the tester
+  state runs them for managed work.
+- For a `feature`, follow the spec/plan/tasks workflow and its reviews. A
+  `change` is already specified; a `job` runs only its named skill.
+- Ask rather than guessing when a consequential project decision is unclear.
+- Update related project documentation when behavior or interfaces change.
 
-## Code Rules
+## Code and design constraints
 
-- TypeScript strict mode — no `any`, no implicit types
-- Validate all external inputs with Zod
-- Never rewrite an entire file to change one function — surgical edits only
-- Match existing naming conventions and indentation exactly
-- Add one minimal line immediately before each function definition stating what it does
-- Remove filler and AI-style narration before finishing (`// This function handles...`)
-- Remove unused imports and variables before finalizing
+- [Existing naming, formatting, layering, and architectural conventions]
+- [Input validation, error handling, logging, accessibility, or security rules]
+- [Database migration and compatibility requirements]
+- Prefer existing project abstractions; justify new dependencies.
 
-## Constraints
+## Project-specific notes
 
-- No new external dependencies without explicit approval
-- Always output SQL / migration for manual review before suggesting `db push` or `migrate`
-- Terminal commands: check mentally before suggesting — no destructive defaults
-- Never expose secrets, tokens, or credentials in output
+- [Domain rules, data ownership, important integration boundaries]
+- [How to run development services or focused tests]
 
-## Project-Specific Notes
+## Out of scope
 
-<!-- Add anything the AI needs to know that is unique to this project -->
-<!-- Examples: -->
-<!-- - Auth is JWT with refresh token rotation — do not change the token flow -->
-<!-- - Multi-tenant: always scope queries by organizationId -->
-<!-- - BullMQ queues are defined in src/queues/ — follow the existing processor pattern -->
-
-## Out of Scope
-
-<!-- Things the AI should never touch or suggest in this repo -->
-<!-- Examples: -->
-<!-- - Do not modify the migration files directly -->
-<!-- - Do not change the Docker network config -->
+- [Explicitly excluded systems, paths, and operations]
 ```

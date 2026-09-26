@@ -1,6 +1,6 @@
 # Rules — [Agent name]
 
-Constraints specific to this agent. Generic repo rules live in the project's `AGENTS.md` ([agents.md](https://agents.md/) format) and `.cursor/rules/`.
+Constraints specific to this agent. Generic repo rules live in the project's `AGENTS.md` ([agents.md](https://agents.md/) format).
 
 ## Must
 
@@ -16,4 +16,4 @@ Constraints specific to this agent. Generic repo rules live in the project's `AG
 
 ## Related enforcement
 
-- [Link to `.cursor/rules/` or `.cursor/skills/` if this agent has a Cursor-loaded counterpart]
+- [Link to the relevant feature-loop stage or job-card skill, if applicable]

@@ -1,6 +1,6 @@
 # Rules — Legacy system assessment agent
 
-Constraints specific to this agent. Generic repo rules live in the project's `AGENTS.md` ([agents.md](https://agents.md/) format) and `.cursor/rules/`.
+Constraints specific to this agent. Generic repo rules live in the project's `AGENTS.md` ([agents.md](https://agents.md/) format).
 
 Section numbers (§§1–78) are stable — [orchestrator.md](./orchestrator.md), [workers.md](./workers.md), and [dag.json](./dag.json) reference them. Do not renumber.
 

@@ -29,7 +29,3 @@ Methodology: [PIV — Plan, Implementation, Validation](../../systems/agentic-co
 | [rule.md](./rule.md) | Phase ordering, PASS/FAIL stop conditions, loop-back to Implement vs Plan |
 
 Architecture: [validation-layer.md](../../systems/validation-layer.md). Prompts: [SKILL.md](./SKILL.md). Constraints: [rule.md](./rule.md).
-
-## Cursor Command
-
-Pair this agent with `/critic` at `.cursor/commands/critic.md` (symlinked to `~/.cursor/commands/`). See [personal-agents-symlinks.md](../../knowledge/setup/personal-agents-symlinks.md).

@@ -59,14 +59,8 @@ Execution contract: [dag.json](./dag.json). Orchestrator mechanics: [orchestrato
 
 ## Quick start
 
-```text
-/legacy-system-assessment-agent Assess <path-to-system> for <decision>.
-Available: <git history / runtime / DB / docs / observability>.
-Unavailable: <what you know is missing>.
-```
+Provide the path to the system, the decision the assessment supports, and
+which evidence sources are available or unavailable. The assessment follows
+the stages in this agent's `SKILL.md` and `dag.json`.
 
 The agent establishes the assessment boundary first (Stage 0), profiles the repo (Stage 1), then fans out evidence workers in parallel. It stops investigating when further evidence is unlikely to change strategy, risk, work breakdown, estimates, or confidence — sufficiently supported decision information over exhaustive archaeology.
-
-## Cursor Command
-
-Pair this agent with `/legacy-system-assessment-agent` at `.cursor/commands/legacy-system-assessment-agent.md` (symlinked to `~/.cursor/commands/`). See [personal-agents-symlinks.md](../../knowledge/setup/personal-agents-symlinks.md).

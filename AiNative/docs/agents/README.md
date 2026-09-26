@@ -16,16 +16,17 @@ Each agent is a folder with three core files tuned for one job.
 
 ## Agents
 
-| Agent | Command | Purpose |
-|-------|---------|---------|
-| [ready](./ready/) | `/ready` | **Live loop agent** — feature-loop pre-flight gate; returns `READY: ok|blocked` ([feature-loop.md](../systems/feature-loop.md)) |
-| [plan-reviewer](./plan-reviewer/) | `/plan-reviewer` | Optional (not on the live graph) — same-model plan quality gate |
-| [critic](./critic/) | `/critic` | **Live loop agent** — adversarial review of plan and implementation after converge ([feature-loop.md](../systems/feature-loop.md)) |
-| [tester](./tester/) | `/tester` | **Live loop agent** — prove the code works and run the project's `validation_commands` ([feature-loop.md](../systems/feature-loop.md)) |
-| [pr-reviewer](./pr-reviewer/) | `/pr-reviewer` | **Live loop agent** — reviews the feature branch; the final gate before publish |
-| [task-groomer](./task-groomer/) | `/task-groomer` | Backlog grooming and Monday/Friday meeting prep |
-| [project-bootstrapper](./project-bootstrapper/) | `/project-bootstrapper` | New-project environment setup from a single spec doc, up to the point PIV Plan starts |
-| [legacy-system-assessment-agent](./legacy-system-assessment-agent/) | `/legacy-system-assessment-agent` | Evidence-backed legacy assessment — strategies, work packages, effort/time/AI-cost estimates with explicit uncertainty |
+| Agent | Hermes use | Purpose |
+|-------|------------|---------|
+| [ready](./ready/) | Feature-loop state | Preflight; returns `READY: ok|blocked` ([feature-loop.md](../systems/feature-loop.md)) |
+| [critic](./critic/) | Feature-loop state | Adversarial review after converge ([feature-loop.md](../systems/feature-loop.md)) |
+| [tester](./tester/) | Feature-loop state | Proves flows and runs project `validation_commands` ([feature-loop.md](../systems/feature-loop.md)) |
+| [pr-reviewer](./pr-reviewer/) | Feature-loop state | Final review before operator-approved publish |
+| [project-bootstrapper](./project-bootstrapper/) | `job` card skill | Makes an enrolled, empty repo ready for feature cards |
+| [prd-writer](./prd-writer/) | Optional `job` card skill | Produces a PRD for project planning or bootstrap |
+| [task-groomer](./task-groomer/) | Optional prompt | Backlog grooming and planning/delivery preparation; not currently registered as a Hermes job skill |
+| [plan-reviewer](./plan-reviewer/), [scout](./scout/) | Optional methodology | Not states on the live feature graph |
+| [legacy-system-assessment-agent](./legacy-system-assessment-agent/) | Standalone methodology | Evidence-backed legacy assessment and decision support |
 
 ## Skill library
 
@@ -42,11 +43,11 @@ Reusable [Agent Skills](https://agentskills.io/home) in [`_skills/`](./_skills/)
 
 ## External agent libraries
 
-Third-party persona collections — borrow prompts or install into Cursor/Claude Code; not part of AiNative PIV agents.
+Third-party persona collections are external reference material, not part of the Hermes feature-loop agents.
 
 | Resource | Description |
 |----------|-------------|
-| [The Agency (agency-agents)](https://github.com/msitarzewski/agency-agents) | Specialized AI agent personas (engineering, design, marketing, PM, etc.) with install scripts for Cursor, Claude Code, Copilot, and other tools |
+| [The Agency (agency-agents)](https://github.com/msitarzewski/agency-agents) | Specialized AI agent personas (engineering, design, marketing, PM, etc.) with setup for multiple coding tools |
 
 ## Add a new agent
 
@@ -56,13 +57,13 @@ Third-party persona collections — borrow prompts or install into Cursor/Claude
 4. Capture agent-specific constraints in `rule.md`
 5. Add supporting prompt files if the workflow has phases
 6. Register the agent in this README table
-7. Create a matching Cursor Command at `.cursor/commands/<agent-name>.md` in AiNative, then run `./scripts/setup-machine.sh` so it is available in every project. See [personal-agents-symlinks.md](../knowledge/setup/personal-agents-symlinks.md).
-8. Tune all three files as you use the agent
+7. If Hermes must dispatch it, wire it to the relevant feature-loop state or named job skill in the control plane. Do not add editor command wrappers or project symlinks.
+8. Tune all three files as the agent is used
 
 ## Related
 
 - Five-part model: [agentic-system.md](../systems/agentic-system.md)
 - Methodology: [PIV — Plan, Implementation, Validation](../systems/agentic-coding.md)
 - Generic templates (not agents): [systems/](../systems/)
-- **App projects:** link agents into other repos — [personal-agents-symlinks.md](../knowledge/setup/personal-agents-symlinks.md)
+- **Managed projects:** Hermes reads the configured AiNative tree read-only and starts Pi workers for assigned states or job skills.
 - Formats: [AGENTS.md](https://agents.md/), [Agent Skills](https://agentskills.io/specification)

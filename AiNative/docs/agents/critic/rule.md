@@ -35,5 +35,5 @@ Constraints for the PIV Validation evaluator. Architecture: [validation-layer.md
 
 ## Related enforcement
 
-- PIV gate: `.cursor/rules/piv-gate.mdc`
+- Live managed-project gates: [feature-loop.md](../../systems/feature-loop.md)
 - [pr-reviewer](../pr-reviewer/) runs only after critic + tester both PASS

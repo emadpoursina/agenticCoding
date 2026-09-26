@@ -18,74 +18,100 @@
 
 ### Tech stack
 
-- Backend
-  - Auth
-- Frontend
-  - Framework
+- Backend and auth
+- Frontend and framework
 - Database
-- Devops
-  - Git/Github
-  - Docker
-- Third-party service
-  - Payment
-  - Deployment
-  - Ai
-- Liberties
+- DevOps (GitHub, Docker, deployment)
+- Third-party services (payments, AI, etc.)
+- Constraints and out-of-scope work
 
 ### PRD
 
 1. Context
 2. User journey
-3. Page list
+3. Page or screen list
 4. Tech stack
 5. Design direction
 
-## Setup
+## Setup and enrollment
 
-### Agent setup
+### 1. Create and clone the repository
 
-Run [project-bootstrapper](../../agents/project-bootstrapper/) with your project documentation file (spec/PRD) to automate the steps below in one pass. Manual steps if doing it yourself:
+Create the GitHub repository, then clone it under the workspace root configured
+for Hermes. The expected directory is `<workspace-root>/<project-id>`; by
+default the project ID is derived from the repository name. Set the correct
+default branch before enrolling. Clone to that exact directory so the Hermes
+CLI reuses the checkout you prepared.
 
-Add persistent AI rules so agents read your stack and constraints once per session:
+Hermes can clone a missing workspace itself. If you clone it first, onboarding
+reuses it only when its `origin` matches the requested `OWNER/NAME`.
 
-- Link shared agents and rules from AiNative — [personal-agents-symlinks.md](./personal-agents-symlinks.md) (symlink setup + new-project checklist)
-- Copy [ai-rules-template.md](../../systems/ai-rules-template.md) into `.cursor/rules/ai-rules.mdc` (Cursor) — project-specific; not symlinked
-- Add a PIV-gate rule that enforces plan approval before multi-file implementation (adapt `.cursor/rules/piv-gate.mdc` from AiNative — point it at [agentic-coding.md](../../systems/agentic-coding.md) and the critic/tester agents)
-- Fill in project context, stack, and out-of-scope items — see [ai-rules.mdc](../../../.cursor/rules/ai-rules.mdc) in AiNative for a live example
+### 2. Add it to Hermes
 
-When an agent bootstraps a new project, include a local `scratch/` folder for reference files and raw notes during work:
+Create or connect the native Hermes project and board first if needed. Then
+preview and enroll:
 
-- Add `scratch/` to `.gitignore` so nothing temporary is committed
-- Use it for pasted logs, drafts, and other working material — not for canonical docs
-- For agent-to-agent handoffs, use [agent-handoff-template.md](../../systems/agent-handoff-template.md); keep filled copies in `scratch/` until promoted or deleted
-- Promote anything worth keeping into the proper docs layer; delete the rest (see [ENGINEERING-OS.md](../../../ENGINEERING-OS.md#scratch-scratch))
+```bash
+python -m hermes_kanban --config /path/to/default.yaml \
+  --onboard OWNER/NAME --branch DEFAULT_BRANCH --dry-run
 
-### Bootstrap checklist
+python -m hermes_kanban --config /path/to/default.yaml \
+  --onboard OWNER/NAME --branch DEFAULT_BRANCH
+```
 
-- [ ] `scratch/` folder — copy `scratch/README.md` from AiNative; add `scratch/*` and `!scratch/README.md` to `.gitignore` (or use `setup-project.sh`)
-- [Personal agents symlinks](./personal-agents-symlinks.md) — `setup-machine.sh` (once per machine) + `setup-project.sh` in each app repo
-- [Cursor setup](./cursor-setup.md) — MCP, rules, skills, indexing
-- [Local shared services](./local-shared-services.md) — MariaDB, MongoDB, Adminer via Docker
-- Git/Github
-- Project setup
-  - Backend
-  - Database — use shared services; create a DB per project
-  - Frontend
+Onboarding resolves or creates the native Hermes project, checks that its
+Kanban board is readable, records the project in Hermes, and creates only
+missing `README.md`, `AGENTS.md`, and `.ainative/project.yaml` files. It is
+idempotent and fails closed on identity or workspace conflicts. The scaffold
+is committed locally; do not push it unless you explicitly intend to publish
+the scaffold commit. Leave `--push-scaffold` off by default.
+
+`--dry-run` is read-only: it does not create the native Hermes project or its
+board. The matching project and readable board must already exist for the
+preview to complete.
+
+If the board check fails, create or connect the board in Hermes and retry.
+Review the generated files after enrollment. The manifest initially contains
+a placeholder validation command, so ordinary work must wait for the
+bootstrap job below.
+
+### 3. Make the repo ready through a Kanban job
+
+Create a `job` card with `## Skill: project-bootstrapper` and a reference to
+the PRD. The repo must already be enrolled. The [project-bootstrapper](../../agents/project-bootstrapper/)
+confirms ambiguous stack or layout choices with you, scaffolds the app,
+declares dependencies and real `validation_commands`, and fills project rules
+in `AGENTS.md` while preserving Hermes's control-plane section. It writes no
+feature code, runs no installs or tests, and does no Git publishing.
+
+Review the job result and make the publish decision. Once the bootstrap is
+published, use Kanban cards for all further work. PRD-to-card import is an
+optional CLI convenience; the normal workflow is to define the desired work
+directly as cards.
 
 ## Development
 
-Overall process — follow [PIV (Plan, Implementation, Validation)](../../systems/agentic-coding.md).
+The card's `## Path` selects the workflow; internal workflow stages are not
+Kanban cards. See the [live feature loop](../../systems/feature-loop.md).
 
-1. **Plan** — assess complexity, run interrogation (5 / 10 / 20 MCQs with recommended answers), then capture intent and break it into work items (include acceptance criteria, validation layer, and test flows)
-2. **Implementation** — execute work items with small atomic commits
-3. **Validation** — [critic](../../agents/critic/) reviews plan + implementation, then [tester](../../agents/tester/) runs the Plan's test flows; see [validation-layer.md](../../systems/validation-layer.md); loop back to Implement on fixable failures, or to Plan on a misunderstanding
-4. **PR review** — [pr-reviewer](../../agents/pr-reviewer/) is the final gate after Validation passes; a surprise there means Validation missed something
+- `feature` — desired outcome; full spec/plan/implementation/review flow.
+- `change` — a small, already-specified code change.
+- `job` — one named skill, such as project bootstrap or PRD writing.
+
+Hermes dispatches one Pi session per agent state, keeps workflow state outside
+the Kanban work items, and parks for operator decisions when needed. The UAT
+policy is still being refined; it is not an onboarding prerequisite.
 
 ## Design
 
 - Style design guide
 - Buttons
 - Typography
+
+## Local services
+
+[Local shared services](./local-shared-services.md) documents MariaDB,
+MongoDB, and Adminer via Docker. Create a database per project.
 
 ## Deployment
 

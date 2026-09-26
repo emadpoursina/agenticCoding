@@ -6,11 +6,8 @@ Evergreen technical knowledge — updated in place, no dates. Copy-paste code li
 
 | File | Topic |
 |------|-------|
-| [new-project.md](./setup/new-project.md) | Planning, PRD, development phases, design, deployment |
-| [cursor-setup.md](./setup/cursor-setup.md) | MCP, rules, skills, indexing |
-| [ponytail.md](./setup/ponytail.md) | Lazy-senior Cursor rule — `~/.cursor/rules/` for CLI; optional IDE symlink |
-| [harness.md](./setup/harness.md) | Tmux + Cursor CLI — agent runtime layout (part 1 of agentic system) |
-| [personal-agents-symlinks.md](./setup/personal-agents-symlinks.md) | `setup-machine.sh` / `setup-project.sh` — global commands + per-project agent symlinks |
+| [new-project.md](./setup/new-project.md) | PRD, Hermes enrollment, bootstrap job, and Kanban handoff |
+| [harness.md](./setup/harness.md) | Hermes/Pi runtime contract |
 | [server-setup.md](./setup/server-setup.md) | SSH keys, users, remote access |
 | [local-shared-services.md](./setup/local-shared-services.md) | Local Docker databases (MariaDB, MongoDB, Adminer) |
 

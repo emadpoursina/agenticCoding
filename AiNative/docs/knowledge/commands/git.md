@@ -1,6 +1,6 @@
 # Git commands
 
-- Sync current branch with `development`: `/sync-branch` (or `./scripts/setup-machine.sh` after adding new global commands)
+- Sync the current branch with `development` using the repository's documented Git workflow.
 - Removing a branch: `git branch -D [branch-name]`
 - Creating a branch from development:
   - `git checkout development`

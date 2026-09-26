@@ -35,7 +35,3 @@ Skip for: single-file fixes, typo/config fixes (already exempt from PIV per `piv
 |------|---------|
 | [SKILL.md](./SKILL.md) | Brief template, Repo Q&A rules, read-only retrieval rules, stop condition |
 | [rule.md](./rule.md) | Tier 3 enforcement, read-only constraints, escalation |
-
-## Cursor Command
-
-Pair this agent with `/scout` at `.cursor/commands/scout.md` (symlinked to `~/.cursor/commands/`). See [personal-agents-symlinks.md](../../knowledge/setup/personal-agents-symlinks.md).

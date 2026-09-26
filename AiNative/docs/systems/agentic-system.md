@@ -1,14 +1,17 @@
 # Agentic system
 
-Every agentic system has five parts. AiNative documents each part in one canonical location — tune the parts independently as models, tools, and workflows evolve.
+Every agentic system has five parts. For managed projects, AiNative defines
+the methodology and Hermes is the control plane that dispatches work through
+Kanban and Pi. Keep runtime configuration in Hermes and project-specific
+context in the project.
 
-| Part | What it is | Where in this repo |
-|------|------------|-------------------|
-| [Harness](#1-harness) | Runtime environment where agents run | [harness.md](../knowledge/setup/harness.md) |
-| [Model](#2-model) | Which LLM for which phase | This doc § Model; Validation: [validation-layer.md](./validation-layer.md#model-selection) |
-| [Context](#3-context) | What the model sees — rules, specs, docs | [agentic-coding.md](./agentic-coding.md) § AI layer; project `.cursor/rules/` |
-| [Tools](#4-tools) | What the agent can invoke beyond the model | MCP + terminal — [cursor-setup.md](../knowledge/setup/cursor-setup.md) |
-| [Agents](#5-agents) | Per-task workflows and prompts | [agents/](../agents/) |
+| Part | What it is | Source of truth |
+|------|------------|-----------------|
+| [Harness](#1-harness) | Runtime and isolation for managed work | [feature-loop.md](./feature-loop.md), Hermes configuration |
+| [Model](#2-model) | Model selection for each state | Hermes configuration |
+| [Context](#3-context) | Project rules, specs, and methodology | Project `AGENTS.md`, `.ainative/project.yaml`, and this repository |
+| [Tools](#4-tools) | Capabilities available to workers and control plane | Pi worker contract and Hermes configuration |
+| [Agents](#5-agents) | Per-state skills and job-worker instructions | [agents/](../agents/) |
 
 ```mermaid
 flowchart LR
@@ -18,25 +21,21 @@ flowchart LR
   T[Tools] --> A
 ```
 
-Methodology for building with agents: [agentic-coding.md](./agentic-coding.md) (PIV — Plan, Implementation, Validation). The AI layer in that doc is **Context**; PIV phases map to **Agents**.
+The live managed-project workflow is [feature-loop.md](./feature-loop.md).
+[agentic-coding.md](./agentic-coding.md) documents the historical PIV
+methodology; do not treat it as a second live workflow.
 
 ---
 
 ## 1. Harness
 
-The environment agents run in — not the model, not the prompts.
+The managed-project runtime is Hermes plus Pi. Hermes owns the board,
+worktree isolation, state transitions, human gates, and publish decision. It
+starts one fresh Pi session for each agent state, in the task worktree.
 
-**Stack:** Tmux + Cursor CLI.
-
-**Layout:** One tmux session per project, one window, three panes left to right:
-
-| Pane | Role |
-|------|------|
-| Agent | Cursor CLI — PIV agents (`/scout`, `/critic`, etc.) |
-| Terminal | Shell work — git, scripts, one-off commands |
-| Services | Long-running project processes — dev server, `docker compose`, watchers |
-
-Setup and session conventions: [harness.md](../knowledge/setup/harness.md).
+Workers return a compact report and exit. They do not own the workflow,
+Kanban, GitHub publishing, or deployment. Runtime details are in
+[feature-loop.md](./feature-loop.md) and the `personalAgent` operator docs.
 
 ---
 
@@ -55,11 +54,12 @@ Model names change as providers ship newer versions, so no specific model is pin
 
 **Rules:**
 
-- Tier 0 is the fallback when the personalAgent is not sure which tier fits — cheap, low-tier model; escalate to a specific tier once the task type is clear.
-- Tier 1 is for reasoning — not execution or bulk implementation.
-- Tier 2 handles implementation when blast radius is bounded; escalate to Tier 1 + full PIV when touching many files or unclear requirements.
-- Tier 3 is for speed-sensitive execution — not planning or adversarial review.
-- Critic and tester run on a model **distinct** from Plan and Implementation — new chat, different tier.
+- Hermes configuration owns provider and model selection; card profiles name
+  execution roles, not providers.
+- Use distinct review models where the configured validation policy requires
+  independent critic/tester review.
+- Do not put provider names or credentials in project cards or AiNative
+  agent definitions.
 
 ---
 
@@ -67,17 +67,19 @@ Model names change as providers ship newer versions, so no specific model is pin
 
 What fills the context window — rules, project standards, and selectively loaded docs.
 
-**AI layer** — markdown about the project (standards, conventions, codebase map) plus progressive disclosure:
+Project context is loaded from project-owned files and artifacts, using
+progressive disclosure:
 
 1. Index file + detail files so agents load only what they need.
 2. Each detail file maps to a specific part of the code.
 3. Keep files small — context window is for coding, not dumping the repo.
 
-**Cursor rules** — `.cursor/rules/` (`engineering-os.mdc`, `ai-rules.mdc`, `Commit-style.mdc`, `piv-gate.mdc`). A bad rule produces bad code across all features; grow rules when agents repeat the same mistake.
+**Project rules** — keep stack, constraints, and working agreements in the
+project's `AGENTS.md`. Declare workflow and validation commands in
+`.ainative/project.yaml`.
 
-**Indexing** — index the repo for `@codebase`; prefer `@files` over whole-repo scans. See [cursor-setup.md](../knowledge/setup/cursor-setup.md#indexing-and-docs).
-
-Full Context guidance (progressive disclosure, MCP context discipline, terminal-as-environment): [agentic-coding.md](./agentic-coding.md) § AI layer.
+**Methodology** — `/ainative` is mounted read-only for managed work. Project
+specifications and plans remain in the project repository.
 
 ---
 
@@ -85,10 +87,11 @@ Full Context guidance (progressive disclosure, MCP context discipline, terminal-
 
 What agents invoke beyond generation — scoped narrowly so context stays clean.
 
-| Tool | Scope | Setup |
+| Tool | Scope | Owner |
 |------|-------|-------|
-| **MCP** | External capabilities — database, Stripe, Firebase, etc. | [cursor-setup.md](../knowledge/setup/cursor-setup.md#mcp) |
-| **Terminal** | Shell commands, git, scripts, local toolchain | Harness terminal pane; agent shell access in Cursor CLI |
+| **Pi tools** | Read, edit, test, and inspect code for one assigned state | Hermes harness configuration and worker contract |
+| **Kanban / GitHub / Telegram** | Cards, publish operations, and human notifications | Hermes control plane |
+| **Project services** | Databases, payments, deployment, and other integrations | Project configuration and explicitly granted worker tools |
 
 When using MCP, avoid poorly scoped server handling that fills context with tool metadata. Browser/E2E and other tools may be added here as the system grows.
 
@@ -96,18 +99,20 @@ When using MCP, avoid poorly scoped server handling that fills context with tool
 
 ## 5. Agents
 
-Per-task workflows — each agent is a folder with `AGENTS.md`, `SKILL.md`, and `rule.md`.
+Per-task workflows are folders with `AGENTS.md`, `SKILL.md`, and `rule.md`.
+Hermes dispatches these definitions for required feature-loop states or a
+named job card; no editor command or per-project symlink is required.
 
-| Agent | PIV phase | Command |
-|-------|-----------|---------|
-| [scout](../agents/scout/) | Pre-Plan (indexing + on-demand repo Q&A) | `/scout` |
-| [plan-reviewer](../agents/plan-reviewer/) | Plan gate (same-model plan check, auto-run by the planner) | `/plan-reviewer` (manual fallback) |
-| [critic](../agents/critic/) | Validation (review) | `/critic` |
-| [tester](../agents/tester/) | Validation (execute) | `/tester` |
-| [pr-reviewer](../agents/pr-reviewer/) | After Validation | `/pr-reviewer` |
-| [task-groomer](../agents/task-groomer/) | Backlog / meetings | `/task-groomer` |
-| [project-bootstrapper](../agents/project-bootstrapper/) | New project setup | `/project-bootstrapper` |
-| [legacy-system-assessment-agent](../agents/legacy-system-assessment-agent/) | Standalone (evidence → strategy → estimate) | `/legacy-system-assessment-agent` |
+| Agent | Managed-project role |
+|-------|-----------------------|
+| [ready](../agents/ready/) | Required feature-loop preflight |
+| [critic](../agents/critic/) | Required adversarial review after converge |
+| [tester](../agents/tester/) | Required project validation |
+| [pr-reviewer](../agents/pr-reviewer/) | Required final review before publish |
+| [project-bootstrapper](../agents/project-bootstrapper/) | Job-card setup for an enrolled, empty repo |
+| [prd-writer](../agents/prd-writer/) | Optional PRD-writing job |
+| [task-groomer](../agents/task-groomer/) | Optional card-grooming job |
+| [scout](../agents/scout/), [plan-reviewer](../agents/plan-reviewer/) | Optional methodology; not live feature-loop states |
 
 Agent library and file contract: [8. agents/README.md](../agents/README.md).
 
@@ -121,5 +126,5 @@ PIV methodology (Plan → Implementation → Validation loops, handoffs, commit 
 - [agentic-coding.md](./agentic-coding.md) — PIV methodology and AI layer (Context)
 - [validation-layer.md](./validation-layer.md) — Validation architecture and model separation
 - [agent-handoff-template.md](./agent-handoff-template.md) — structured handoffs between agents
-- [harness.md](../knowledge/setup/harness.md) — Tmux + Cursor CLI layout
-- [cursor-setup.md](../knowledge/setup/cursor-setup.md) — MCP, rules, commands, indexing
+- [feature-loop.md](./feature-loop.md) — live Hermes/Pi execution graph
+- [new-project.md](../knowledge/setup/new-project.md) — project enrollment and bootstrap handoff

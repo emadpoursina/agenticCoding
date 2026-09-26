@@ -1,6 +1,6 @@
 # Rules — Scout agent
 
-Constraints specific to this agent. Generic repo rules live in the project's `AGENTS.md` ([agents.md](https://agents.md/) format) and `.cursor/rules/`.
+Constraints specific to this agent. Generic repo rules live in the project's `AGENTS.md` ([agents.md](https://agents.md/) format).
 
 ## Must
 
@@ -29,7 +29,5 @@ Constraints specific to this agent. Generic repo rules live in the project's `AG
 
 ## Related enforcement
 
-- [piv-gate.mdc](../../../.cursor/rules/piv-gate.mdc) — scout is the pre-Plan step before the planner's interrogation
-- [ponytail.md](../../knowledge/setup/ponytail.md) — "trace the real flow end to end, then climb"; "grep every caller"
-- [script-writing.mdc](../../../.cursor/rules/script-writing.mdc) — scout is read-only, so the dry-run/force flags do not apply, but the validate-preconditions spirit does
+- [feature-loop.md](../../systems/feature-loop.md) — current managed-project workflow and agent boundaries
 - [agentic-coding.md](../../systems/agentic-coding.md) — where the planner invokes Repo Q&A during interrogation

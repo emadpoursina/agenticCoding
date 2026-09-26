@@ -1,4 +1,4 @@
-# **AI-Powered PR Review System (Cursor Workflow)**
+# **AI-Powered PR Review System**
 
 A structured system to use AI effectively for reviewing pull requests without noise, overwhelm, or shallow feedback.  
 ---

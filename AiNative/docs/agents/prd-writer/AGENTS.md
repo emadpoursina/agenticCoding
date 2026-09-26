@@ -38,7 +38,3 @@ This file is the agent's instruction surface in the open [AGENTS.md](https://age
 |------|---------|
 | [SKILL.md](./SKILL.md) | Discovery interrogation protocol, PRD sections and templates, quality checklist |
 | [rule.md](./rule.md) | Constraints — question minimum, no writing before discovery, PRD must be complete |
-
-## Cursor Command
-
-Pair this agent with `/prd-writer` at `.cursor/commands/prd-writer.md` (symlinked to `~/.cursor/commands/`). See [personal-agents-symlinks.md](../../knowledge/setup/personal-agents-symlinks.md).

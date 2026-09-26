@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Validate relative links in markdown docs. Resolves links relative to the
-// containing file; also accepts repo-root-relative paths (e.g. `docs/agents/x`
-// used inside `.cursor/rules/*.mdc`). Exits non-zero on any broken link.
+// containing file; also accepts repo-root-relative paths (e.g. `docs/agents/x`).
+// Exits non-zero on any broken link.
 //
 //   node scripts/check-doc-links.mjs [root]
 

@@ -6,10 +6,10 @@ Workflow context: [pr-review-system.md](../../systems/pr-review-system.md).
 
 ## When to use
 
-- Reviewing any pull request in Cursor
+- Reviewing a pull request; in the Hermes feature loop this is the final gate after validation
 - Feature PRs in existing subsystems — always run Phase 1.5
 - Large PRs — use diff compression first
-- After the PIV Validation phase (critic + tester) passes — pr-reviewer is the final gate; a surprise here means Validation missed something
+- After critic and tester report PASS — pr-reviewer is the final gate; a surprise here means validation missed something
 
 ## Inputs
 
@@ -51,7 +51,3 @@ production impact, database/auth/api implications. Do not review yet.
 ```
 
 For feature PRs in existing subsystems, attach context and run Phase 1.5 before Phase 2. See [SKILL.md](./SKILL.md) for all phase prompts.
-
-## Cursor Command
-
-Pair this agent with `/pr-reviewer` at `.cursor/commands/pr-reviewer.md` (symlinked to `~/.cursor/commands/`). See [personal-agents-symlinks.md](../../knowledge/setup/personal-agents-symlinks.md).

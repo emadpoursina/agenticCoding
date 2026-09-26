@@ -19,7 +19,6 @@ It works inside Git. It requires no external tools. It stays alive through three
 ```text
 AiNative/
 ├── README.md
-├── .cursor/rules/                 # Cursor rules (engineering-os, ai-rules, Commit-style)
 │
 ├── docs/
 │   ├── README.md
@@ -30,12 +29,11 @@ AiNative/
 │   │   ├── release-management-system.md
 │   │   ├── client-compatibility-system.md
 │   │   ├── agentic-system.md          # AI methodology (Harness, Model, Context, Tools, Agents)
-│   │   ├── feature-loop.md            # Live feature loop (Hermes / Cursor)
+│   │   ├── feature-loop.md            # Live managed-project feature loop (Hermes / Pi)
 │   │   ├── agentic-coding.md          # Historical PIV (not live Hermes)
 │   │   ├── validation-layer.md
 │   │   ├── agent-handoff-template.md
 │   │   ├── system-understanding-brief-template.md
-│   │   ├── cursor-rules.md
 │   │   └── ai-rules-template.md
 │   │
 │   ├── agents/                        # Per-task AI agents — AGENTS.md, SKILL.md, rule.md
@@ -242,8 +240,8 @@ The structure is designed so retrieval requires no search. The folder names are 
 | Agent handoff between AI passes | `systems/agent-handoff-template.md` |
 | A per-task AI agent | `agents/<name>/` — start with `AGENTS.md` |
 | Agentic system (five parts) | `systems/agentic-system.md` |
-| Harness setup (Tmux + Cursor CLI) | `knowledge/setup/harness.md` |
-| Live feature loop (Hermes / Cursor) | `systems/feature-loop.md` |
+| Hermes/Pi runtime | `knowledge/setup/harness.md` |
+| Live managed-project feature loop | `systems/feature-loop.md` |
 | Historical PIV (not the live stage list) | `systems/agentic-coding.md` |
 | Validation layer architecture | `systems/validation-layer.md` |
 | PIV Validation — adversarial review | `agents/critic/` |

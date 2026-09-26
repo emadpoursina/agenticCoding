@@ -9,7 +9,7 @@ Keep docs, comments, and changelogs in sync with what shipped.
 
 ## What to update
 
-1. **`.cursor/rules/ai-rules.mdc` / README.md** — new env vars, scripts, modules, dependencies (concise, AI context only)
+1. **Project `AGENTS.md` / README.md** — new env vars, scripts, modules, dependencies (concise, project context only)
 2. **Inline comments** — one minimal line before each function stating what it does; elsewhere prefer WHY not WHAT; flag non-obvious business logic; mark workarounds with `TODO: [reason]`
 3. **Changelog** — Added / Changed / Fixed bullets, one sentence each, no implementation details
 4. **Commit message** — Conventional Commits format
@@ -19,4 +19,4 @@ Keep docs, comments, and changelogs in sync with what shipped.
 - After making changes, update related documentation if it exists
 - Do not document what is already clear from code
 - Do not update docs for unchanged files
-- `.cursor/rules/ai-rules.mdc` stays concise — read on every session
+- Project `AGENTS.md` stays concise and current — it is the agent-instructions entry point

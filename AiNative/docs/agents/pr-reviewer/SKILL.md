@@ -55,7 +55,7 @@ Output:
 Do not run security, reliability, or performance review yet.
 ```
 
-**Example opener (Cursor):**
+**Example review request:**
 
 ```text
 I'm reviewing PR #[N]. Subsystem: Dynamic Transcribe.

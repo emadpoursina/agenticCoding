@@ -30,7 +30,3 @@ real validation commands, and project `AGENTS.md` — no feature code, no git.
 |------|---------|
 | [SKILL.md](./SKILL.md) | Bootstrap steps, park/resume stack confirmation, report shape, feature-loop handoff |
 | [rule.md](./rule.md) | Constraints — confirm before scaffolding, no feature code, no git, preserve control-plane section |
-
-## Cursor Command
-
-Pair this agent with `/project-bootstrapper` at `.cursor/commands/project-bootstrapper.md` (symlinked to `~/.cursor/commands/`). See [personal-agents-symlinks.md](../../knowledge/setup/personal-agents-symlinks.md).

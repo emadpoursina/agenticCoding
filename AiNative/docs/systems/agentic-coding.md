@@ -1,10 +1,9 @@
 # Agentic coding system
 
 **Live feature workflow is not this file.** Use
-[feature-loop.md](./feature-loop.md) (Hermes + Cursor). This document is
-the older homemade PIV write-up (scout, plan-reviewer, critic, tester).
-Keep it for optional small Cursor-only work; do not treat it as what
-Hermes runs.
+[feature-loop.md](./feature-loop.md) for managed-project work. This document
+is the older homemade PIV write-up (scout, plan-reviewer, critic, tester),
+kept as historical methodology; do not treat it as what Hermes runs.
 
 Canonical five-part model (Harness, Model, Context, Tools, Agents): [agentic-system.md](./agentic-system.md).
 

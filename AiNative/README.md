@@ -58,11 +58,10 @@ flowchart LR
 ## Getting started (personal)
 
 1. **Read the OS spec** — [ENGINEERING-OS.md](./ENGINEERING-OS.md) (5 min)
-2. **Cursor agents** — from this repo, `./scripts/setup-machine.sh` once, then `./scripts/setup-project.sh ~/path/to/app` for each app ([personal-agents-symlinks.md](./docs/knowledge/setup/personal-agents-symlinks.md))
-3. **Use scratch** — `scratch/` is for temp files and agent working material (gitignored; see `scratch/README.md`)
-4. **Pick one workflow** — start with [task management](./docs/systems/task-management-system.md) on one board
-5. **Use PR review on your next change** — prompts in [pr-reviewer agent](./docs/agents/pr-reviewer/)
-6. **Run Friday review** — promote scratch, update knowledge, delete junk (15 min)
+2. **Enroll a managed project** — follow the Hermes steps in [new-project.md](./docs/knowledge/setup/new-project.md)
+3. **Define work as Kanban cards** — Hermes dispatches the matching AiNative or project skill through Pi
+4. **Use scratch** — `scratch/` is for temporary notes (gitignored; see `scratch/README.md`)
+5. **Run Friday review** — promote useful notes, update knowledge, delete junk (15 min)
 
 After two weeks, add the next system. Do not introduce everything at once.
 
@@ -92,7 +91,6 @@ After two weeks, add the next system. Do not introduce everything at once.
 AiNative/
 ├── README.md
 ├── ENGINEERING-OS.md              # Architecture spec
-├── .cursor/rules/                 # Cursor rules (incl. engineering-os, ai-rules)
 ├── scratch/                       # gitignored temp — README only is tracked
 └── docs/
     ├── README.md

@@ -1,15 +1,14 @@
 # Ready
 
 Ready is the pre-flight gate at the start of the live feature loop
-([feature-loop.md](../systems/feature-loop.md)). Ready confirms the repo can
+([feature-loop.md](../../systems/feature-loop.md)). Ready confirms the repo can
 support the loop before the first Spec Kit session starts: git state, Spec
 Kit layout, and the feature branch. Ready never writes spec content, never
 starts `specs/`, and never publishes.
 
 ## When to invoke
 
-- The orchestrator (Cursor `/speckit-orchestrate` or Hermes) starts a new
-  feature loop. Ready is the first state.
+- Hermes starts a new feature loop. Ready is the first state.
 - Re-run Ready after `READY: blocked` is fixed. A stable `READY: blocked`
   stops the run; the orchestrator parks it.
 

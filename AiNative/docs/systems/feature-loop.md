@@ -1,131 +1,92 @@
 # Feature loop
 
-Canonical live workflow for a full feature. This replaces homemade PIV as
-the **loop every orchestrator runs**. PIV agents still exist; they are
-states on this graph, not a second machine.
+Canonical live workflow for managed-project work. **Hermes** runs this graph
+from the project's Kanban board. PIV agent definitions are stages on this
+graph, not a second workflow.
 
 Related: five-part model in [agentic-system.md](./agentic-system.md).
 Historical PIV text: [agentic-coding.md](./agentic-coding.md) (do not use
 it as the live stage list).
 
-**Apply slice:** change **Hermes** (`personalAgent`) to this graph. Cursor
-`/speckit-orchestrate` already runs the parent pattern in the IDE; do
-not edit it in the Hermes implementation pass.
-
 ## Layers
 
-One graph. Two orchestrators. Worker backends are swappable.
+One graph, one control-plane orchestrator, one worker runtime.
 
 ```text
-AiNative feature-loop.md     ← the graph (this file)
+AiNative feature-loop.md  ← the graph (this file)
         │
-        ├─ Cursor parent     ← /speckit-orchestrate (you in the IDE)
-        │     workers: Cursor Task  OR  Pi via /pi-harness
-        │
-        └─ Hermes parent     ← personalAgent (Kanban / unattended)
-              workers: Pi only
+        └─ Hermes parent    ← personalAgent (Kanban / unattended)
+              workers: one Pi session per agent state
 ```
 
-`/speckit-orchestrate` is **not** a third loop and **not** a Spec Kit
-skill. It is the Cursor **parent**: same job as Hermes (state, dispatch,
-check report, human relay, stuck policy). Do not copy this graph into
-that skill; the skill may only add Cursor mechanics (Task slugs, Pi
-fallback, `FLOW_ID`, chat relay).
-
-`/pi-harness` is **not** an orchestrator. It is one **worker backend**:
-spawn Pi, keep events on disk, return `report.json`. Hermes has its own
-Pi adapter. A worker never learns the next state.
+Hermes owns state, dispatch, report checks, human relays, retries, and
+publishing. A Pi worker executes only the one state Hermes assigned; it never
+chooses the next state.
 
 ## Split of ownership
 
 | Layer | Owns | Does not own |
 |---|---|---|
 | **AiNative** (this tree) | What the loop is. Which states exist. Which agent kind runs a state. Compact-report expectations. Human gates vs agent states. | Kanban, worktrees, Pi process, GitHub, Telegram, enrolled-project source. |
-| **Spec Kit** (in the **project**) | How specify / clarify / plan / tasks / analyze / implement / converge write native artifacts. | The graph. Skip/confirm/UAT policy. Publish. |
-| **Orchestrator** | Current state. Start/stop **one worker per agent state**. Check the report. Advance, retry, or park. Human gates. | Following any stage skill itself. One-shot “run all of Spec Kit.” |
-| **Cursor parent** | `/speckit-orchestrate` in this chat. Chooses Task vs Pi per stage. Relays questions in the parent thread. Repo is usually the current workspace. | Writing spec/plan/tasks or implementing in the parent. |
-| **Hermes parent** | `personalAgent`. Kanban, isolated `feature/task-<id>` worktree, Telegram park, GitHub publish. Always Pi. | Cursor Task. Running skills in-process. |
-| **Worker** (Task or Pi) | Execute the **one** step the parent named. Read that skill. Write artifacts. Compact report. Exit. | The flow. Next state. Skip/confirm/UAT. Publish. Merge. AiNative writes. |
+| **Spec Kit** (in the project) | How specify / clarify / plan / tasks / analyze / implement / converge write native artifacts. | The graph. Skip/confirm/UAT policy. Publish. |
+| **Hermes parent** (`personalAgent`) | Kanban, current state, isolated task worktree, one worker per state, report checks, retries, human gates, Telegram, GitHub publish. | Following stage skills in-process; one-shot “run all of Spec Kit.” |
+| **Pi worker** | Execute the **one** step Hermes named. Read that skill. Write artifacts. Return a compact report. Exit. | The flow. Next state. Skip/confirm/UAT policy. Publish. Merge. AiNative writes. |
 
-## Two agent kinds
+## Agent and skill sources
 
-Same thing to the orchestrator: a named state, a skill, artifacts, a
-compact report.
+To Hermes, each agent state is a named skill, artifacts, and a compact
+report.
 
-1. **AiNative** — folders under `docs/agents/`. Live required: Ready
-   (`docs/agents/ready/`, promoted), critic, tester, pr-reviewer.
-   Optional later (not V0): scout, plan-reviewer.
-2. **Spec Kit** — project skills
+1. **AiNative agents** — folders under `docs/agents/`. Live required: Ready,
+   critic, tester, and pr-reviewer. Other agents may be used by an explicitly
+   named job or remain optional.
+2. **Spec Kit** — project skills, normally stored under
    `.cursor/skills/speckit-{specify,clarify,plan,tasks,analyze,implement,converge}/SKILL.md`.
+   Hermes/Pi reads these files as skill inputs; this does not require a Cursor
+   runtime, command, or symlink.
 
-The parent maps a state to a skill path and starts **one** worker. It
-does not in-process run the skill.
+Hermes maps each state to a skill path and starts **one** worker. It does not
+run skills in-process.
 
 ## Executor rule
 
 ```text
-Parent: what state? → start a new worker for that step only
-Worker: do the step → compact report → exit
-Parent: check → next state, retry, or park for a human
+Hermes: what state? → start a new Pi worker for that step only
+Pi: do the step → compact report → exit
+Hermes: check → next state, retry, or park for a human
 ```
 
-- **New worker every agent state** (new Cursor Task, or new Pi spawn via
-  pi-harness / Hermes Pi adapter). Never one process that runs Ready
+- **New Pi process every agent state.** Never one process that runs Ready
   through converge.
 - Worker prompts are stage-dumb: worktree, step name, skill path, inputs
   on disk, report schema. If the prompt says “then run clarify,” the
   playbook has leaked back in.
-- The parent never writes `spec.md`, `plan.md`, `tasks.md`, or
-  application code because “context is already loaded.”
+- Hermes never writes `spec.md`, `plan.md`, `tasks.md`, or application code
+  from the parent process because “context is already loaded.”
 
-### Cursor worker choice
+## Hermes runtime
 
-`/speckit-orchestrate` already: Luna-named stages prefer Cursor Task
-(`gpt-5.6-luna-xhigh`); if that slug is missing, spawn Pi with
-`/pi-harness`. Grok-named stages (`analyze`, `converge`) stay Task
-(`cursor-grok-4.6-medium`); no silent model swap. Hermes has no Task
-runtime, so every Hermes agent state is Pi.
+- Kanban is the only task source of truth. Hermes uses one concurrent slot,
+  an isolated `feature/task-<id>` worktree, read-only `/ainative`, and the
+  existing Telegram park/resume and GitHub PR paths.
+- Hermes records internal states in its overlay; the board contains work
+  cards, not cards for `ready`, `plan`, `tester`, or other internal stages.
+- Every agent state starts one new Pi process with a one-step request and a
+  compact report contract. Pi never publishes, pushes, merges, or deploys.
+- A Feature Card uses the `task-generator` profile. After planning produces
+  `tasks.md`, Hermes creates child Task Cards on the same board. Each child
+  is independently executable by an `executor`; the parent stays open until
+  all children are complete and feature-level validation passes.
+- The feature-level critic/tester and operator gates belong to the parent
+  Feature Card, not its child cards. UAT is an operator step in the current
+  graph; its exact triggering and board presentation remain under active
+  policy work.
+- Keep project rules in `AGENTS.md` and project validation commands in
+  `.ainative/project.yaml`. Hermes links to this file rather than copying
+  the graph into its dispatcher instructions.
 
-Critic, tester, and pr-reviewer on Cursor use the same rule: one new
-worker each (Task or Pi), AiNative skill path, compact PASS/FAIL. Do not
-run them in the parent chat. **Hermes never uses Cursor Task.**
-
-## Hermes runtime (what to build)
-
-Keep: Kanban as only task SoT, one concurrent slot, isolated
-`feature/task-<id>` worktree, read-only `/ainative`, Telegram
-park/resume, GitHub feature-branch PR, no merge/deploy, Pi never
-publishes.
-
-**Add**
-
-- Promoted Ready agent `docs/agents/ready/` (the single Ready definition).
-- Overlay **state machine** with the graph below (`ready` … `publish`), with the graph below (`ready` … `publish`),
-  not `execution` then shell `validation` then GitHub.
-- Harness request = **one step id** + skill path + compact report. **New
-  Pi process per agent state.**
-- First state **Ready** (the promoted AiNative `docs/agents/ready/`).
-- Spec Kit states as Hermes states, including implement↔converge and
-  fingerprint stuck.
-- **critic → tester → UAT → pr-review** then publish. Tester runs
-  project `validation_commands`.
-- `AGENTS.md` **links** this file; dispatcher text only.
-
-**Remove** (live path only)
-
-- One-shot Pi playbook `speckit-orchestrate` (whole specify…converge in
-  one `pi --mode rpc`).
-- Config treating `playbook: speckit-orchestrate` as “run the flow.”
-- Resume that **restarts the whole playbook** after one human answer.
-- `_run_validation` (project checks) as the gate that unlocks GitHub
-  without critic/tester/UAT/pr-review.
-- `AGENTS.md` line forbidding Hermes-owned stages / requiring one
-  playbook.
-- Live use of leftover roles `scout` / `specs-planner` / `builder`.
-  Do not restore those agents.
-
-Do not copy this graph into Hermes. Do not rebuild Telegram or a second
-task DB. Park in-flight 013 whole-playbook overlays for a human.
+Do not rebuild Telegram or add a second task database. In-flight 013
+whole-playbook overlays stay parked until a human acknowledges them.
 
 ## Card paths
 
@@ -135,7 +96,7 @@ A missing path is `feature`.
 
 | Path | When | Graph |
 |---|---|---|
-| `feature` | Product work that needs a spec, a plan, and review | The graph below |
+| `feature` | A desired product outcome that needs a spec, plan, and review | The graph below; planning creates child Task Cards |
 | `change` | A small code edit already specified by the card | `ready` → one worker → `tester` |
 | `job` | Work that is not a code change (write a PRD, bootstrap from a PRD) | One worker for the named skill. It may park for a human. After the worker reports `STATUS: ok` it parks for the operator's publish decision: approval commits, pushes the job branch, and opens a pull request; decline completes without publishing. It does not enter the feature graph |
 
@@ -151,11 +112,9 @@ only.
 
 This graph is the `feature` path. Orchestrator-specific **edges** (not extra loops):
 
-- **Hermes:** pick Kanban card, isolate worktree, Telegram for human
-  gates, GitHub after pr-review.
-- **Cursor:** current repo / branch from Ready, human gates in this
-  chat, publish only if you asked (otherwise stop after pr-review with
-  the test path).
+- **Hermes:** pick the Kanban card, isolate its worktree, surface human
+  gates on the existing operator path, and publish to GitHub only after
+  required reviews pass and the operator approves.
 
 ```text
 ready
@@ -181,9 +140,9 @@ ready
 | `converge` | Spec Kit | yes | `tasks_appended` (new work) → implement again. Unchanged fingerprint → stuck. Only `converged` exits the loop. |
 | `critic` | AiNative | yes | Adversarial review of spec/plan/implementation. Required. After converge; not a “finish” report. |
 | `tester` | AiNative | yes | Prove the flows. Project `validation_commands` run **here**, not as a parallel parent phase. Required. |
-| `uat` | parent ↔ human | **no** | Operator exercises the feature (use converge/quickstart test path). Pass/fail confirmation. |
+| `uat` | parent ↔ human | **no** | Operator exercises the feature (use converge/quickstart test path). Pass/fail confirmation; exact trigger/presentation policy is being refined. |
 | `pr-review` | AiNative | yes | After UAT pass. |
-| `publish` | parent / GitHub | **no** | Hermes: commit/push/PR on the feature branch. Cursor: only if the operator asked; workers never publish. |
+| `publish` | parent / GitHub | **no** | Hermes commits/pushes and opens a PR on the feature branch only after operator approval; workers never publish. |
 
 **Default publish order** (until explicitly changed): pr-review the
 **branch**, then Hermes opens the PR. Do not open a PR and then treat
@@ -195,8 +154,7 @@ does `confirm` before plan.
 
 ## Compact reports
 
-Reuse the `/speckit-orchestrate` report shapes. The parent parses these;
-it does not scrape worker chat prose.
+The parent parses these report fields; it does not scrape worker chat prose.
 
 Ready: `READY: ok|blocked`, `FLOW_ID`, `BRANCH`, `CHECKS`, `FIXES`.
 
@@ -224,13 +182,10 @@ Human questions are not stuck; they are `confirm` / clarify relay / `uat`.
 
 - Scout → 5/10/20 questions → plan-reviewer → wait for plan approval →
   implement → critic → tester as the **live** path.
-- One Pi identity `speckit-orchestrate` that runs the whole Spec Kit
-  playbook (Hermes 013). The Cursor **command** `/speckit-orchestrate` is
-  the parent, not that playbook.
+- One Pi identity that runs the whole Spec Kit playbook in a single session.
 - A classifier that picks `feature` / `change` / `job` from card prose.
   The path is a field on the card.
-- Parent implementing Spec Kit stages in-process (Cursor or Hermes).
-- `/pi-harness` owning skip/confirm/converge looping.
+- Hermes implementing Spec Kit stages in-process.
 - Converge substituting for critic/tester/UAT.
 - Duplicating this document into Hermes. Hermes **links** here
   (`/ainative/docs/systems/feature-loop.md`) and describes only

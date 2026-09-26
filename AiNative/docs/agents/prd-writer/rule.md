@@ -1,6 +1,6 @@
 # Rules — PRD writer agent
 
-Constraints specific to this agent. Generic repo rules live in the project's `AGENTS.md` and `.cursor/rules/`.
+Constraints specific to this agent. Generic repo rules live in the project's `AGENTS.md`.
 
 ## Must
 
@@ -38,12 +38,12 @@ Constraints specific to this agent. Generic repo rules live in the project's `AG
 After writing the PRD:
 
 1. Tell the user the PRD is ready at the file path
-2. Offer next steps: run [project-bootstrapper](../../agents/project-bootstrapper/) to scaffold the repo from the PRD, or follow [PIV Plan](../../systems/agentic-coding.md) if the repo already exists
+2. Offer the next Kanban step: create a `project-bootstrapper` job card for an enrolled empty repo, or create a feature card if the project is ready
 3. Mention that the Open Questions section should be reviewed with stakeholders before locking the scope
 
 ## Related enforcement
 
 - Discovery interrogation pattern: [agentic-coding.md](../../systems/agentic-coding.md) Plan interrogation
-- Question format rules: `.cursor/rules/asking-questions.mdc`
+- Question format: follow the discovery protocol in [SKILL.md](./SKILL.md)
 - PRD shape expected by project-bootstrapper: [new-project.md § Planning](../../knowledge/setup/new-project.md#planning)
 - EARS format and INCOSE rules: [SKILL.md § PRD structure](./SKILL.md#prd-structure)

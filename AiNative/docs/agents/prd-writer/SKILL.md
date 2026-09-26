@@ -62,7 +62,7 @@ Do not cover every domain for low-complexity projects. Cover all domains for hig
 Rationale: web apps provide the broadest initial audience with a single codebase; mobile can follow post-MVP.
 ```
 
-Source alignment: this matches the [PIV Plan interrogation contract](../../systems/agentic-coding.md) and `.cursor/rules/asking-questions.mdc`.
+Source alignment: this follows the discovery contract in [agentic-coding.md](../../systems/agentic-coding.md); the PRD is handed off as a Kanban job/feature input.
 
 ### Step 5: Batch presentation
 
