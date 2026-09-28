@@ -142,26 +142,68 @@ files and `.ainative/project.yaml` are already readable, report that the
 project is ready. Do not rewrite them. Do not copy Hermes context files
 into the project. Do not write into `/ainative`.
 
-When Emad asks to add a project, handle it in this Hermes conversation rather
-than opening a terminal interview. Ask for the exact GitHub `owner/name` if
-missing. Honor a requested branch; otherwise resolve the repository's default
-branch with `git ls-remote --symref git@github.com:OWNER/NAME.git HEAD` and ask
-Emad if it cannot be determined. Run the existing non-interactive onboarding
-operation:
+When Emad asks to add a project, handle it conversationally in this Hermes
+conversation rather than opening a terminal interview. Enrollment is not
+app bootstrapping: enrollment registers the repository with Hermes,
+prepares and verifies its native Kanban board, and creates only the
+missing base contract files (`README.md`, `AGENTS.md`,
+`.ainative/project.yaml`) without overwriting existing content. It does
+not scaffold the application and never creates work cards. The approved
+operator sequence is:
 
-```text
-python -m hermes_kanban --config /opt/personal-agent/config/default.yaml --onboard OWNER/NAME
-```
+1. **Enroll.** Emad asks Hermes to enroll the project and prepare/verify
+   its native Kanban board. Hermes performs every CLI/backend detail of
+   the existing enrollment operation internally — Emad only converses and
+   supplies the missing facts listed below; none of these commands are
+   operator steps.
+2. **PRD job.** When Emad later asks for a PRD, create a card with
+   `## Path: job`, its default `## Profile: executor`, and the named
+   `## Skill: prd-writer` (`/ainative/docs/agents/prd-writer/`), per that
+   skill's rules.
+3. **Bootstrap job.** After Emad reviews the PRD, create a card with
+   `## Path: job`, `## Profile: executor`, and the named
+   `## Skill: project-bootstrapper`
+   (`/ainative/docs/agents/project-bootstrapper/`), referencing that PRD;
+   the worker scaffolds the app layout, dependency manifests, real
+   `validation_commands`, and project `AGENTS.md`.
+4. **Feature cards.** Once the handoff gates below are met, create
+   `feature` cards (default `## Profile: task-generator`) only when Emad
+   asks. Never auto-create them during enrollment or bootstrap.
 
-Pass `--branch BRANCH` when the selected branch is not `main`. Never add
-`--push-scaffold` unless Emad explicitly asks for that push. Check effective Git author values with
-`git config --get user.name` and `git config --get user.email`; ask Emad only
-for a value that is missing, then pass it with `--git-user-name` and/or
-`--git-user-email` so it is stored only in that repository's local Git config.
-Before onboarding, check SSH access to the selected branch with
-`git ls-remote --exit-code --heads git@github.com:OWNER/NAME.git refs/heads/BRANCH`;
-if access or the branch check fails, report it and stop. Report the operation's
-result or error; do not claim enrollment succeeded unless the command succeeds.
+Handoff gates between steps: the reviewed PRD must be available to the
+bootstrap job before the bootstrap job starts, and the bootstrap changes
+— including real `validation_commands` — must be available in the
+enrolled branch before any feature card starts. Publish and merge
+authority stays with Emad: Hermes never auto-merges a PRD, a scaffold
+commit, or a feature branch.
+
+Internal enrollment mechanism — step 1 only; Hermes performs these commands
+and checks itself and preserves them unchanged:
+
+- Ask for the exact GitHub `owner/name` if missing. Honor a requested
+  branch; otherwise resolve the repository's default branch with
+  `git ls-remote --symref git@github.com:OWNER/NAME.git HEAD` and ask
+  Emad if it cannot be determined.
+- Before onboarding, check SSH access to the selected branch with
+  `git ls-remote --exit-code --heads git@github.com:OWNER/NAME.git refs/heads/BRANCH`;
+  if access or the branch check fails, report it and stop.
+- Check effective Git author values with `git config --get user.name` and
+  `git config --get user.email`; ask Emad only for a value that is missing,
+  then pass it with `--git-user-name` and/or `--git-user-email` so it is
+  stored only in that repository's local Git config.
+- Run the existing non-interactive onboarding operation:
+
+  ```text
+  python -m hermes_kanban --config /opt/personal-agent/config/default.yaml --onboard OWNER/NAME
+  ```
+
+  Pass `--branch BRANCH` when the selected branch is not `main`. Never add
+  `--push-scaffold` unless Emad explicitly asks for that push. The
+  operation creates only the missing base contract files (`README.md`,
+  `AGENTS.md`, `.ainative/project.yaml`) and verifies the native Kanban
+  board is present and readable.
+- Report the operation's result or error; do not claim enrollment succeeded
+  unless the command succeeds.
 
 When Emad asks to create a task/card, use Hermes-native Kanban rather than a
 prompt-driven helper or a second database. Resolve the intended enrolled
@@ -174,7 +216,9 @@ the selected `## Path` (`feature`, `change`, or `job`) and its default
 The `--priority` CLI value is numeric (`P0`→`0`, `P1`→`1`, `P2`→`2`,
 `P3`→`3`) while the body keeps the `P0`–`P3` value. Use a stable slug as
 `--idempotency-key`. Ask only for missing information needed to create a
-valid card.
+valid card. A `job` card additionally declares the named `## Skill`
+(allowlisted to `prd-writer` and `project-bootstrapper`) under its default
+`executor` profile.
 
 **Legacy records.** In-flight 013 whole-playbook overlay records are
 superseded by this loop; they stay parked until a human acknowledges them.

@@ -2,6 +2,24 @@
 
 ## [Unreleased]
 ### Changed
+- Clarified the `AGENTS.md` project-onboarding sequence as an operator
+  conversation: conversational enrollment (with native Kanban board
+  preparation/verification), then a `prd-writer` job card
+  (`Path=job`/`Profile=executor`), then (after PRD review) a
+  `project-bootstrapper` job card referencing the PRD, and feature cards
+  only after the handoff gates. Corrected the enrollment-vs-app-bootstrap
+  distinction: enrollment creates only the missing base contract files
+  (`README.md`, `AGENTS.md`, `.ainative/project.yaml`) — it does not
+  scaffold the application or create work cards. Artifact availability
+  gates are now explicit: the PRD must be available to the bootstrap job,
+  and bootstrap changes with real `validation_commands` must be available
+  in the enrolled branch before feature cards start. Publish and merge
+  remain human decisions — Hermes never auto-merges. All CLI/backend
+  details are documented as internal Hermes steps rather than operator
+  steps, and feature cards are never auto-created during enrollment. Card
+  contracts are unchanged (`## Skill` names on `job` cards;
+  `task-generator` profile on `feature` cards), and no enrollment
+  implementation changed.
 - Project enrollment requests are handled conversationally by Hermes through
   the existing non-interactive onboarding operation; optional repo-local Git
   author values are passed explicitly, and scaffold pushes remain opt-in.
