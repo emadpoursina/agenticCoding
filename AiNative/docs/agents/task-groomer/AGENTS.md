@@ -18,9 +18,8 @@ and waits for operator confirmation before changing the kanban board.
 
 ## Outputs
 
-- A filled task card using the AiNative template from `scratch/hermes-architecture.md` section 7
-- A required project name for software tasks, resolved by Hermes project name or slug
-- Priority `P0`–`P3`, platform, technical notes, and an explicit dependency decision
+- A filled dispatch-ready card: `# Title`, Priority, Problem, Expected Result, Acceptance Criteria, Platform, Technical Notes, Path, Skill (job only), Parent (child change only), Dependencies
+- Dispatch path `feature` | `change` | `job` plus allowlisted job skill (`prd-writer`, `project-bootstrapper`) when needed
 - A proposed `hermes kanban create` command and any `kanban link` operations
 - Board mutations only after the operator confirms the complete card and command set
 
