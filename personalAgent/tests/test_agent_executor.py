@@ -267,9 +267,7 @@ def test_execution_settings_from_default_yaml_has_no_live_model_ids():
     assert settings.base_url_env == "OPENAI_BASE_URL"
     assert settings.api_key_env == "OPENAI_API_KEY"
     text = (PACKAGE_ROOT / "config" / "default.yaml").read_text(encoding="utf-8")
-    assert "id: ich-mag-dich" in text
-    assert "name: emadpoursina/ich-mag-dich" in text
-    assert "location: /workspaces/ich-mag-dich" in text
+    assert "projects: []" in text
     assert "id: sandbox" not in text
     assert "hermes-v0-sandbox" not in text
     assert "root: /workspaces" in text
@@ -476,7 +474,7 @@ def test_live_sends_opencode_session_header_and_fails_closed_on_http_400(
     class _Ctx:
         agent = _Agent()
         task = _Task()
-        project_id = "ich-mag-dich"
+        project_id = "sample-project"
         workflow_name = "piv"
 
     captured: list[urllib.request.Request] = []
@@ -594,4 +592,3 @@ def test_unknown_project_and_path_like_agent_names(tmp_path: Path):
     )
     with pytest.raises(DisabledProjectError):
         disabled_executor.execute_agent("scout", "fixture", "123")
-

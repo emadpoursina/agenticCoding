@@ -62,13 +62,13 @@ Edit `personalAgent/config/default.yaml`:
 
 ```yaml
 projects:
-  - id: ich-mag-dich
-    name: emadpoursina/ich-mag-dich
-    repository: github.com/emadpoursina/ich-mag-dich
-    location: /workspaces/ich-mag-dich
-    default_branch: master
+  - id: sample-project
+    name: example-owner/sample-project
+    repository: github.com/example-owner/sample-project
+    location: /workspaces/sample-project
+    default_branch: main
     kanban_project_ids:
-      - p_f1577341
+      - p_example123
 ```
 
 The config mount is read-only in the container, so this is a repository
@@ -99,7 +99,7 @@ docker exec hermes-personal-agent \
 
 Expected result: a card whose native `project_id` matches the declared alias
 is selected and the harness starts. The worktree appears under
-`/workspaces/ich-mag-dich/<task>`, not under the native id.
+`/workspaces/sample-project/<task>`, not under the native id.
 
 ## 6. Verify fail-closed reporting
 

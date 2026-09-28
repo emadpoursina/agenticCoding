@@ -28,7 +28,7 @@ to planning
 - [x] All functional requirements have clear acceptance coverage
 - [x] User scenarios cover startup loading, source-of-truth handling, and precedence
 - [x] Feature meets measurable outcomes defined in Success Criteria
-- [x] No unrelated project-bootstrapper or `ich-mag-dich` validation work is included
+- [x] No unrelated project-bootstrapper or managed-project validation work is included
 
 ## Notes
 

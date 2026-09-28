@@ -53,7 +53,7 @@ startup; do not add repeated discovery, polling, or a second persistence path.
 files; never auto-create persistent files; never translate host paths; do not
 print contents or secrets; do not pass registered text into coding jobs; keep
 runtime configuration above `SYSTEM.md`; leave project-bootstrapper wiring and
-`ich-mag-dich` validation unchanged; no new dependency or database.
+the existing managed-project validation unchanged; no new dependency or database.
 
 **Scale/Scope**: One live Hermes process, three fixed roles, one doctor
 diagnostic, the existing single execution slot, and one focused fixture suite.
@@ -185,7 +185,7 @@ persistent files and the existing repository mount for `AGENTS.md`.
   `personalAgent/AGENTS.md` without deleting its current safety instructions.
 - Update `personalAgent/README.md` with manual template-copy instructions,
   persistent-file boundaries, exact container paths, and the `--doctor`
-  example. Do not change project-bootstrapper wiring or `ich-mag-dich`
+  example. Do not change project-bootstrapper wiring or the managed-project
   validation.
 
 ### 5. Verify and record delivery
@@ -236,8 +236,8 @@ checked-in config, templates, source mount, and all focused checks.
   and overlay JSON.
 - Actual persistent `SYSTEM.md` and `USER.md` remain outside Git and are
   never auto-created; repository templates are safe and operator-completable.
-- Existing harness, orchestrator, project-bootstrapper boundary, and
-  `ich-mag-dich` validation behavior remain unchanged.
+- Existing harness, orchestrator, project-bootstrapper boundary, and the
+  configured project's validation behavior remain unchanged.
 - Focused tests, full pytest, Ruff, and the available Docker doctor proof pass.
 
 ## Post-design Constitution Check: PASS

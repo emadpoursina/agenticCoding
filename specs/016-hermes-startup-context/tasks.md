@@ -13,7 +13,7 @@ description: "Implementation task list for Hermes Startup Context Files"
 
 **Organization**: Tasks are grouped by user story so each slice can be implemented and verified independently.
 
-**Scope boundary**: Keep `AGENTS.md` versioned, keep actual `SYSTEM.md` and `USER.md` outside Git in persistent Hermes data, and leave project-bootstrapper wiring and the existing `ich-mag-dich` validation command unchanged.
+**Scope boundary**: Keep `AGENTS.md` versioned, keep actual `SYSTEM.md` and `USER.md` outside Git in persistent Hermes data, and leave project-bootstrapper wiring and the existing managed-project validation command unchanged.
 
 ## Format: `[ID] [P?] [Story] Description`
 
@@ -110,7 +110,7 @@ description: "Implementation task list for Hermes Startup Context Files"
 - [X] T023 [P] Run the complete `uv run pytest` and `uv run ruff check src tests` quality gates from `personalAgent/`; preserve the existing harness, orchestrator, project, workspace, and AiNative checks.
 - [X] T024 [P] Run the optional Docker doctor and missing-file checks from `specs/016-hermes-startup-context/quickstart.md` against the available Hermes container and disposable home; verify the persistent files are manually provisioned, never auto-created, and never printed.
 - [X] T025 Update `CHANGELOG.md` and `personalAgent/CHANGELOG.md` with the semantic-version entries for startup registration, exact-path loading, revision-only diagnostics, precedence, safe placeholders, tests, and CLI doctor verification; do not add persistent `SYSTEM.md` or `USER.md` to Git.
-- [X] T026 Re-read `specs/016-hermes-startup-context/spec.md`, `specs/016-hermes-startup-context/plan.md`, and `specs/016-hermes-startup-context/quickstart.md` against the implementation; confirm project-bootstrapper wiring and the existing `ich-mag-dich` validation command remain unchanged.
+- [X] T026 Re-read `specs/016-hermes-startup-context/spec.md`, `specs/016-hermes-startup-context/plan.md`, and `specs/016-hermes-startup-context/quickstart.md` against the implementation; confirm project-bootstrapper wiring and the existing managed-project validation command remain unchanged.
 
 ---
 
@@ -196,7 +196,7 @@ T018  personalAgent/tests/test_live_piv_bridge.py, test_startup_context.py — d
 - Do not translate `/Users/...` host paths, search fallback locations, or auto-create missing registered files.
 - Do not print registered file contents, secrets, tokens, passwords, or private keys.
 - Do not add the startup snapshot to coding-job payloads, model messages, Kanban/task records, worktrees, project repositories, overlays, or a new database.
-- Do not change project-bootstrapper wiring or the existing `ich-mag-dich` validation behavior.
+- Do not change project-bootstrapper wiring or the existing managed-project validation behavior.
 
 ## Notes
 

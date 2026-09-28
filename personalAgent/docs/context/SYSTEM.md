@@ -61,7 +61,7 @@ python -m hermes_kanban --config /opt/personal-agent/config/default.yaml --docto
 | AiNative methodology (read-only) | `/ainative` |
 | AiNative agent definitions | `/ainative/docs/agents/` |
 | Task workspaces | `/workspaces` |
-| Enrolled project `ich-mag-dich` | `/workspaces/ich-mag-dich` |
+| Enrolled projects | None by default; enroll explicitly |
 | Hermes overlay / operational state | `/var/lib/hermes-kanban` |
 | Pi coding harness runtime | `/opt/pi-runtime` |
 | Official Hermes install inside the image | `/opt/hermes` |
@@ -125,4 +125,4 @@ unless it is later installed as one. Discover the live roster with
 
 - [ ] Any extra folders that should be treated as off-limits besides
       `/ainative` and the default Hermes home at `~/.hermes`
-- [ ] Any extra enrolled projects besides `ich-mag-dich`
+- [ ] Projects to enroll for this install

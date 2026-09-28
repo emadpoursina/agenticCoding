@@ -2,6 +2,9 @@
 
 ## [Unreleased]
 ### Changed
+- Switched fresh Compose installs to a new Hermes overlay volume so an old
+  persisted project registry cannot silently carry into the clean setup; the
+  previous volume is left intact.
 - Clarified the `AGENTS.md` project-onboarding sequence as an operator
   conversation: conversational enrollment (with native Kanban board
   preparation/verification), then a `prd-writer` job card
@@ -23,6 +26,9 @@
 - Project enrollment requests are handled conversationally by Hermes through
   the existing non-interactive onboarding operation; optional repo-local Git
   author values are passed explicitly, and scaffold pushes remain opt-in.
+- Removed the obsolete test-project enrollment and scrubbed its identity from
+  checked-in guidance and historical examples. Fresh installs start with no
+  managed project configured, covered by a project-registry regression test.
 
 ### Removed
 - Removed the prompt-driven terminal enrollment/card guide. A dispatcher run
@@ -464,7 +470,7 @@
 
 ## [0.6.5] - 2026-09-05
 ### Added
-- Enrolled the disposable quiz project `ich-mag-dich` at `/workspaces/ich-mag-dich`.
+- Documented the initial managed-project enrollment workflow.
 
 ## [0.6.4] - 2026-09-05
 ### Removed

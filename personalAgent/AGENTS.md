@@ -70,8 +70,9 @@ agents, projects, workspace root, harness, overlay). Do not print file
 bodies or secrets.
 
 Use **container** paths in commands. Map Mac paths only when this file or
-`SYSTEM.md` already names the mapping. Default enrolled practice project:
-`/workspaces/ich-mag-dich`.
+`SYSTEM.md` already names the mapping. No managed project is enrolled by
+default; use `--doctor` to inspect projects and ask Emad which repository to
+enroll when one is needed.
 
 ## Which rules always win
 
@@ -137,10 +138,10 @@ does not run them in-process; each starts as a Pi session. A command may
 alias a target, but the target type must be clear. Do not search the wrong
 skill roots and then pass that error as task input.
 
-**Project onboarding.** `ich-mag-dich` is already enrolled. If onboarding
-files and `.ainative/project.yaml` are already readable, report that the
-project is ready. Do not rewrite them. Do not copy Hermes context files
-into the project. Do not write into `/ainative`.
+**Project onboarding.** No managed project is pre-enrolled. If a requested
+project's onboarding files and `.ainative/project.yaml` are already readable,
+report that the project is ready. Do not rewrite them. Do not copy Hermes
+context files into the project. Do not write into `/ainative`.
 
 When Emad asks to add a project, handle it conversationally in this Hermes
 conversation rather than opening a terminal interview. Enrollment is not

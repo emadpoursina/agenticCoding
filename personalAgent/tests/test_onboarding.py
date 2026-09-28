@@ -265,13 +265,13 @@ def test_onboard_enrolls_via_overlay_when_config_is_read_only(tmp_path: Path) ->
     overlay_dir.mkdir()
     workspace.mkdir(parents=True, exist_ok=True)
     config = tmp_path / "config.yaml"
-    base_location = workspace / "ich-mag-dich"
+    base_location = workspace / "sample-project"
     base_location.mkdir()
     config.write_text(
         "projects:\n"
-        "  - id: ich-mag-dich\n"
-        "    name: owner/ich-mag-dich\n"
-        "    repository: github.com/owner/ich-mag-dich\n"
+        "  - id: sample-project\n"
+        "    name: owner/sample-project\n"
+        "    repository: github.com/owner/sample-project\n"
         f"    location: {base_location}\n"
         "    default_branch: main\n"
         f"workspace:\n  root: {workspace}\n"
@@ -296,8 +296,8 @@ def test_onboard_enrolls_via_overlay_when_config_is_read_only(tmp_path: Path) ->
     overlay = overlay_dir / "enrolled-projects.yaml"
     assert "id: new-project" in overlay.read_text(encoding="utf-8")
     registry = ProjectRegistry.from_config(config)
-    base = registry.get_project("ich-mag-dich")
-    assert base.location == workspace / "ich-mag-dich"
+    base = registry.get_project("sample-project")
+    assert base.location == workspace / "sample-project"
     record = registry.get_project("new-project")
     assert record.kanban_project_ids == (NATIVE_ID,)
     assert registry.canonical_id(NATIVE_ID) == "new-project"

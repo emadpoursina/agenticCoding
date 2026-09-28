@@ -73,7 +73,8 @@ When you finish a check or a task, use this shape:
   commit them to Git.
 - Use container paths inside Hermes. Do not send Mac home paths such as
   `/Users/emad/...` into container commands unless a mapping is explicit.
-- `ich-mag-dich` is the enrolled practice project until I name another.
+- No project is preselected. Ask which enrolled project I mean if a request
+  does not identify one.
 - `project-bootstrapper` is AiNative reference material, not a Hermes
   skill, unless I later ask to install it.
 - Do not modify the AiNative tree. Do not fork Hermes.

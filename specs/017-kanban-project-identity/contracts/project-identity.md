@@ -9,13 +9,13 @@ Each `projects` entry MAY declare a native-id alias list:
 
 ```yaml
 projects:
-  - id: ich-mag-dich
-    name: emadpoursina/ich-mag-dich
-    repository: github.com/emadpoursina/ich-mag-dich
-    location: /workspaces/ich-mag-dich
-    default_branch: master
+  - id: sample-project
+    name: example-owner/sample-project
+    repository: github.com/example-owner/sample-project
+    location: /workspaces/sample-project
+    default_branch: main
     kanban_project_ids:
-      - p_f1577341
+      - p_example123
 ```
 
 Rules enforced at registry construction:
@@ -94,7 +94,7 @@ Advisory result paths are sanitized instead of rejecting a finished run:
 ```json
 {
   "configured_projects": ["..."],
-  "project_kanban_ids": {"ich-mag-dich": ["p_f1577341"]}
+  "project_kanban_ids": {"sample-project": ["p_example123"]}
 }
 ```
 

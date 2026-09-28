@@ -1,5 +1,11 @@
 # Changelog
 
+## [Unreleased]
+### Changed
+- Removed the obsolete test-project enrollment and scrubbed its identity from
+  checked-in guidance and historical examples. Fresh installs start with no
+  managed project configured.
+
 ## [0.36.0] - 2026-09-24
 ### Changed
 - 019 implement pass: the Kanban board is the user-facing work queue
@@ -284,7 +290,7 @@
 
 ## [0.8.5] - 2026-09-05
 ### Added
-- Enrolled the disposable quiz project `ich-mag-dich` as the live managed project.
+- Documented the initial managed-project enrollment workflow.
 
 ## [0.8.4] - 2026-09-05
 ### Removed

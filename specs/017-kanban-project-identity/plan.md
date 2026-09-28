@@ -112,7 +112,7 @@ personalAgent/
 ├── tests/
 │   ├── test_project_registry.py        # alias parsing/validation/resolution
 │   └── test_kanban_project_identity.py # real-kanban.db end-to-end identity checks
-├── config/default.yaml   # declare kanban_project_ids for ich-mag-dich
+├── config/default.yaml   # declare kanban_project_ids for an enrolled project
 ├── README.md             # document the field and the one-time discovery command
 └── CHANGELOG.md          # Fixed entry + version bump
 ```
@@ -178,7 +178,7 @@ the only place that reads native ids.
 
 ### 5. Config, docs, and delivery
 
-- Add `kanban_project_ids: [p_f1577341]` to the `ich-mag-dich` entry in
+- Add a sample `kanban_project_ids` alias to the example enrolled project in
   `config/default.yaml`.
 - Document the field, the one-time discovery command
   (`sqlite3 projects.db "select id, slug from projects;"`), and the

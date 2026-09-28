@@ -40,20 +40,21 @@ Canonical plan: [`docs/v0-implementation-plan.md`](docs/v0-implementation-plan.m
 
 ## Project identity
 
-The control plane keys every artifact by the operational project id in
-`config/default.yaml` (`id: ich-mag-dich`). Hermes Kanban stores each card's
-`project_id` as the native `projects.db` internal id (`p_…`) instead. Declare
-the native id(s) as aliases so both forms resolve to the same project:
+No managed project is enrolled by default. When a project is enrolled, the
+control plane keys its artifacts by the configured operational project id.
+Hermes Kanban stores each card's `project_id` as the native `projects.db`
+internal id (`p_…`); declare the native id(s) as aliases so both forms resolve
+to the same project. For example:
 
 ```yaml
 projects:
-  - id: ich-mag-dich
-    name: emadpoursina/ich-mag-dich
-    repository: github.com/emadpoursina/ich-mag-dich
-    location: /workspaces/ich-mag-dich
-    default_branch: master
+  - id: sample-project
+    name: example-owner/sample-project
+    repository: github.com/example-owner/sample-project
+    location: /workspaces/sample-project
+    default_branch: main
     kanban_project_ids:
-      - p_f1577341
+      - p_example123
 ```
 
 Read the native id once, inside the container:

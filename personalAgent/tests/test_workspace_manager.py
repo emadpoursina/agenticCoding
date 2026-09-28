@@ -90,15 +90,13 @@ def make_env(
     return WorkspaceManager.from_config(tmp_path / "config.yaml"), project, workspace_root
 
 
-def test_default_config_keeps_configured_managed_set_and_root():
+def test_default_config_has_no_enrolled_projects_and_keeps_workspace_root():
     text = (PACKAGE_ROOT / "config" / "default.yaml").read_text(encoding="utf-8")
     assert "workspace:" in text
     assert "root: /workspaces" in text
     assert "overlay_dir: /var/lib/hermes-kanban" in text
     assert "max_concurrent_tasks: 1" in text
-    assert "id: ich-mag-dich" in text
-    assert "name: emadpoursina/ich-mag-dich" in text
-    assert "location: /workspaces/ich-mag-dich" in text
+    assert "projects: []" in text
     assert "id: sandbox" not in text
     assert "hermes-v0-sandbox" not in text
     assert "$HOME" not in text

@@ -6,16 +6,7 @@ context:
   system: /opt/data/hermes-context/SYSTEM.md
   user: /opt/data/hermes-context/USER.md
 
-projects:
-  - id: ich-mag-dich
-    name: emadpoursina/ich-mag-dich
-    repository: github.com/emadpoursina/ich-mag-dich
-    location: /workspaces/ich-mag-dich
-    default_branch: master
-    # Native Hermes projects.db ids that resolve to this operational id.
-    # Read once with: sqlite3 /opt/data/projects.db "select id, slug from projects;"
-    kanban_project_ids:
-      - p_f1577341
+projects: [] # No project is enrolled by default; enroll one explicitly.
 
 ainative:
   path: /ainative

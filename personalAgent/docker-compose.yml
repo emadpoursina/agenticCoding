@@ -47,7 +47,7 @@ services:
     volumes:
       - ${HERMES_HOME}:/opt/data
       - .:/opt/personal-agent:ro
-      - hermes-overlay:/var/lib/hermes-kanban
+      - hermes-overlay-v2:/var/lib/hermes-kanban
       - ${AINATIVE_PATH}:/ainative:ro
       - ${WORKSPACE_ROOT}:/workspaces
       # Docker Desktop provides this stable proxy; Linux may set
@@ -57,4 +57,4 @@ services:
     command: ["gateway", "run"]
 
 volumes:
-  hermes-overlay:
+  hermes-overlay-v2:

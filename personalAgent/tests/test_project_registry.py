@@ -116,6 +116,12 @@ def test_empty_config_does_not_discover_directories(tmp_path: Path):
         registry.get_project("unlisted")
 
 
+def test_default_config_has_no_enrolled_projects():
+    registry = ProjectRegistry.from_config(PACKAGE_ROOT / "config" / "default.yaml")
+
+    assert registry.list_projects() == []
+
+
 @pytest.mark.parametrize("location_factory", ["missing", "file"])
 def test_invalid_locations_never_fall_back(tmp_path: Path, location_factory: str):
     location = tmp_path / "not-there"

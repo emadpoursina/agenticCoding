@@ -104,7 +104,7 @@ Installed hooks (image): `invoke_hook` / `on_kanban_dispatch_tick` / `on_kanban_
 
 Allowed smoke: `LiveGitHost` against that repo’s **feature** branch only. Automated pytest of the gate uses no network: missing name → 0 push calls on a recording host.
 
-**Rationale**: FR-015; human authority; `ich-mag-dich` display name today is not `owner/name`, so default smoke refuses that enrollment — correct.
+**Rationale**: FR-015; human authority; an enrolled project's display name may not be `owner/name`, so default smoke refuses enrollment unless the disposable identity is explicitly confirmed.
 
 **Alternatives considered**: Match enrolled `id` only — weaker than the clarify answer. Silently pick the first enrolled project — forbidden.
 

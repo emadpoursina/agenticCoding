@@ -65,7 +65,7 @@ Requires an **explicit** disposable `owner/name`. Default is refuse.
 python -m hermes_kanban --config /path/to/default.yaml --smoke --repo owner/name
 ```
 
-Proceeds only if that string equals both the github.com remote `owner/name` **and** the enrolled project `name`. Then push/PR the feature branch only. Never `main`/`master`. Never pick `ich-mag-dich` (or any other enrollment) unless that same identity was passed **and** enrollment agrees.
+Proceeds only if that string equals both the github.com remote `owner/name` **and** the enrolled project `name`. Then push/PR the feature branch only. Never `main`/`master`. Never use an enrollment unless that same identity was passed **and** enrollment agrees.
 
 ### Credentials still required (never in git)
 

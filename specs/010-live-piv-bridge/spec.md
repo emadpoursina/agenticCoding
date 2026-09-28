@@ -216,7 +216,7 @@ If Hermes already provides the native board file, worker dispatch, or notify tra
 - **AiNative is read-only.** Workers and this bridge MUST NOT modify it. Lessons stay out of this slice.
 - **One active task** remains the V0 rule. Restart reclaim still applies.
 - **Telegram**: reuse existing `pr_created` kind and already-connected chat. No new kinds for this slice (task-start and others already specified earlier stay as previously implemented).
-- **Smoke target**: operator must pass the disposable repository identity as an explicit argument or environment value that is empty-by-default. Allowed smoke requires that identity to match **both** GitHub `owner/name` and the enrolled project name. Enrolled `ich-mag-dich` (or any real project) MUST NOT be used unless that same identity is explicitly passed as the disposable name **and** enrollment agrees — default is refuse.
+- **Smoke target**: operator must pass the disposable repository identity as an explicit argument or environment value that is empty-by-default. Allowed smoke requires that identity to match **both** GitHub `owner/name` and the enrolled project name. The smoke gate MUST refuse an enrolled project unless that same identity is explicitly passed as the disposable name **and** enrollment agrees — default is refuse.
 - **External credentials still required after this feature** (not stored in git): GitHub SSH (agent forwarding), existing Telegram bot token/chat already used by Hermes, model provider key already used by Hermes. Smoke documents these; it does not commit them.
 - **Isolated Hermes home** remains `~/.hermes/personal-agent`. Do not write the default `~/.hermes` root.
 - **No new third-party libraries** without an explicit owner request. Python 3.12, pytest, ruff unchanged.

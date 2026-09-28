@@ -42,8 +42,8 @@ available. It must not translate or pass Mac host paths such as
 
 This feature covers registration, startup loading, validation, precedence,
 revision-only operational records, diagnostics, and placeholder content. It
-does not include project-bootstrapper wiring or changes to the existing
-`ich-mag-dich` validation command.
+does not include project-bootstrapper wiring or changes to managed-project
+validation commands.
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -203,7 +203,7 @@ start Hermes, and confirm the resulting behavior follows the documented order.
   available agents, configured projects, workspace root, active harness, and
   persistent state path alongside the context registration result.
 - **FR-010**: The implementation MUST leave project-bootstrapper wiring and
-  the existing `ich-mag-dich` validation behavior unchanged and out of scope.
+  the existing managed-project validation behavior unchanged and out of scope.
 - **FR-011**: Focused checks MUST cover successful startup loading, exact-path
   enforcement, missing and unreadable files, no auto-create on missing files,
   ambiguous registrations, precedence conflicts, revision-only records,

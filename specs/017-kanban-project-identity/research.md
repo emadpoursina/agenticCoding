@@ -14,14 +14,14 @@
   `board.py` `SqliteTaskBoard._task`:
   `project_id=str(row["project_id"] or "").strip()`.
 - Native `projects.db` assigns ids as `"p_" + hex` and exposes no supported
-  command to choose or change one. The enrolled project's native id is
-  `p_f1577341`; its slug is `ich-mag-dich`.
+  command to choose or change one. Example values are `p_example123` and the
+  operational slug `sample-project`.
 
 ### 2. Where the mismatch bites
 
 - `orchestrator.py` `run_workflow` calls
   `registry.resolve_eligible_project(project_id)` on the board value. With
-  `p_f1577341`, `get_project` raises `UnknownProjectError` (exact `_by_id`
+  `p_example123`, `get_project` raises `UnknownProjectError` (exact `_by_id`
   lookup, `projects.py` `get_project`).
 - `run_next_workflow` catches that error and `continue`s, so the card
   disappears and the caller sees `NoReadyTaskError("no ready task")`.
@@ -52,7 +52,7 @@ native-store boundary so the native id never travels further.
 
 | Option | Verdict | Reason |
 |---|---|---|
-| Rewrite the native project id to `ich-mag-dich` | Rejected | Direct state write into Hermes `projects.db`; unsupported and out of bounds. |
+| Rewrite the native project id to `sample-project` | Rejected | Direct state write into Hermes `projects.db`; unsupported and out of bounds. |
 | Stamp the operational id onto the card row | Rejected | Direct write to `kanban.db`, which is read-only; duplicates task SoT. |
 | Read `projects.db` at runtime to derive the mapping | Rejected | Couples the bridge to a Hermes internal schema; adds a second DB read path. |
 | Declare aliases in operational config and canonicalize at the board | **Chosen** | Explicit, validated, versioned, no native write, one translation point. |
@@ -87,11 +87,9 @@ first, with the legacy single-database layout as fallback and
 
 ### 8. Live project id is already reconciled
 
-A 2026-09-17 session rewrote `projects.id` `p_f1577341` → `ich-mag-dich`
-directly (the original diagnosis's first option, done outside this code).
-The declared alias is dormant but kept: if the project is ever recreated,
-Hermes assigns a fresh `p_…` id and the alias mechanism covers it without
-another manual state write.
+During live testing, a native project record was reconciled outside this
+code. The declared alias handles future native-id changes without another
+manual state write.
 
 ### 9. Model schema drift on harness results
 

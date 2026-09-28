@@ -6,19 +6,19 @@
 
 **Status**: Draft
 
-**Input**: User description: "The control plane matches a card to a project by the exact string in its config (`id: ich-mag-dich`), but Hermes Kanban stores a card's `project_id` as the native project's internal id (`p_f1577341`). The registry only accepts the config id, so every card is skipped or reported as 'no ready task'. Declare and validate a native-to-operational project identity mapping so supported flows work."
+**Input**: User description: "The control plane matches a card to a project by the exact string in its config (`id: sample-project`), but Hermes Kanban stores a card's `project_id` as the native project's internal id (`p_example123`). The registry only accepts the config id, so every card is skipped or reported as 'no ready task'. Declare and validate a native-to-operational project identity mapping so supported flows work."
 
 ## Scope and baseline
 
 The control plane keeps one operational project identity per enrolled
-project: `ProjectRecord.id` from `config/default.yaml` (for the current
-install, `ich-mag-dich`). Hermes Kanban stores each task's `project_id` as
-the native `projects.db` internal id (for the same project,
-`p_f1577341`). The two namespaces have no declared mapping today.
+project: `ProjectRecord.id` from `config/default.yaml` (for the example,
+`sample-project`). Hermes Kanban stores each task's `project_id` as the native
+`projects.db` internal id (for the same example, `p_example123`). The two
+namespaces have no declared mapping today.
 
-The result: a card created with `--project ich-mag-dich` is stored as
-`project_id = p_f1577341`; the worker reads that native id and calls
-`registry.resolve_eligible_project`, which accepts only `ich-mag-dich`.
+The result: a card created with `--project sample-project` is stored as
+`project_id = p_example123`; the worker reads that native id and calls
+`registry.resolve_eligible_project`, which accepts only `sample-project`.
 `run_workflow` raises `UnknownProjectError`; `run_next_workflow` silently
 skips the card and reports "no ready task". The failure is safe (nothing is
 half-run, no repo or board write), but the project cannot run at all.

@@ -20,13 +20,13 @@ Config shape:
 
 ```yaml
 projects:
-  - id: ich-mag-dich
-    name: emadpoursina/ich-mag-dich
-    repository: github.com/emadpoursina/ich-mag-dich
-    location: /workspaces/ich-mag-dich
-    default_branch: master
+  - id: sample-project
+    name: example-owner/sample-project
+    repository: github.com/example-owner/sample-project
+    location: /workspaces/sample-project
+    default_branch: main
     kanban_project_ids:
-      - p_f1577341
+      - p_example123
 ```
 
 A scalar is accepted and normalized to a one-element tuple.
