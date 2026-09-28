@@ -169,3 +169,56 @@ def test_doctor_prints_only_the_safe_startup_diagnostic(
     output = capsys.readouterr().out
     assert '"active_harness": "pi"' in output
     assert "SYSTEM.md" not in output
+
+
+def test_bare_config_rejects_interactive_and_non_interactive_invocations(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    class InteractiveInput:
+        def isatty(self) -> bool:
+            raise AssertionError("the dispatcher must not inspect or prompt on stdin")
+
+    monkeypatch.setattr(runtime.sys, "stdin", InteractiveInput())
+
+    assert runtime.main(["--config", "config.yaml"]) == 2
+    assert "choose exactly one task, next-ready, resume, or smoke mode" in capsys.readouterr().err
+
+
+def test_onboard_cli_passes_requested_local_git_identity(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    from hermes_kanban.onboard import OnboardResult
+
+    seen: dict[str, object] = {}
+    result = OnboardResult(
+        project_id="demo",
+        repository="owner/demo",
+        native_id="p_demo",
+        location=tmp_path / "demo",
+        default_branch="main",
+        cloned=False,
+        scaffolded=(),
+        already_enrolled=False,
+    )
+
+    def fake_onboard(request, config_path):
+        seen["request"] = request
+        seen["config"] = config_path
+        return result
+
+    monkeypatch.setattr(runtime, "run_onboard", fake_onboard)
+
+    assert runtime.main(
+        [
+            "--config",
+            str(tmp_path / "config.yaml"),
+            "--onboard",
+            "owner/demo",
+            "--git-user-name",
+            "Emad Poursina",
+            "--git-user-email",
+            "emad@example.test",
+        ]
+    ) == 0
+    assert seen["request"].git_user_name == "Emad Poursina"
+    assert seen["request"].git_user_email == "emad@example.test"

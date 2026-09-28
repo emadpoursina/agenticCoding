@@ -190,23 +190,13 @@ uv run ruff check src tests
 
 ## Dispatcher and live checks
 
-The one dispatcher entry is available to an already-started Hermes worker and
-to a shell. Compose mounts this package at `/opt/personal-agent` and sets
-`PYTHONPATH=/opt/personal-agent/src`.
-
-With only `--config`, and a terminal attached, the same command asks what
-you want and then runs the existing enroll or card-create path:
-
-```bash
-python -m hermes_kanban --config /path/to/default.yaml
-```
-
-It offers two conversations: enroll `owner/name` (or a dry run), or add one
-card. The card questions fill `## Path` and `## Skill` (`prd-writer`,
-`project-bootstrapper`, `feature`, or `change`). A non-interactive shell
-with no selector still exits and asks for `--task`, `--next-ready`,
-`--resume`, or `--smoke`. A claimed worker (`HERMES_KANBAN_TASK`) is
-unchanged.
+The non-interactive dispatcher is available to an already-started Hermes
+worker and to Hermes itself. Compose mounts this package at
+`/opt/personal-agent` and sets `PYTHONPATH=/opt/personal-agent/src`. It never
+starts an interactive terminal guide: a bare `--config` invocation returns an
+error asking for an explicit mode, whether or not a terminal is attached.
+Project enrollment requests are handled conversationally by Hermes using the
+non-interactive `--onboard` operation, as described in `AGENTS.md`.
 
 ```bash
 export HERMES_HOME="$HOME/.hermes/personal-agent"
@@ -215,6 +205,17 @@ python -m hermes_kanban --config /path/to/default.yaml --next-ready
 python -m hermes_kanban --config /path/to/default.yaml \
   --resume PROJECT_ID TASK_ID OPTION
 ```
+
+The existing non-interactive enrollment backend remains available to Hermes
+and integrations:
+
+```bash
+python -m hermes_kanban --config /path/to/default.yaml --onboard owner/name
+```
+
+Hermes can pass `--branch`, `--git-user-name`, and `--git-user-email` when
+those values are needed. Scaffold pushes remain disabled unless
+`--push-scaffold` is explicitly requested.
 
 The worker may set `HERMES_KANBAN_TASK` after Hermes claims a card. The
 dispatcher allows that claimed `running` card only for the matching task id;

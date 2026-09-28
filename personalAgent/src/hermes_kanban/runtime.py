@@ -249,6 +249,8 @@ def _parser() -> argparse.ArgumentParser:
     parser.add_argument("--import-prd", metavar="OWNER/NAME", dest="import_prd")
     parser.add_argument("--branch", default="main")
     parser.add_argument("--project-id")
+    parser.add_argument("--git-user-name")
+    parser.add_argument("--git-user-email")
     parser.add_argument("--prd", type=Path)
     parser.add_argument("--drafts-out", type=Path)
     parser.add_argument("--default-priority", default="P2")
@@ -316,28 +318,6 @@ def _print_import_result(result: OnboardResult, *, dry_run: bool) -> None:
         print("status: dry run — the PRD parsed; no drafts or cards were written")
 
 
-def _bare_invocation(args: argparse.Namespace, selectors: int) -> bool:
-    """Return whether the process was started with only --config."""
-    return (
-        selectors == 0
-        and not args.onboard
-        and not args.import_prd
-        and not args.doctor
-        and not args.smoke
-        and not args.skip
-        and not args.repo
-        and args.branch == "main"
-        and args.default_priority == "P2"
-        and not args.dry_run
-        and not args.create_cards
-        and not args.allow_todo
-        and not args.push_scaffold
-        and args.prd is None
-        and args.drafts_out is None
-        and args.project_id is None
-    )
-
-
 def main(argv: list[str] | None = None) -> int:
     """Run one named, next-ready, resume, or guarded smoke operation."""
     args = _parser().parse_args(argv)
@@ -355,6 +335,8 @@ def main(argv: list[str] | None = None) -> int:
         or args.create_cards
         or args.allow_todo
         or args.push_scaffold
+        or args.git_user_name is not None
+        or args.git_user_email is not None
     )
     if args.onboard and (selectors or args.doctor or args.smoke or args.skip or args.import_prd):
         print("--onboard cannot be combined with other workflow selectors", file=sys.stderr)
@@ -364,6 +346,9 @@ def main(argv: list[str] | None = None) -> int:
         return 2
     if args.import_prd and args.prd is None:
         print("--import-prd requires --prd", file=sys.stderr)
+        return 2
+    if (args.git_user_name is not None or args.git_user_email is not None) and not args.onboard:
+        print("--git-user-name/--git-user-email require --onboard", file=sys.stderr)
         return 2
     if onboard_only and not args.onboard and not args.import_prd:
         print(
@@ -383,13 +368,6 @@ def main(argv: list[str] | None = None) -> int:
         return 2
     if args.smoke and selectors != 1:
         print("smoke requires exactly one task or next-ready selector", file=sys.stderr)
-        return 2
-    if _bare_invocation(args, selectors):
-        if sys.stdin.isatty():
-            from .guide import run_guide
-
-            return run_guide(args.config)
-        print("choose exactly one task, next-ready, resume, or smoke mode", file=sys.stderr)
         return 2
     if (
         not args.onboard
@@ -422,6 +400,8 @@ def main(argv: list[str] | None = None) -> int:
                     repository=args.onboard,
                     branch=args.branch,
                     project_id=args.project_id,
+                    git_user_name=args.git_user_name,
+                    git_user_email=args.git_user_email,
                     prd=args.prd,
                     drafts_out=args.drafts_out,
                     default_priority=args.default_priority,

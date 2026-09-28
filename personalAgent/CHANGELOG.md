@@ -1,10 +1,14 @@
 # Changelog
 
 ## [Unreleased]
-### Added
-- Interactive project enrollment checks GitHub SSH access to the selected
-  repository branch before making changes, reports Git author settings, and
-  prompts for missing name/email values for repo-local configuration.
+### Changed
+- Project enrollment requests are handled conversationally by Hermes through
+  the existing non-interactive onboarding operation; optional repo-local Git
+  author values are passed explicitly, and scaffold pushes remain opt-in.
+
+### Removed
+- Removed the prompt-driven terminal enrollment/card guide. A dispatcher run
+  without an explicit mode now fails with selector guidance, even on a TTY.
 
 ## [1.11.0] - 2026-09-24
 ### Added

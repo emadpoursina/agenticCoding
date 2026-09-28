@@ -142,6 +142,40 @@ files and `.ainative/project.yaml` are already readable, report that the
 project is ready. Do not rewrite them. Do not copy Hermes context files
 into the project. Do not write into `/ainative`.
 
+When Emad asks to add a project, handle it in this Hermes conversation rather
+than opening a terminal interview. Ask for the exact GitHub `owner/name` if
+missing. Honor a requested branch; otherwise resolve the repository's default
+branch with `git ls-remote --symref git@github.com:OWNER/NAME.git HEAD` and ask
+Emad if it cannot be determined. Run the existing non-interactive onboarding
+operation:
+
+```text
+python -m hermes_kanban --config /opt/personal-agent/config/default.yaml --onboard OWNER/NAME
+```
+
+Pass `--branch BRANCH` when the selected branch is not `main`. Never add
+`--push-scaffold` unless Emad explicitly asks for that push. Check effective Git author values with
+`git config --get user.name` and `git config --get user.email`; ask Emad only
+for a value that is missing, then pass it with `--git-user-name` and/or
+`--git-user-email` so it is stored only in that repository's local Git config.
+Before onboarding, check SSH access to the selected branch with
+`git ls-remote --exit-code --heads git@github.com:OWNER/NAME.git refs/heads/BRANCH`;
+if access or the branch check fails, report it and stop. Report the operation's
+result or error; do not claim enrollment succeeded unless the command succeeds.
+
+When Emad asks to create a task/card, use Hermes-native Kanban rather than a
+prompt-driven helper or a second database. Resolve the intended enrolled
+project and its native Kanban project id, then create the card with
+`hermes kanban create`. Keep the required body headings (`## Priority` with
+`P0`–`P3`, `## Problem`, `## Expected Result`, `## Platform`,
+`## Acceptance Criteria`, `## Technical Notes`, and `## Dependencies`), plus
+the selected `## Path` (`feature`, `change`, or `job`) and its default
+`## Profile` (`task-generator` for `feature`, `executor` for `change`/`job`).
+The `--priority` CLI value is numeric (`P0`→`0`, `P1`→`1`, `P2`→`2`,
+`P3`→`3`) while the body keeps the `P0`–`P3` value. Use a stable slug as
+`--idempotency-key`. Ask only for missing information needed to create a
+valid card.
+
 **Legacy records.** In-flight 013 whole-playbook overlay records are
 superseded by this loop; they stay parked until a human acknowledges them.
 They are never auto-migrated onto the new graph and never resumed on the old
