@@ -1,13 +1,8 @@
 <!--
 Sync Impact Report
-- Version change: (none) → 1.0.0 (initial ratification; prior file was an unfilled template)
-- Modified principles: (none — first fill of template placeholders)
-  - [PRINCIPLE_1_NAME] → I. Spec-First
-  - [PRINCIPLE_2_NAME] → II. Least Code (Ponytail)
-  - [PRINCIPLE_3_NAME] → III. Platform-Native Over Rebuild
-  - [PRINCIPLE_4_NAME] → IV. Trust-Boundary Tests
-  - [PRINCIPLE_5_NAME] → V. Human Authority
-- Added sections: Hard Constraints; Development Workflow
+- Version change: 1.0.0 → 1.0.1 (fresh Speckit init after specs history clear; align paths with current repo)
+- Modified principles: none
+- Added sections: none
 - Removed sections: none
 - Follow-up TODOs: none
 -->
@@ -97,8 +92,10 @@ non-critical repo. Do not silently pick a real production repository.
 - Python packages in this workspace use Python 3.12 (`>=3.12,<3.14`) via uv.
 - No new external dependencies without explicit owner approval.
 - Never commit secrets, tokens, or credentials. Operational keys live
-  outside git (e.g. `$HOME/.hermes/personal-agent/.env`).
-- Isolated Hermes home: `~/.hermes/personal-agent`. Do not write to
+  outside git (e.g. `$HOME/.hermes-personal-coding/.env` and
+  `docker/hermes-personal-coding/.env` which is gitignored).
+- Isolated Hermes home: `~/.hermes-personal-coding` (mounted as `/opt/data`
+  in `docker/hermes-personal-coding/docker-compose.yml`). Do not write to
   `~/.hermes` root.
 - Model routing is configured inside Hermes. Do not hardcode provider
   or model names into agents.
@@ -147,6 +144,9 @@ Compliance: every PR and agent review MUST verify the change does not
 violate Core Principles or Hard Constraints. Unjustified complexity
 MUST be rejected or recorded as a dated ADR under AiNative decisions.
 Runtime development guidance for Hermes Kanban lives in
-`personalAgent/AGENTS.md`; this constitution wins on conflict.
+`personalAgent/orchestratorContext/AGENTS.md`; this constitution wins on conflict.
+Current repo layout: `AiNative/` (read-only methodology),
+`personalAgent/orchestratorContext/` (kept Hermes context),
+`docker/hermes-personal-coding/` (compose + image), `specs/` (fresh, empty).
 
-**Version**: 1.0.0 | **Ratified**: 2026-08-28 | **Last Amended**: 2026-08-28
+**Version**: 1.0.1 | **Ratified**: 2026-08-28 | **Last Amended**: 2026-09-29
