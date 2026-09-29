@@ -1,7 +1,0 @@
-Host github.com
-    HostName github.com
-    User git
-    IdentityFile /opt/data/home/.ssh/git_key
-    IdentitiesOnly yes
-    UserKnownHostsFile /opt/data/home/.ssh/known_hosts
-    StrictHostKeyChecking yes
