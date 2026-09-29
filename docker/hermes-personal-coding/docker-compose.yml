@@ -13,6 +13,7 @@ services:
       - "${HOME}/hermes-workspace-personal-coding:/opt/data/mnt/workspace"
       - "${HOME}/.ssh:/opt/data/home/.ssh:ro"
       - "${HOME}/.gitconfig:/opt/data/home/.gitconfig:ro"
+      - "${HOME}/docker/hermes-personal-coding/ssh_config:/root/.ssh/config:ro"
     env_file:
       - .env
     environment:
