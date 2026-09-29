@@ -1,0 +1,4 @@
+.env
+.image-pin
+*.tar
+*.tar.gz
