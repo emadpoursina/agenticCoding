@@ -1,1 +1,0 @@
-Reserved template directory.

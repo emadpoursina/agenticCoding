@@ -1,1 +1,0 @@
-- Keep reviews actionable and bounded.
