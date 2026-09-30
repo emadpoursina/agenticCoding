@@ -12,7 +12,7 @@ Constraints for interactive Hermes kanban task creation.
 - Emit `## Parent` only for child `change` cards: exactly one feature card id, never self
 - Top-level `feature` cards MUST NOT carry `## Parent`
 - Never use a workflow-state name as `## Path` or `## Profile`
-- Omit `## Profile` unless the operator explicitly overrides it; Hermes defaults `feature` → `task-generator`, `change`/`job` → `executor`
+- Omit `## Profile` unless the operator explicitly overrides it; Hermes chooses its configured dispatch profile
 - Recommend priority using P0–P3: P0 production issue, P1 critical, P2 normal, P3 nice-to-have
 - Assign every created task to the Hermes profile `default`; assignment is required for dispatch
 - Require a project name for every software task and resolve it by Hermes project name or slug
@@ -27,7 +27,7 @@ Constraints for interactive Hermes kanban task creation.
 - Write implementation steps or code
 - Assign human developers; Hermes assignment is to a profile, not a person
 - Create, link, assign, or set a model before operator confirmation
-- Add WIP-limit logic to the skill; dispatcher configuration owns `kanban.max_in_progress` and `max_in_progress_per_profile`
+- Add WIP-limit logic to the skill; dispatcher configuration owns the active WIP limits
 - Pretend a missing parent is complete; linked parents must be done before a child can become ready
 - Guess between multiple projects or create a scratch software task when the named project is unregistered
 - Mutate the board before the operator confirms any required bootstrap or registration action

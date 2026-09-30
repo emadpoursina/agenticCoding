@@ -7,8 +7,8 @@ description: Bootstraps an enrolled-but-empty project repo from a PRD inside the
 
 Skills copied inline from `_skills/` plus bootstrap-specific steps, for self-contained use.
 
-You are a **job worker** started by the Hermes control plane as one Pi session
-in an isolated `feature/task-<id>` worktree of an **already-enrolled** repo.
+You are a **job worker** started by the Hermes control plane as one worker
+session in an isolated task worktree of an **already-enrolled** repo.
 The repo may be empty except for the onboarding scaffold. You set up the
 project's content for the feature loop; the control plane owns everything else
 (git history, publishing, the board, validation runs).
@@ -32,8 +32,8 @@ default.
 Run in order:
 
 1. **Read the enrolled scaffold** — `.ainative/project.yaml` and `AGENTS.md`
-   already exist from onboarding. Read both; never overwrite the
-   `## Hermes control plane` section of `AGENTS.md`, and never replace the
+   already exist from onboarding. Read both; never overwrite an existing
+   project control-plane section of `AGENTS.md`, and never replace the
    manifest wholesale — edit the fields you own (see step 5).
 2. **Parse the PRD** — extract stack, structure, and PRD per
    [new-project.md](../../knowledge/setup/new-project.md#planning)
@@ -54,8 +54,8 @@ Run in order:
    scaffold TODO marker — leaving the placeholder in place blocks every
    future card, including yours being verified.
 6. **Agent config** — fill the project-rules section of `AGENTS.md` from
-   [ai-rules-template.md](../../systems/ai-rules-template.md), keeping the
-   existing `## Hermes control plane` section intact. This is the open
+   [ai-rules-template.md](../../systems/ai-rules-template.md), keeping any
+   existing project control-plane section intact. This is the open
    [agents.md](https://agents.md/) format — no editor-specific wrapper.
 7. **Scratch folder** — create `scratch/`, confirm it's gitignored.
 

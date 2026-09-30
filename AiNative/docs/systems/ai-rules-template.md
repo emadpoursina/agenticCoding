@@ -1,9 +1,11 @@
 # Project rules template
 
-Use this as source material for the project-specific section of the enrolled
-repo's `AGENTS.md`. Keep the existing `## Hermes control plane` section intact
-and replace every placeholder with verified project facts. Keep the result
-short enough for a worker to read at the start of a task.
+Use this as source material for the project-specific section of a managed
+repo's `AGENTS.md`. Keep any existing project control-plane or agent-rules
+section intact, and replace every placeholder with verified project facts.
+Keep the result short enough for a worker to read at the start of a task.
+(Project enrollment and dispatch are target methodology; see
+[new-project.md](../knowledge/setup/new-project.md).)
 
 ```markdown
 # Project rules — [PROJECT_NAME]

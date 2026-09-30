@@ -6,7 +6,7 @@ Workflow context: [pr-review-system.md](../../systems/pr-review-system.md).
 
 ## When to use
 
-- Reviewing a pull request; in the Hermes feature loop this is the final gate after validation
+- Reviewing a pull request; in the target feature loop this is the final gate after validation
 - Feature PRs in existing subsystems — always run Phase 1.5
 - Large PRs — use diff compression first
 - After critic and tester report PASS — pr-reviewer is the final gate; a surprise here means validation missed something

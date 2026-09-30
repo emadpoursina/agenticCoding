@@ -1,6 +1,6 @@
 # Ready
 
-Ready is the pre-flight gate at the start of the live feature loop
+Ready is the pre-flight gate at the start of the target feature loop
 ([feature-loop.md](../../systems/feature-loop.md)). Ready confirms the repo can
 support the loop before the first Spec Kit session starts: git state, Spec
 Kit layout, and the feature branch. Ready never writes spec content, never

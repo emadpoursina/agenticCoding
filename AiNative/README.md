@@ -58,10 +58,9 @@ flowchart LR
 ## Getting started (personal)
 
 1. **Read the OS spec** — [ENGINEERING-OS.md](./ENGINEERING-OS.md) (5 min)
-2. **Enroll a managed project** — follow the Hermes steps in [new-project.md](./docs/knowledge/setup/new-project.md)
-3. **Define work as Kanban cards** — Hermes dispatches the matching AiNative or project skill through Pi
-4. **Use scratch** — `scratch/` is for temporary notes (gitignored; see `scratch/README.md`)
-5. **Run Friday review** — promote useful notes, update knowledge, delete junk (15 min)
+2. **Use scratch** — `scratch/` is for temporary notes (gitignored; see `scratch/README.md`)
+3. **Run Friday review** — promote useful notes, update knowledge, delete junk (15 min)
+4. **Plan a managed project** — [new-project.md](./docs/knowledge/setup/new-project.md); project enrollment and the feature loop are target methodology, not wired into the current Hermes install
 
 After two weeks, add the next system. Do not introduce everything at once.
 

@@ -1,8 +1,14 @@
 # Feature loop
 
-Canonical live workflow for managed-project work. **Hermes** runs this graph
-from the project's Kanban board. PIV agent definitions are stages on this
-graph, not a second workflow.
+Target workflow for managed-project work. **Hermes** is the control plane and
+the project's Kanban board holds the work. PIV agent definitions are stages on
+this graph, not a second workflow.
+
+> **Status: target methodology — not wired into the current install.**
+> The current Hermes install has no worker loop running. Runtime mechanics are
+> owned by Hermes (`personalAgent`), not by this file. See
+> [harness.md](../knowledge/setup/harness.md) and the
+> [fresh-Hermes rebuild ADR](../records/decisions/2026-09-fresh-hermes-rebuild.md).
 
 Related: five-part model in [agentic-system.md](./agentic-system.md).
 Historical PIV text: [agentic-coding.md](./agentic-coding.md) (do not use
@@ -15,35 +21,34 @@ One graph, one control-plane orchestrator, one worker runtime.
 ```text
 AiNative feature-loop.md  ← the graph (this file)
         │
-        └─ Hermes parent    ← personalAgent (Kanban / unattended)
-              workers: one Pi session per agent state
+        └─ Hermes parent    ← control plane (board / dispatch / gates)
+              workers: one worker session per agent state
 ```
 
 Hermes owns state, dispatch, report checks, human relays, retries, and
-publishing. A Pi worker executes only the one state Hermes assigned; it never
+publishing. A worker executes only the one state Hermes assigned; it never
 chooses the next state.
 
 ## Split of ownership
 
 | Layer | Owns | Does not own |
 |---|---|---|
-| **AiNative** (this tree) | What the loop is. Which states exist. Which agent kind runs a state. Compact-report expectations. Human gates vs agent states. | Kanban, worktrees, Pi process, GitHub, Telegram, enrolled-project source. |
+| **AiNative** (this tree) | What the loop is. Which states exist. Which agent kind runs a state. Compact-report expectations. Human gates vs agent states. | Board runtime, worktrees, worker process, GitHub, messaging, enrolled-project source. |
 | **Spec Kit** (in the project) | How specify / clarify / plan / tasks / analyze / implement / converge write native artifacts. | The graph. Skip/confirm/UAT policy. Publish. |
-| **Hermes parent** (`personalAgent`) | Kanban, current state, isolated task worktree, one worker per state, report checks, retries, human gates, Telegram, GitHub publish. | Following stage skills in-process; one-shot “run all of Spec Kit.” |
-| **Pi worker** | Execute the **one** step Hermes named. Read that skill. Write artifacts. Return a compact report. Exit. | The flow. Next state. Skip/confirm/UAT policy. Publish. Merge. AiNative writes. |
+| **Hermes parent** (`personalAgent`) | Board, current state, isolated task worktree, one worker per state, report checks, retries, human gates, messaging, GitHub publish. | Following stage skills in-process; one-shot “run all of Spec Kit.” |
+| **Worker** | Execute the **one** step Hermes named. Read that skill. Write artifacts. Return a compact report. Exit. | The flow. Next state. Skip/confirm/UAT policy. Publish. Merge. AiNative writes. |
 
 ## Agent and skill sources
 
 To Hermes, each agent state is a named skill, artifacts, and a compact
 report.
 
-1. **AiNative agents** — folders under `docs/agents/`. Live required: Ready,
+1. **AiNative agents** — folders under `docs/agents/`. Target required: Ready,
    critic, tester, and pr-reviewer. Other agents may be used by an explicitly
    named job or remain optional.
-2. **Spec Kit** — project skills, normally stored under
-   `.cursor/skills/speckit-{specify,clarify,plan,tasks,analyze,implement,converge}/SKILL.md`.
-   Hermes/Pi reads these files as skill inputs; this does not require a Cursor
-   runtime, command, or symlink.
+2. **Spec Kit** — project skills stored in the enrolled project. Hermes reads
+   these files as skill inputs; this does not require an editor runtime,
+   command, or symlink.
 
 Hermes maps each state to a skill path and starts **one** worker. It does not
 run skills in-process.
@@ -51,12 +56,12 @@ run skills in-process.
 ## Executor rule
 
 ```text
-Hermes: what state? → start a new Pi worker for that step only
-Pi: do the step → compact report → exit
+Hermes: what state? → start a new worker for that step only
+Worker: do the step → compact report → exit
 Hermes: check → next state, retry, or park for a human
 ```
 
-- **New Pi process every agent state.** Never one process that runs Ready
+- **New worker session every agent state.** Never one process that runs Ready
   through converge.
 - Worker prompts are stage-dumb: worktree, step name, skill path, inputs
   on disk, report schema. If the prompt says “then run clarify,” the
@@ -64,29 +69,35 @@ Hermes: check → next state, retry, or park for a human
 - Hermes never writes `spec.md`, `plan.md`, `tasks.md`, or application code
   from the parent process because “context is already loaded.”
 
-## Hermes runtime
+## Runtime ownership
 
-- Kanban is the only task source of truth. Hermes uses one concurrent slot,
-  an isolated `feature/task-<id>` worktree, read-only `/ainative`, and the
-  existing Telegram park/resume and GitHub PR paths.
-- Hermes records internal states in its overlay; the board contains work
-  cards, not cards for `ready`, `plan`, `tester`, or other internal stages.
-- Every agent state starts one new Pi process with a one-step request and a
-  compact report contract. Pi never publishes, pushes, merges, or deploys.
-- A Feature Card uses the `task-generator` profile. After planning produces
+Runtime mechanics are **not** defined in AiNative. Hermes owns them; this
+install's live configuration lives in `personalAgent` (context docs, Compose,
+image) and `~/.hermes-personal-coding` (SOUL, `config.yaml`). The current
+install provides the native `hermes kanban` and `hermes project` commands but
+no worker loop is wired, so do not describe the loop as running.
+
+The target runtime must satisfy these constraints:
+
+- The Kanban board is the only task source of truth; do not add a second task
+  database.
+- One isolated task worktree per active card, read-only AiNative
+  (`/opt/data/mnt/AiNative`), and the operator's human park/resume path for
+  questions and gates.
+- Every agent state starts one new worker session with a one-step request and
+  a compact report contract. Workers never publish, push, merge, or deploy.
+- A Feature Card is planned by a planning role. After planning produces
   `tasks.md`, Hermes creates child Task Cards on the same board. Each child
-  is independently executable by an `executor`; the parent stays open until
-  all children are complete and feature-level validation passes.
+  is independently executable; the parent stays open until all children are
+  complete and feature-level validation passes.
 - The feature-level critic/tester and operator gates belong to the parent
-  Feature Card, not its child cards. UAT is an operator step in the current
-  graph; its exact triggering and board presentation remain under active
-  policy work.
+  Feature Card, not its child cards. UAT is an operator step in this graph;
+  its exact triggering and board presentation remain under active policy work.
 - Keep project rules in `AGENTS.md` and project validation commands in
   `.ainative/project.yaml`. Hermes links to this file rather than copying
   the graph into its dispatcher instructions.
 
-Do not rebuild Telegram or add a second task database. In-flight 013
-whole-playbook overlays stay parked until a human acknowledges them.
+Do not add a second task database.
 
 ## Card paths
 
@@ -113,7 +124,7 @@ only.
 This graph is the `feature` path. Orchestrator-specific **edges** (not extra loops):
 
 - **Hermes:** pick the Kanban card, isolate its worktree, surface human
-  gates on the existing operator path, and publish to GitHub only after
+  gates on the operator path, and publish to GitHub only after
   required reviews pass and the operator approves.
 
 ```text
@@ -181,12 +192,12 @@ Human questions are not stuck; they are `confirm` / clarify relay / `uat`.
 ## What this is not
 
 - Scout → 5/10/20 questions → plan-reviewer → wait for plan approval →
-  implement → critic → tester as the **live** path.
-- One Pi identity that runs the whole Spec Kit playbook in a single session.
+  implement → critic → tester as the **target** path.
+- One worker identity that runs the whole Spec Kit playbook in a single session.
 - A classifier that picks `feature` / `change` / `job` from card prose.
   The path is a field on the card.
 - Hermes implementing Spec Kit stages in-process.
 - Converge substituting for critic/tester/UAT.
 - Duplicating this document into Hermes. Hermes **links** here
-  (`/ainative/docs/systems/feature-loop.md`) and describes only
+  (`/opt/data/mnt/AiNative/docs/systems/feature-loop.md`) and describes only
   dispatcher behavior.

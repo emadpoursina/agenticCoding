@@ -2,15 +2,16 @@
 
 Every agentic system has five parts. For managed projects, AiNative defines
 the methodology and Hermes is the control plane that dispatches work through
-Kanban and Pi. Keep runtime configuration in Hermes and project-specific
-context in the project.
+its native Kanban board and worker profiles. That loop is **target design, not
+wired into the current install**. Keep runtime configuration in Hermes and
+project-specific context in the project.
 
 | Part | What it is | Source of truth |
 |------|------------|-----------------|
 | [Harness](#1-harness) | Runtime and isolation for managed work | [feature-loop.md](./feature-loop.md), Hermes configuration |
 | [Model](#2-model) | Model selection for each state | Hermes configuration |
 | [Context](#3-context) | Project rules, specs, and methodology | Project `AGENTS.md`, `.ainative/project.yaml`, and this repository |
-| [Tools](#4-tools) | Capabilities available to workers and control plane | Pi worker contract and Hermes configuration |
+| [Tools](#4-tools) | Capabilities available to workers and control plane | Worker contract and Hermes configuration |
 | [Agents](#5-agents) | Per-state skills and job-worker instructions | [agents/](../agents/) |
 
 ```mermaid
@@ -21,20 +22,23 @@ flowchart LR
   T[Tools] --> A
 ```
 
-The live managed-project workflow is [feature-loop.md](./feature-loop.md).
-[agentic-coding.md](./agentic-coding.md) documents the historical PIV
-methodology; do not treat it as a second live workflow.
+The target managed-project workflow is [feature-loop.md](./feature-loop.md)
+(not wired into the current install). [agentic-coding.md](./agentic-coding.md)
+documents the historical PIV methodology; do not treat it as a second live
+workflow.
 
 ---
 
 ## 1. Harness
 
-The managed-project runtime is Hermes plus Pi. Hermes owns the board,
-worktree isolation, state transitions, human gates, and publish decision. It
-starts one fresh Pi session for each agent state, in the task worktree.
+The managed-project runtime is the Hermes agent (the `personalAgent` install).
+Hermes owns the board, worktree isolation, state transitions, human gates, and
+publish decision. In the target design it starts one fresh worker session for
+each agent state, in the task worktree; the current install has no worker loop
+wired.
 
 Workers return a compact report and exit. They do not own the workflow,
-Kanban, GitHub publishing, or deployment. Runtime details are in
+board, GitHub publishing, or deployment. Runtime details are in
 [feature-loop.md](./feature-loop.md) and the `personalAgent` operator docs.
 
 ---
@@ -43,7 +47,7 @@ Kanban, GitHub publishing, or deployment. Runtime details are in
 
 Model choice is a system decision, not a default. Use different tiers for different work — and a **different model** for Validation than for Plan or Implementation ([validation-layer.md](./validation-layer.md#model-selection)).
 
-Model names change as providers ship newer versions, so no specific model is pinned here. The tier **roles** stay stable; the concrete model for each role is chosen and remembered by your **personalAgent** — per-role `HERMES_*_MODEL` env vars, switchable live via `hermes kanban set-model`. A **default** model backs the personalAgent whenever it is not sure which tier fits.
+Model names change as providers ship newer versions, so no specific model is pinned here. The tier **roles** stay stable; the concrete model is configured in Hermes (`config.yaml`) and may be overridden per task with `hermes kanban set-model` once dispatch is wired. A **default** model backs the personalAgent whenever it is not sure which tier fits.
 
 | Tier | Role | Use for |
 |------|------|---------|
@@ -78,8 +82,9 @@ progressive disclosure:
 project's `AGENTS.md`. Declare workflow and validation commands in
 `.ainative/project.yaml`.
 
-**Methodology** — `/ainative` is mounted read-only for managed work. Project
-specifications and plans remain in the project repository.
+**Methodology** — AiNative is mounted read-only at `/opt/data/mnt/AiNative`
+for managed work. Project specifications and plans remain in the project
+repository.
 
 ---
 
@@ -89,8 +94,8 @@ What agents invoke beyond generation — scoped narrowly so context stays clean.
 
 | Tool | Scope | Owner |
 |------|-------|-------|
-| **Pi tools** | Read, edit, test, and inspect code for one assigned state | Hermes harness configuration and worker contract |
-| **Kanban / GitHub / Telegram** | Cards, publish operations, and human notifications | Hermes control plane |
+| **Worker tools** | Read, edit, test, and inspect code for one assigned state | Hermes runtime configuration and worker contract |
+| **Kanban / GitHub / messaging** | Cards, publish operations, and human notifications | Hermes control plane |
 | **Project services** | Databases, payments, deployment, and other integrations | Project configuration and explicitly granted worker tools |
 
 When using MCP, avoid poorly scoped server handling that fills context with tool metadata. Browser/E2E and other tools may be added here as the system grows.
@@ -100,8 +105,9 @@ When using MCP, avoid poorly scoped server handling that fills context with tool
 ## 5. Agents
 
 Per-task workflows are folders with `AGENTS.md`, `SKILL.md`, and `rule.md`.
-Hermes dispatches these definitions for required feature-loop states or a
-named job card; no editor command or per-project symlink is required.
+In the target design Hermes dispatches these definitions for required
+feature-loop states or a named job card; no editor command or per-project
+symlink is required.
 
 | Agent | Managed-project role |
 |-------|-----------------------|
@@ -126,5 +132,5 @@ PIV methodology (Plan → Implementation → Validation loops, handoffs, commit 
 - [agentic-coding.md](./agentic-coding.md) — PIV methodology and AI layer (Context)
 - [validation-layer.md](./validation-layer.md) — Validation architecture and model separation
 - [agent-handoff-template.md](./agent-handoff-template.md) — structured handoffs between agents
-- [feature-loop.md](./feature-loop.md) — live Hermes/Pi execution graph
+- [feature-loop.md](./feature-loop.md) — target Hermes execution graph
 - [new-project.md](../knowledge/setup/new-project.md) — project enrollment and bootstrap handoff

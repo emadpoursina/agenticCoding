@@ -1,7 +1,7 @@
 # Hermes Agent
 
 **Date:** 2026-07-19
-**Status:** Queued
+**Status:** Testing
 **Category:** harness
 
 ## Hypothesis
@@ -28,11 +28,14 @@ Relevant agentic parts: **Harness** (primary), **Agents** (skills, subagents, MC
 
 ## Results
 
-_Fill after testing._
+_Installed and in use as the personal agent (2026-09-30)._ The official Hermes
+agent runs in Docker as `hermes-personal-coding`; see the
+[fresh-Hermes rebuild ADR](../decisions/2026-09-fresh-hermes-rebuild.md). The
+managed-project feature loop is not wired yet.
 
 | Run | Date | Task | Outcome | Notes |
 |-----|------|------|---------|-------|
-| 1 | | | | |
+| 1 | 2026-09-30 | Install + personal-agent use | Promising | Hermes Agent 0.21.0 in Docker; native kanban/project CLIs present, loop unwired |
 
 ### Summary
 

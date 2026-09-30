@@ -16,9 +16,9 @@ Four layers, one decision each: **systems** (how you work), **agents** (AI partn
 | Client/server compatibility | [systems/client-compatibility-system.md](./systems/client-compatibility-system.md) |
 | A per-task AI agent | [agents/](./agents/) — start with `AGENTS.md` |
 | Agentic system (Harness, Model, Context, Tools, Agents) | [systems/agentic-system.md](./systems/agentic-system.md) |
-| Hermes/Pi runtime | [knowledge/setup/harness.md](./knowledge/setup/harness.md) |
-| Live managed-project feature loop | [systems/feature-loop.md](./systems/feature-loop.md) |
-| Historical PIV (not the live stage list) | [systems/agentic-coding.md](./systems/agentic-coding.md) |
+| Runtime / harness | [knowledge/setup/harness.md](./knowledge/setup/harness.md) |
+| Target managed-project feature loop (not wired) | [systems/feature-loop.md](./systems/feature-loop.md) |
+| Historical PIV methodology | [systems/agentic-coding.md](./systems/agentic-coding.md) |
 | Validation layer architecture | [systems/validation-layer.md](./systems/validation-layer.md) |
 | PIV Validation — adversarial review | [agents/critic/](./agents/critic/) |
 | PIV Validation — prove the code works | [agents/tester/](./agents/tester/) |

@@ -4,6 +4,10 @@ Part **5** of the [agentic system](../systems/agentic-system.md) — per-task wo
 
 Each agent is a folder with three core files tuned for one job.
 
+> The managed-project dispatch described here is **target methodology**. The
+> current Hermes install has no worker loop wired (see
+> [feature-loop.md](../systems/feature-loop.md)).
+
 ## File contract
 
 | File | Purpose |
@@ -43,7 +47,7 @@ Reusable [Agent Skills](https://agentskills.io/home) in [`_skills/`](./_skills/)
 
 ## External agent libraries
 
-Third-party persona collections are external reference material, not part of the Hermes feature-loop agents.
+Third-party persona collections are external reference material, not part of the AiNative feature-loop agents.
 
 | Resource | Description |
 |----------|-------------|
@@ -65,5 +69,5 @@ Third-party persona collections are external reference material, not part of the
 - Five-part model: [agentic-system.md](../systems/agentic-system.md)
 - Methodology: [PIV — Plan, Implementation, Validation](../systems/agentic-coding.md)
 - Generic templates (not agents): [systems/](../systems/)
-- **Managed projects:** Hermes reads the configured AiNative tree read-only and starts Pi workers for assigned states or job skills.
+- **Managed projects (target):** Hermes reads AiNative read-only and starts one worker per assigned state or job skill. Not wired in the current install.
 - Formats: [AGENTS.md](https://agents.md/), [Agent Skills](https://agentskills.io/specification)

@@ -2,6 +2,7 @@
 
 **Date:** 2026-09-22
 **Status:** Accepted
+**Note:** the feature loop is not wired in the current install; see [2026-09-fresh-hermes-rebuild.md](./2026-09-fresh-hermes-rebuild.md).
 
 ## Context
 

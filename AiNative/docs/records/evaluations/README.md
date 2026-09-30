@@ -8,7 +8,7 @@ Candidates with potential — new models, tools, MCP servers, agent patterns, ha
 
 | Status | Entry | Category | Link |
 |--------|-------|----------|------|
-| Queued | Hermes Agent | harness | [2026-07-hermes-agent.md](./2026-07-hermes-agent.md) |
+| Testing | Hermes Agent | harness | [2026-07-hermes-agent.md](./2026-07-hermes-agent.md) |
 | Testing | Ponytail | context | [2026-07-ponytail.md](./2026-07-ponytail.md) |
 | Queued | codebase-memory-mcp | tool | [2026-07-codebase-memory-mcp.md](./2026-07-codebase-memory-mcp.md) |
 | Queued | 9Router | tool | [2026-08-9router.md](./2026-08-9router.md) |

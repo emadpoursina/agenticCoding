@@ -14,9 +14,10 @@ metadata:
 
 Interactive Hermes kanban task creation. Do not produce meeting-prep markdown.
 
-This skill is loaded from the configured AiNative external skill directory. It
-uses Hermes' native kanban tools or equivalent `hermes kanban` CLI commands;
-never mutate the board through ad-hoc database access.
+When wired as a Hermes skill, it uses Hermes' native kanban tools or the
+equivalent `hermes kanban` CLI commands; never mutate the board through
+ad-hoc database access. (The managed loop is not wired in the current
+install.)
 
 ---
 
@@ -73,8 +74,8 @@ OUTPUT:
 
 4. Fill this card template exactly, in this order. Omit `## Skill` unless
    `Path=job`. Omit `## Parent` unless this is a child `change` card.
-   Omit `## Profile` unless the operator explicitly overrides it (Hermes
-   defaults `feature` → `task-generator`, `change`/`job` → `executor`):
+   Omit `## Profile` unless the operator explicitly overrides it; Hermes
+   selects its configured dispatch profile:
 
 # <title>
 

@@ -1,9 +1,9 @@
 # Agentic coding system
 
-**Live feature workflow is not this file.** Use
+**The target feature workflow is not this file.** Use
 [feature-loop.md](./feature-loop.md) for managed-project work. This document
 is the older homemade PIV write-up (scout, plan-reviewer, critic, tester),
-kept as historical methodology; do not treat it as what Hermes runs.
+kept as historical methodology; it is not the live stage list.
 
 Canonical five-part model (Harness, Model, Context, Tools, Agents): [agentic-system.md](./agentic-system.md).
 

@@ -1,7 +1,7 @@
 # ADR: Feature loop replaces homemade PIV as the live workflow
 
 **Date:** 2026-09-21
-**Status:** Accepted
+**Status:** Superseded by [2026-09-fresh-hermes-rebuild.md](./2026-09-fresh-hermes-rebuild.md)
 
 ## Context
 
