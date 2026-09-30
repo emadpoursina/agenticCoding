@@ -1,13 +1,14 @@
 ---
 name: change
-description: Small code edit already specified by the Kanban card. Edit the worktree to match the card, then report STATUS/SCOPE/SUMMARY. Use for the Hermes change path only.
+description: Small code edit already specified by the Kanban card. Edit the worktree to match the card, then report STATUS/SCOPE/SUMMARY. Target methodology for the Hermes change path only; not wired into the current install.
 ---
 
 # Change
 
-One worker for the Hermes `change` path (`ready` → `change` → `tester`).
-Edit the worktree to match the card. Do not look for `tasks.md`.
-Do not run specify, plan, critic, UAT, pr-review, or publish.
+One worker for the target Hermes `change` path (`ready` → `change` → `tester`);
+not wired into the current install. Edit the worktree to match the card. Do not
+look for `tasks.md`. Do not run specify, plan, critic, UAT, pr-review, or
+publish.
 
 ## What to do
 

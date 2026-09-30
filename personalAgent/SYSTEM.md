@@ -36,7 +36,7 @@ put passwords, API keys, tokens, or private keys here.
 - Default model: `muse-spark-1.3-contributor` (provider `opencode-go`,
   base URL `https://opencode.ai/zen/go/v1`). Live config is authority.
 - No managed/enrolled project is registered yet.
-- No Kanban/Pi control plane runs here; the `hermes kanban` and
+- No worker loop runs here; the native `hermes kanban` and
   `hermes project` CLIs exist but are unused until a project is enrolled.
 
 ## Container paths Hermes should use
@@ -77,7 +77,7 @@ paths are not mixed up.
   gateway is published on 8642). Sign-in details stay in `.env`, not here.
 - GitHub over the read-only SSH mount; any token comes from the environment,
   not from this file.
-- The Kanban/Pi feature-loop methodology is documented in AiNative
+- The managed-project feature-loop methodology is documented in AiNative
   (`/opt/data/mnt/AiNative/docs/systems/`); it is not wired into this install.
 
 ## Approved limits

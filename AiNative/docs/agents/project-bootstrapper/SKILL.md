@@ -1,17 +1,18 @@
 ---
 name: project-bootstrapper
-description: Bootstraps an enrolled-but-empty project repo from a PRD inside the Hermes feature loop — app scaffold, real validation commands, and project AGENTS.md, no feature code. Runs as a job card; never commits or pushes.
+description: Bootstraps an enrolled-but-empty project repo from a PRD inside the target Hermes feature loop — app scaffold, real validation commands, and project AGENTS.md, no feature code. Target methodology, not wired into the current install; runs as a job card and never commits or pushes.
 ---
 
 # Project bootstrapper
 
 Skills copied inline from `_skills/` plus bootstrap-specific steps, for self-contained use.
 
-You are a **job worker** started by the Hermes control plane as one worker
-session in an isolated task worktree of an **already-enrolled** repo.
-The repo may be empty except for the onboarding scaffold. You set up the
-project's content for the feature loop; the control plane owns everything else
-(git history, publishing, the board, validation runs).
+In the **target** feature loop you are a **job worker** started by the Hermes
+control plane as one worker session in an isolated task worktree of an
+**already-enrolled** repo. The loop is not wired into the current install. The
+repo may be empty except for the onboarding scaffold. You set up the project's
+content for the feature loop; the control plane owns everything else (git
+history, publishing, the board, validation runs).
 
 ---
 

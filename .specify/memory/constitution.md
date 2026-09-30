@@ -1,5 +1,13 @@
 <!--
 Sync Impact Report
+- Version change: 1.0.2 → 1.0.3 (reconcile Principle III with the current Hermes install; feature loop is target, not wired)
+- Modified principles: III (Platform-Native Over Rebuild) — platform is now the official Hermes agent in Docker with native kanban/project CLIs; the custom control plane and second task database remain prohibited; the managed-project feature loop is explicitly target methodology
+- Added sections: none
+- Removed sections: none
+- Follow-up TODOs: none
+-->
+<!--
+Sync Impact Report
 - Version change: 1.0.1 → 1.0.2 (consolidate Hermes files under personalAgent; fix paths)
 - Modified principles: none
 - Added sections: none
@@ -55,15 +63,19 @@ Deliberate simplifications that cut a real corner MUST be marked with a
 ### III. Platform-Native Over Rebuild
 
 Agents MUST prefer capabilities already in the host platform over building
-equivalents. For Hermes Kanban work this means: native Kanban
-(`kanban.db`), project registry (`projects.db`), worktrees, retries,
-heartbeats, Telegram gateway, and GitHub skills. A second task database
-MUST NOT be introduced. AiNative is a read-only methodology mount;
-workers MUST NOT modify it. Lessons become proposals, not automatic PRs.
-Do not fork or rewrite Hermes. Do not duplicate AiNative into application
-repos.
+equivalents. For Hermes work this means the official Hermes agent
+(`nousresearch/hermes-agent`, running in Docker as `hermes-personal-coding`)
+and its native surface: the `hermes kanban` board, the `hermes project`
+registry, worktrees, retries, heartbeats, and GitHub skills. A second task
+database or a custom control plane MUST NOT be introduced. The managed-project
+feature loop is target methodology, not wired into the current install (only
+the `default` profile exists and no project is enrolled); do not describe it
+as running. AiNative is a read-only methodology mount; workers MUST NOT
+modify it. Lessons become proposals, not automatic PRs. Do not fork or
+rewrite Hermes. Do not duplicate AiNative into application repos.
 
-Rationale: V0 is adapters plus orchestration, not a new control plane.
+Rationale: Hermes is the control plane. Our work is adapters and methodology
+on top of it, not a replacement runtime.
 
 ### IV. Trust-Boundary Tests
 
@@ -156,4 +168,4 @@ Current repo layout: `AiNative/` (read-only methodology),
 `personalAgent/` (kept Hermes context, compose, and image),
 `specs/` (fresh, empty).
 
-**Version**: 1.0.2 | **Ratified**: 2026-08-28 | **Last Amended**: 2026-09-29
+**Version**: 1.0.3 | **Ratified**: 2026-08-28 | **Last Amended**: 2026-09-30

@@ -2,10 +2,11 @@
 
 Constraints specific to this agent. Generic repo rules live in `AGENTS.md` (repo root).
 
-This agent runs as a Hermes **job card** — one worker session in an isolated
-`feature/task-<id>` worktree of an already-enrolled repo. It bootstraps the
-project's content for the feature loop; the control plane owns git, the
-board, validation runs, and publishing.
+In the target feature loop, this agent runs as a Hermes **job card** — one
+worker session in an isolated `feature/task-<id>` worktree of an
+already-enrolled repo. The loop is not wired into the current install. It
+bootstraps the project's content for the feature loop; the control plane owns
+git, the board, validation runs, and publishing.
 
 ## Must
 

@@ -1,10 +1,15 @@
 # Project bootstrapper agent
 
-Bootstraps an **enrolled-but-empty** project repo from a PRD inside the Hermes
-feature loop. Runs as a `job` card: one worker session in the task worktree of
-a repo the control plane already enrolled. Handles the content between "the repo
-is enrolled" and "feature cards can run": app scaffold, declared dependencies,
-real validation commands, and project `AGENTS.md` — no feature code, no git.
+Bootstraps an **enrolled-but-empty** project repo from a PRD inside the target
+Hermes feature loop. Runs as a `job` card: one worker session in the task
+worktree of a repo the control plane already enrolled. Handles the content
+between "the repo is enrolled" and "feature cards can run": app scaffold,
+declared dependencies, real validation commands, and project `AGENTS.md` — no
+feature code, no git.
+
+> **Status: target methodology — not wired into the current install.**
+> The current Hermes install has no worker loop running; see
+> [feature-loop.md](../../systems/feature-loop.md).
 
 ## When to use
 

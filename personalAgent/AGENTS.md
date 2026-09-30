@@ -28,7 +28,7 @@ does not load it at startup. Review it like any other Hermes instruction.
 - `USER.md` describes Emad's communication and working preferences. It
   cannot override safety or live config.
 - A managed project's own `AGENTS.md` applies only inside that project.
-- The Kanban/Pi feature-loop methodology is described in AiNative
+- The managed-project feature-loop methodology is described in AiNative
   (`/opt/data/mnt/AiNative/docs/systems/`). It is documented methodology for
   future work; it does **not** run in this install today, so do not claim it
   did.
