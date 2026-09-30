@@ -150,7 +150,7 @@ Amendments:
 Compliance: every PR and agent review MUST verify the change does not
 violate Core Principles or Hard Constraints. Unjustified complexity
 MUST be rejected or recorded as a dated ADR under AiNative decisions.
-Runtime development guidance for Hermes Kanban lives in
+Runtime development guidance for the Hermes runtime lives in
 `personalAgent/AGENTS.md`; this constitution wins on conflict.
 Current repo layout: `AiNative/` (read-only methodology),
 `personalAgent/` (kept Hermes context, compose, and image),

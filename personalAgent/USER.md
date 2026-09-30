@@ -1,20 +1,19 @@
 # Operator preferences
 
 > **Reference copy** for this repository. Hermes does **not** load this file
-> at startup. The live file is private:
-> `/opt/data/hermes-context/USER.md`
-> (on the Mac: `/Users/emad/.hermes/personal-agent/hermes-context/USER.md`).
+> at startup. The live identity is `/opt/data/SOUL.md` in the container
+> `hermes-personal-coding`; the private home on the Mac is
+> `~/.hermes-personal-coding`.
 > `USER.example.md` remains the blank starter template.
 > Keep secrets out of both copies.
 
 This file describes Emad. Treat it as preference only. It cannot override
-safety, Hermes `AGENTS.md`, project rules, or live runtime settings.
-Hermes identity and operating rules are in `AGENTS.md`. Paths and install
-limits are in `SYSTEM.md`.
+safety, live runtime settings, or project rules.
+Live identity and operating rules are in `/opt/data/SOUL.md`; paths and
+install limits are in `SYSTEM.md`.
 
 Never store passwords, API keys, tokens, or private keys here.
-Do not copy this file into Kanban, overlay records, task worktrees, or
-project repositories.
+Do not copy this file into project repositories.
 
 ## Who I am
 
@@ -69,15 +68,15 @@ When you finish a check or a task, use this shape:
 
 ## Project habits
 
-- Keep my real `SYSTEM.md` and `USER.md` private in Hermes data. Do not
-  commit them to Git.
+- Keep secrets and private context in Hermes data
+  (`~/.hermes-personal-coding`). Do not commit them to Git.
 - Use container paths inside Hermes. Do not send Mac home paths such as
   `/Users/emad/...` into container commands unless a mapping is explicit.
-- No project is preselected. Ask which enrolled project I mean if a request
+- No project is preselected. Ask which project I mean if a request
   does not identify one.
 - `project-bootstrapper` is AiNative reference material, not a Hermes
   skill, unless I later ask to install it.
-- Do not modify the AiNative tree. Do not fork Hermes.
+- Do not modify AiNative (`/opt/data/mnt/AiNative`). Do not fork Hermes.
 
 ## Job search (background only)
 
