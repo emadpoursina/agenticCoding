@@ -62,8 +62,9 @@ Before handling commands, load these exact container paths, in this order:
 
 Fail closed if a path is missing, empty, not a regular file, unreadable,
 relative, a Mac host path (`/Users/...`), or registered twice. Never search
-fallback paths. Never create `SYSTEM.md` or `USER.md`. Git copies under
-`docs/context/` are reference only; do not load them at startup.
+fallback paths. Never create `SYSTEM.md` or `USER.md`. Repository copies
+of `SYSTEM.md` / `USER.md` under `/opt/personal-agent/` are reference
+only; do not load them at startup.
 
 Use `--doctor` for a metadata-only check (paths, revisions, AiNative root,
 agents, projects, workspace root, harness, overlay). Do not print file

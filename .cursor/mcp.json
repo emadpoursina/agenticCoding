@@ -5,7 +5,7 @@
       "args": [
         "compose",
         "--project-directory",
-        "${workspaceFolder}/docker/hermes-personal-coding",
+        "${workspaceFolder}/personalAgent",
         "exec",
         "-T",
         "hermes",

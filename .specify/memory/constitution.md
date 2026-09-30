@@ -1,5 +1,12 @@
 <!--
 Sync Impact Report
+- Version change: 1.0.1 → 1.0.2 (consolidate Hermes files under personalAgent; fix paths)
+- Modified principles: none
+- Added sections: none
+- Removed sections: none
+- Follow-up TODOs: none
+-->
+<!--
 - Version change: 1.0.0 → 1.0.1 (fresh Speckit init after specs history clear; align paths with current repo)
 - Modified principles: none
 - Added sections: none
@@ -93,9 +100,9 @@ non-critical repo. Do not silently pick a real production repository.
 - No new external dependencies without explicit owner approval.
 - Never commit secrets, tokens, or credentials. Operational keys live
   outside git (e.g. `$HOME/.hermes-personal-coding/.env` and
-  `docker/hermes-personal-coding/.env` which is gitignored).
+  `personalAgent/.env` which is gitignored).
 - Isolated Hermes home: `~/.hermes-personal-coding` (mounted as `/opt/data`
-  in `docker/hermes-personal-coding/docker-compose.yml`). Do not write to
+  in `personalAgent/docker-compose.yml`). Do not write to
   `~/.hermes` root.
 - Model routing is configured inside Hermes. Do not hardcode provider
   or model names into agents.
@@ -144,9 +151,9 @@ Compliance: every PR and agent review MUST verify the change does not
 violate Core Principles or Hard Constraints. Unjustified complexity
 MUST be rejected or recorded as a dated ADR under AiNative decisions.
 Runtime development guidance for Hermes Kanban lives in
-`personalAgent/orchestratorContext/AGENTS.md`; this constitution wins on conflict.
+`personalAgent/AGENTS.md`; this constitution wins on conflict.
 Current repo layout: `AiNative/` (read-only methodology),
-`personalAgent/orchestratorContext/` (kept Hermes context),
-`docker/hermes-personal-coding/` (compose + image), `specs/` (fresh, empty).
+`personalAgent/` (kept Hermes context, compose, and image),
+`specs/` (fresh, empty).
 
-**Version**: 1.0.1 | **Ratified**: 2026-08-28 | **Last Amended**: 2026-09-29
+**Version**: 1.0.2 | **Ratified**: 2026-08-28 | **Last Amended**: 2026-09-29
