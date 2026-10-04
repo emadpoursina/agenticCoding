@@ -21,7 +21,7 @@ install.)
 
 ---
 
-## Todo-ready grooming
+## Dispatch-ready grooming
 
 Use when the operator provides `new task: ...`. Replace placeholders from the
 input; do not invent requirements. The task remains unchanged until the

@@ -1,105 +1,82 @@
-# New project
+# New project onboarding (one-time)
 
-## Planning
+One-time setup when adding/cloning a project. Run once per project, before any
+feature work. This is **not** per-card work and **not** PRD setup.
 
-### Business model
+Three things with similar names — do not conflate them:
 
-- Who
-- Problem
-- Solution
-- Name
+| Step | When | Owner | Report |
+|---|---|---|---|
+| Install gate (`hermes-readiness.sh`) | Before onboarding; proves Hermes can run | Install | `PASS`/`FAIL`/`GAP`, `ONBOARDING:`/`STEP3:` |
+| **Project onboarding (this file)** | Once per project; makes the repo ready for cards | Operator + Hermes CLI | Enrolled project + board + common files |
+| Per-card gate (`ready`) | Before every card; branch + Spec Kit preflight | `ready` worker | `READY: ok\|blocked` |
 
-### App structure
-
-- Landing
-- Signup
-- App
-  - Payment
-
-### Tech stack
-
-- Backend and auth
-- Frontend and framework
-- Database
-- DevOps (GitHub, Docker, deployment)
-- Third-party services (payments, AI, etc.)
-- Constraints and out-of-scope work
-
-### PRD
-
-1. Context
-2. User journey
-3. Page or screen list
-4. Tech stack
-5. Design direction
-
-## Setup and enrollment
+PRD work (`prd-writer`, `project-bootstrapper`) happens **after** onboarding,
+as cards through the [feature loop](../../systems/feature-loop.md). Onboarding
+never reads or writes a PRD. Even an empty repo is onboarded first; then a PRD
+job and a full setup loop follow.
 
 > **Status: target flow — not wired into the current install.** The Hermes
 > install provides native `hermes project` and `hermes kanban` commands, but
-> no project is enrolled and no automated onboarding operation exists yet.
-> Treat this section as the intended flow, not a procedure that runs today.
+> no automated onboarding operation exists yet. Run the commands below by hand.
 
-### 1. Create the repository
+## Checklist (common things every project needs)
 
-Create the GitHub repository and clone it under the Hermes workspace root
-(default `/opt/data/mnt/workspace`). Use `<workspace-root>/<project-id>`, with
-the project ID derived from the repository name. Set the correct default branch
-before enrolling.
+Same checklist for empty and non-empty repos. Never overwrite existing content.
 
-### 2. Register the project in Hermes
+1. **GitHub repo exists, default branch set.** Create it if missing. Clone under
+   the Hermes workspace root (default `/opt/data/mnt/workspace`) as
+   `<workspace-root>/<project-id>` (ID from repo name). Confirm
+   `git -C <path> ls-remote --heads origin` works.
+2. **Register in Hermes and give it a board:**
+   ```bash
+   hermes project create <name> <workspace-root>/<project-id>
+   hermes kanban init
+   hermes project bind-board <name> <board-slug>
+   ```
+   Verify (`hermes project show <name>`, `hermes kanban boards`). Hermes kanban
+   is the only board. Registration records project + board; it creates no cards
+   and scaffolds no code.
+3. **Common files exist (create only what is missing):**
+   - `README.md` — what the project is, 5 lines minimum.
+   - `AGENTS.md` — project rules from
+     [ai-rules-template.md](../../systems/ai-rules-template.md); preserve any
+     existing control-plane section.
+   - `.ainative/project.yaml` — declare `validation_commands`; a scaffold TODO
+     marker is acceptable here (the loop blocks cards until bootstrap replaces
+     it with real commands).
+   - `scratch/` + gitignored.
+   - `.gitignore` covers scratch, env, build output.
+4. **Spec Kit layout (required for `feature` cards, skipped for `change`/`job`):**
+   `.specify/` + `.opencode/commands/speckit.{specify,clarify,plan,tasks,analyze,implement,converge}.md`.
+   If missing, note it — the per-card `ready` gate will block `feature` cards
+   until it is added.
+5. **Local services (if the project needs a DB):** one database per project per
+   [local-shared-services.md](./local-shared-services.md).
 
-Register the repository as a named Hermes project and give it a board:
+Stop here. Do not write a PRD, scaffold the app, declare dependencies, or open
+cards during onboarding.
 
-```bash
-hermes project create <name> <workspace-root>/<project-id>
-hermes kanban init
-hermes project bind-board <name> <board-slug>
-```
+## After onboarding
 
-Verify both are readable before continuing (`hermes project show <name>`,
-`hermes kanban boards`). Registration records the project and its board; it
-does not scaffold the application or create work cards.
+* Empty repo: file a `job` card (`## Skill: prd-writer`) to write the PRD, then
+  a setup card through the loop to scaffold from it. See
+  [project-bootstrapper](../../agents/project-bootstrapper/).
+* Non-empty repo: file cards directly. If the repo needs understanding first,
+  Hermes may call `scout` (read-only brief / Repo Q&A) or the standalone
+  `legacy-system-assessment-agent` as on-hand tools — neither is a loop stage
+  and neither runs automatically at onboarding.
+* Every card ends the same way: workers never publish; the parent commits,
+  pushes the branch, and opens a PR only after operator approval.
 
-The onboarding scaffold (only missing `README.md`, `AGENTS.md`,
-`.ainative/project.yaml`) is the intended next step once the enrollment
-operation is wired. Until then, create those files by hand or ask Hermes to
-draft them, and never overwrite existing content. Do not push a scaffold commit
-unless you explicitly intend to publish it.
-
-### 3. Make the repo ready (target job)
-
-The intended flow is a `job` card with `## Skill: project-bootstrapper` and a
-reference to the PRD. The [project-bootstrapper](../../agents/project-bootstrapper/)
-confirms ambiguous stack or layout choices with you, scaffolds the app,
-declares dependencies and real `validation_commands`, and fills project rules
-in `AGENTS.md`. It writes no feature code, runs no installs or tests, and does
-no Git publishing.
-
-Review the job result and make the publish decision. Once the bootstrap is
-published, use Kanban cards for all further work. PRD-to-card import is an
-optional convenience; the normal workflow is to define the desired work
-directly as cards.
-
-## Development
+## Development (unchanged)
 
 The card's `## Path` selects the workflow; internal workflow stages are not
 Kanban cards. See the [target feature loop](../../systems/feature-loop.md).
 
-- `feature` — desired outcome; full spec/plan/implementation/review flow.
-- `change` — a small, already-specified code change.
-- `job` — one named skill, such as project bootstrap or PRD writing.
-
-In the target design Hermes dispatches one worker session per agent state,
-keeps workflow state outside the Kanban work items, and parks for operator
-decisions when needed. The current install runs none of this yet; the UAT
-policy is still being refined and is not an onboarding prerequisite.
-
-## Design
-
-- Style design guide
-- Buttons
-- Typography
+* `feature` — desired outcome; full spec/plan/implementation/review flow.
+* `change` — a small, already-specified code change.
+* `job` — one named skill, such as PRD writing or bootstrap from a PRD.
 
 ## Local services
 
@@ -108,6 +85,4 @@ MongoDB, and Adminer via Docker. Create a database per project.
 
 ## Deployment
 
-Deploy checklists and release flow: [release-management-system.md](../../systems/release-management-system.md) — especially [Release Questions](../../systems/release-management-system.md#-release-questions) (before/after setup, backward compatibility).
-
-<!-- Add stack-specific deploy steps here as you refine the stack. -->
+Deploy checklists and release flow: [release-management-system.md](../../systems/release-management-system.md).

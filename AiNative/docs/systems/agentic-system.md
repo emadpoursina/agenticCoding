@@ -111,18 +111,19 @@ symlink is required.
 
 | Agent | Managed-project role |
 |-------|-----------------------|
-| [ready](../agents/ready/) | Required feature-loop preflight |
-| [critic](../agents/critic/) | Required adversarial review after converge |
-| [tester](../agents/tester/) | Required project validation |
-| [pr-reviewer](../agents/pr-reviewer/) | Required final review before publish |
-| [project-bootstrapper](../agents/project-bootstrapper/) | Job-card setup for an enrolled, empty repo |
-| [prd-writer](../agents/prd-writer/) | Optional PRD-writing job |
-| [task-groomer](../agents/task-groomer/) | Optional card-grooming job |
-| [scout](../agents/scout/), [plan-reviewer](../agents/plan-reviewer/) | Optional methodology; not live feature-loop states |
+| [ready](../agents/ready/) | Per-card gate (branch + Spec Kit preflight, before every card) |
+| [critic](../agents/critic/) | Validation — adversarial review after converge |
+| [tester](../agents/tester/) | Validation — proves flows, runs project `validation_commands` |
+| [pr-reviewer](../agents/pr-reviewer/) | Validation — final review before operator-approved parent publish |
+| [project-bootstrapper](../agents/project-bootstrapper/) | Post-onboarding `job` — scaffolds an onboarded repo from a PRD card |
+| [prd-writer](../agents/prd-writer/) | Post-onboarding `job` — writes the PRD as a card |
+| [task-groomer](../agents/task-groomer/) | Per-card helper — turns a rough request into a dispatch-ready Hermes kanban card |
+| [scout](../agents/scout/), [legacy-system-assessment-agent](../agents/legacy-system-assessment-agent/) | On-hand tools Hermes may call any time — not loop states, never automatic |
+| [plan-reviewer](../agents/plan-reviewer/) | Historical PIV methodology only; not a loop state |
 
 Agent library and file contract: [8. agents/README.md](../agents/README.md).
 
-PIV methodology (Plan → Implementation → Validation loops, handoffs, commit plan): [agentic-coding.md](./agentic-coding.md).
+PIV in its detailed form is the [feature loop](./feature-loop.md#piv-mapping): Plan = `ready → tasks`, Implementation = `implement ↔ converge`, Validation = `critic → tester → pr-review` (+ human `uat`). Historical write-up: [agentic-coding.md](./agentic-coding.md).
 
 ---
 

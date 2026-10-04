@@ -24,7 +24,6 @@ AiNative/
 │   ├── README.md
 │   │
 │   ├── systems/                       # How you work — stable, rarely changes
-│   │   ├── task-management-system.md
 │   │   ├── pr-review-system.md
 │   │   ├── release-management-system.md
 │   │   ├── client-compatibility-system.md
@@ -78,7 +77,7 @@ Four folders, one decision each at capture time: **how you work** → `systems/`
 
 ### Layer 1 — Systems (`docs/systems/`)
 
-**What it holds:** Universal operational workflows and AI methodology. How to run a release. How to review a PR. How to manage a task board. The five-part agentic system, the target feature-loop design, historical PIV, validation-layer architecture, and shared templates.
+**What it holds:** Universal operational workflows and AI methodology. How to run a release. The five-part agentic system, the target feature-loop design, historical PIV, validation-layer architecture, and shared templates. Hermes kanban is the only task board; there is no separate task-management system.
 
 **Why it exists:** These are the processes you repeat on every team, plus the AI methodology that underpins every per-task agent. Writing them once and running them everywhere eliminates reinvention and gives you a baseline to iterate on rather than a blank page every time.
 
@@ -247,17 +246,16 @@ The structure is designed so retrieval requires no search. The folder names are 
 | PIV Validation — adversarial review | `agents/critic/` |
 | PIV Validation — prove the code works | `agents/tester/` |
 | PR review prompts | `agents/pr-reviewer/` |
-| Task grooming / meeting prep | `agents/task-groomer/` |
+| Task grooming (Hermes kanban cards) | `agents/task-groomer/` |
 | New-project scaffolding | `agents/project-bootstrapper/` |
 | Legacy assessment (strategies, estimates) | `agents/legacy-system-assessment-agent/` |
 | Reusable agent skills | `agents/_skills/` |
-| How to run a planning meeting | `systems/task-management-system.md` |
 | A bug you have seen before | `records/debugging/<domain>/` |
 | Why a decision was made | `records/decisions/` |
 | What broke and why | `records/postmortems/` |
 | Something new to test | `records/evaluations/` |
 
-Project-specific context (board URL, approvers, stack) belongs in the project repo or `scratch/` — not in this OS repo.
+Project-specific context (board slug, approvers, stack) belongs in the project repo or `scratch/` — not in this OS repo.
 
 If you find yourself searching instead of navigating, a document is in the wrong place.
 

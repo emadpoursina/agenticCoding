@@ -2,7 +2,7 @@
 
 Proves the code works. Runs the test flows defined in the PIV Plan phase through two sub-roles: **unit tester** (isolated components) and **system tester** (integration, E2E with browser automation, customer/user-flow tests). Reports concrete pass/fail per flow. Produces specific failure feedback that drives the Implement loop-back. Does not critique design (that is the [critic](../critic/)).
 
-Methodology: [PIV — Plan, Implementation, Validation](../../systems/agentic-coding.md). Runs as the second half of Validation, after the [critic](../critic/) agent. [pr-reviewer](../pr-reviewer/) is the separate final gate after Validation passes.
+Methodology: PIV Validation phase of the live [feature loop](../../systems/feature-loop.md#piv-mapping) (historical write-up: [agentic-coding.md](../../systems/agentic-coding.md)). Runs as the second half of Validation, after the [critic](../critic/) agent. [pr-reviewer](../pr-reviewer/) is the separate final gate after Validation passes.
 
 ## When to use
 

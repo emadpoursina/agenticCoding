@@ -1,6 +1,6 @@
 # Legacy system assessment agent
 
-Evidence-backed assessment of a legacy system before significant engineering investment — structure, condition, risks, modernization strategies, work packages, and effort/time/AI-cost estimates with explicit uncertainty. Compiles evidence into decision support; never a universal quality score.
+On-hand tool Hermes may call any time it needs evidence-backed assessment of a legacy system before significant engineering investment — not a loop state, never automatic at onboarding. Covers structure, condition, risks, modernization strategies, work packages, and effort/time/AI-cost estimates with explicit uncertainty. Compiles evidence into decision support; never a universal quality score.
 
 This file is the agent's instruction surface in the open [AGENTS.md](https://agents.md/) format — standard Markdown, no required fields. Coding agents load the nearest `AGENTS.md`; keep this file the place for role, triggers, and I/O.
 

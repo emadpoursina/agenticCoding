@@ -308,15 +308,14 @@ Read the user's entire idea description before asking any questions. Extract wha
 
 <!-- source: _skills/conventional-commits/SKILL.md -->
 
-If committing the PRD to a repo: single commit, type `docs`, message `docs: add PRD for [product name]`.
+Workers never commit, push, or open PRs. If the parent commits this PRD after
+operator approval: single commit, type `docs`, message `docs: add PRD for [product name]`.
 
 ---
 
-## Map to PIV
+## Map to the loop
 
-| PIV phase | PRD writer role |
-|-----------|-----------------|
-| Pre-Plan | This agent — structured discovery and PRD generation |
-| Plan | Handoff to PIV Plan with the PRD as input |
-| Implementation | Execute the Plan's work items |
-| Validation | critic + tester |
+Post-onboarding `job` through the [feature loop](../../systems/feature-loop.md#piv-mapping).
+This agent runs before Plan (structured discovery and PRD generation); the PRD
+is then consumed by a `project-bootstrapper` job or by feature cards
+(`ready → specify → …`). Validation for the built work is `critic → tester → pr-review`.

@@ -1,14 +1,16 @@
 ---
 name: ready
 description: >-
-  Pre-flight gate for the feature loop. Confirms git/layout and optional
-  .specify/ready.yml checks, creates or reuses the feature branch, and returns
-  READY: ok|blocked. Used as the first state of docs/systems/feature-loop.md.
+  Per-card pre-flight gate for the feature loop (not the install gate, not
+  onboarding). Confirms git/layout and optional .specify/ready.yml checks,
+  creates or reuses the feature branch, and returns READY: ok|blocked. Used as
+  the first state of docs/systems/feature-loop.md.
 ---
 
-# Ready
+# Per-card ready
 
-Stage 0 of the feature loop. Confirm the repo can support specify → clarify →
+Stage 0 of every card run through the feature loop — not the one-time install
+gate (`hermes-readiness.sh`), not one-time onboarding (`new-project.md`). Confirm the repo can support specify → clarify →
 confirm → plan → tasks → analyze → implement/converge → critic → tester →
 UAT → pr-review → publish. Do not write spec content, `specs/`, `spec.md`, or
 `feature.json`.
@@ -37,5 +39,6 @@ UAT → pr-review → publish. Do not write spec content, `specs/`, `spec.md`, o
 ## Boundary
 
 Install facts (mounts, keys, DBs, container runtime, GitHub access) belong to
-[hermes-readiness.sh](../../knowledge/setup/hermes-readiness.sh), not here.
+the install gate [hermes-readiness.sh](../../knowledge/setup/hermes-readiness.sh), not here.
+One-time project files belong to [new-project.md](../../knowledge/setup/new-project.md).
 This gate checks only branch state, Spec Kit layout, and `.specify/ready.yml`.

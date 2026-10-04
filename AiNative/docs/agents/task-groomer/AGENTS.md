@@ -32,7 +32,7 @@ and waits for operator confirmation before changing the kanban board.
 
 ## Quick start
 
-For task creation, invoke the **Todo-ready grooming** prompt in [SKILL.md](./SKILL.md).
+For task creation, invoke the dispatch-ready grooming prompt in [SKILL.md](./SKILL.md).
 
 The prompt targets the native Hermes kanban CLI: `create`, `link`, `assign`,
 and `set-model`. The groomer is a skill-form, not a dispatched worker profile.

@@ -16,7 +16,6 @@ It covers work you repeat on every team:
 
 | Area | Where |
 |------|--------|
-| **Task management** | [docs/systems/task-management-system.md](./docs/systems/task-management-system.md) |
 | **PR review** | [docs/systems/pr-review-system.md](./docs/systems/pr-review-system.md) |
 | **Release management** | [docs/systems/release-management-system.md](./docs/systems/release-management-system.md) |
 | **Client compatibility** | [docs/systems/client-compatibility-system.md](./docs/systems/client-compatibility-system.md) |
@@ -38,7 +37,7 @@ It covers work you repeat on every team:
 ```mermaid
 flowchart LR
   subgraph plan["Plan & track"]
-    T[Task Management]
+    T[Hermes kanban]
   end
   subgraph build["Build & integrate"]
     P[PR Review]
@@ -49,8 +48,8 @@ flowchart LR
   T --> P --> R
 ```
 
-1. **Tasks** move through a clear board with ownership, WIP limits, and weekly planning/review.
-2. **PRs** use staged AI-assisted review before human merge decision.
+1. **Cards** live on the Hermes kanban board — the only task board. One card per unit of work (`feature`/`change`/`job`).
+2. **PRs** use staged AI-assisted review before human merge decision. Workers never publish; the parent commits, pushes, and opens a PR only after operator approval.
 3. **Releases** follow a fixed branch flow: `feature/*` → `development` → staging → `master` → production.
 
 ---
@@ -69,8 +68,7 @@ After two weeks, add the next system. Do not introduce everything at once.
 ## Getting started (with others)
 
 1. Share only systems you already run personally.
-2. Run Monday planning and Friday delivery per the [task guide](./docs/systems/task-management-system.md).
-3. Keep project-specific notes (board URL, approvers) in the project repo or `scratch/` — not in this repo.
+2. Keep project-specific notes (board slug, approvers) in the project repo or `scratch/` — not in this repo.
 
 ---
 

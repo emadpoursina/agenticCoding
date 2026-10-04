@@ -1,6 +1,6 @@
 # Validation layer
 
-Technical guide for the PIV **Validation** phase — local, independent validation for agentic E2E testing. Methodology context: [agentic-coding.md](./agentic-coding.md). Agents: [critic](../agents/critic/) (evaluator) and [tester](../agents/tester/) (executors).
+Technical guide for the PIV **Validation** phase (`critic → tester → pr-review`, plus human `uat`) — local, independent validation for agentic E2E testing. Methodology context: [agentic-coding.md](./agentic-coding.md). Live graph: [feature-loop.md](./feature-loop.md#piv-mapping). Agents: [critic](../agents/critic/) (evaluator), [tester](../agents/tester/) (executors), and [pr-reviewer](../agents/pr-reviewer/) (final gate before the parent commits/pushes/opens a PR after operator approval).
 
 By separating executor and evaluator roles behind deterministic quality gates, Validation bridges non-deterministic generative AI and strict software engineering requirements.
 

@@ -1,13 +1,13 @@
 # Scout agent
 
-Read-only codebase indexer for the pre-Plan step of PIV — the cheap/fast model the planner delegates repo discovery to, so the planner spends its reasoning budget on design instead of file reads. Two modes:
+On-hand read-only codebase tool Hermes may call any time it needs repo facts — not a loop state, never automatic at onboarding. Two modes:
 
 1. **System Understanding Brief** — traces the current system in the blast-radius area of a proposed change and produces a brief with `file:line` citations, unknowns marked ❓, no design opinions.
 2. **Repo Q&A (on-demand)** — during discovery/interrogation, the planner asks it targeted questions about the repo ("how is auth set up?", "where is the session table?", "who calls this entry point?") and it answers from actual file reads.
 
 Runs on a **Tier 3 (Execution)** model — cheap and fast — see [agentic-system.md § Model](../../systems/agentic-system.md#2-model).
 
-Methodology: [PIV — Plan, Implementation, Validation](../../systems/agentic-coding.md). Runs **before** and **during** the planner's 5/10/20 interrogation. Not a PIV phase; a pre-Plan step.
+Hermes use: on-hand tool, not a `feature-loop.md` state. Call it whenever a worker or the parent needs cited repo facts (blast-radius brief before planning, targeted answers mid-loop). It never scaffolds, plans, or edits.
 
 ## When to use
 
@@ -15,8 +15,9 @@ Methodology: [PIV — Plan, Implementation, Validation](../../systems/agentic-co
 - The planner is about to run interrogation on a change touching existing code
 - The planner needs a repo fact mid-interrogation (route the question here instead of reading files on the Tier 1 model)
 - You want the planner's context reserved for reasoning, not file reads
+- A worker needs a cited repo fact and should not burn a reasoning-tier read to get it
 
-Skip for: single-file fixes, typo/config fixes (already exempt from PIV per `piv-gate.mdc`), and pure additive features with zero touchpoints in existing code.
+Skip for: single-file fixes, typo/config fixes, and pure additive features with zero touchpoints in existing code.
 
 ## Inputs
 

@@ -22,15 +22,16 @@ Each agent is a folder with three core files tuned for one job.
 
 | Agent | Hermes use | Purpose |
 |-------|------------|---------|
-| [ready](./ready/) | Feature-loop state | Preflight; returns `READY: ok|blocked` ([feature-loop.md](../systems/feature-loop.md)) |
-| [critic](./critic/) | Feature-loop state | Adversarial review after converge ([feature-loop.md](../systems/feature-loop.md)) |
-| [tester](./tester/) | Feature-loop state | Proves flows and runs project `validation_commands` ([feature-loop.md](../systems/feature-loop.md)) |
-| [pr-reviewer](./pr-reviewer/) | Feature-loop state | Final review before operator-approved publish |
-| [project-bootstrapper](./project-bootstrapper/) | `job` card skill | Makes an enrolled, empty repo ready for feature cards |
-| [prd-writer](./prd-writer/) | Optional `job` card skill | Produces a PRD for project planning or bootstrap |
-| [task-groomer](./task-groomer/) | Optional prompt | Backlog grooming and planning/delivery preparation; not currently registered as a Hermes job skill |
-| [plan-reviewer](./plan-reviewer/), [scout](./scout/) | Optional methodology | Not states on the live feature graph |
-| [legacy-system-assessment-agent](./legacy-system-assessment-agent/) | Standalone methodology | Evidence-backed legacy assessment and decision support |
+| [ready](./ready/) | Per-card gate | Branch + Spec Kit preflight before every card; returns `READY: ok|blocked` ([feature-loop.md](../systems/feature-loop.md)) |
+| [critic](./critic/) | Feature-loop Validation | Adversarial review after converge ([feature-loop.md](../systems/feature-loop.md)) |
+| [tester](./tester/) | Feature-loop Validation | Proves flows and runs project `validation_commands` ([feature-loop.md](../systems/feature-loop.md)) |
+| [pr-reviewer](./pr-reviewer/) | Feature-loop Validation | Final review before operator-approved parent publish |
+| [project-bootstrapper](./project-bootstrapper/) | Post-onboarding `job` | Scaffolds an onboarded repo from a PRD card; onboarding itself never writes a PRD |
+| [prd-writer](./prd-writer/) | Post-onboarding `job` | Writes the PRD as a card after onboarding |
+| [task-groomer](./task-groomer/) | Per-card helper | Turns a rough request into a dispatch-ready Hermes kanban card; not a dispatched worker |
+| [scout](./scout/) | On-hand tool | Read-only brief / Repo Q&A Hermes may call any time; not a loop state |
+| [legacy-system-assessment-agent](./legacy-system-assessment-agent/) | On-hand tool | Standalone evidence-backed assessment Hermes may call any time; not a loop state |
+| [plan-reviewer](./plan-reviewer/) | Historical only | Old PIV plan gate; not on the live graph |
 
 ## Skill library
 

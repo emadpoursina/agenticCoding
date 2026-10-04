@@ -1,11 +1,13 @@
 # Project bootstrapper agent
 
-Bootstraps an **enrolled-but-empty** project repo from a PRD inside the target
-Hermes feature loop. Runs as a `job` card: one worker session in the task
-worktree of a repo the control plane already enrolled. Handles the content
-between "the repo is enrolled" and "feature cards can run": app scaffold,
-declared dependencies, real validation commands, and project `AGENTS.md` — no
-feature code, no git.
+Post-onboarding `job` that scaffolds an **already-onboarded** repo from a PRD
+card. Runs as a `job` card: one worker session in the task worktree of a repo
+the control plane already enrolled and onboarded (see
+[new-project.md](../../knowledge/setup/new-project.md) — onboarding creates no
+PRD and scaffolds no app). Sets up app layout, declared dependencies, real
+validation commands, and project `AGENTS.md` — no feature code, no git. Workers
+never publish; the parent commits, pushes the branch, and opens a PR only after
+operator approval.
 
 > **Status: target methodology — not wired into the current install.**
 > The current Hermes install has no worker loop running; see
@@ -13,13 +15,13 @@ feature code, no git.
 
 ## When to use
 
-- A repo is enrolled with Hermes (empty or scaffold-only) and a PRD describes what to build
+- A repo is already onboarded (project + board + common files exist) and a PRD card describes what to build — typically the first `job` after onboarding an empty repo (`prd-writer` first, then this)
 - You want the app structure, dependency manifests, real `validation_commands`, and agent config in one pass before feature cards run
 
 ## Inputs
 
-- One `job` card (`## Skill: project-bootstrapper`) whose body references a PRD — see [new-project.md](../../knowledge/setup/new-project.md#planning) for the PRD shape (business model, app structure, tech stack, PRD)
-- The enrolled repo's onboarding scaffold (`.ainative/project.yaml`, `AGENTS.md`)
+- One `job` card (`## Skill: project-bootstrapper`) whose body references a PRD card/file produced after onboarding (e.g. by `prd-writer`)
+- The onboarded repo's common files (`.ainative/project.yaml`, `AGENTS.md`) — created during onboarding, never by this job from scratch
 
 ## Outputs
 
@@ -27,7 +29,7 @@ feature code, no git.
 - Dependency manifests declared; installs and validation runs happen in the loop's tester state
 - `.ainative/project.yaml` with **real** `validation_commands` (placeholder marker removed — the orchestrator blocks workflows while it remains)
 - `AGENTS.md` project rules filled from [ai-rules-template.md](../../systems/ai-rules-template.md), preserving any existing project control-plane or agent-rules section
-- Handoff: operator approves publish; then imports the PRD as feature cards for the [feature loop](../../systems/feature-loop.md)
+- Handoff: parent commits, pushes the branch, and opens a PR only after operator approval; then the PRD is implemented as feature cards through the [feature loop](../../systems/feature-loop.md)
 
 ## Supporting files
 

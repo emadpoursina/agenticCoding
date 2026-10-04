@@ -1,8 +1,10 @@
-# Ready
+# Per-card ready (branch/layout gate)
 
-Ready is the pre-flight gate at the start of the target feature loop
-([feature-loop.md](../../systems/feature-loop.md)). Ready confirms the repo can
-support the loop before the first Spec Kit session starts: git state, Spec
+Per-card pre-flight gate at the start of every run through the target feature loop
+([feature-loop.md](../../systems/feature-loop.md)). Do not confuse with the one-time
+install gate ([hermes-readiness.sh](../../knowledge/setup/hermes-readiness.sh)) or
+one-time project onboarding ([new-project.md](../../knowledge/setup/new-project.md)).
+Ready confirms the repo can support the loop before the first Spec Kit session starts: git state, Spec
 Kit layout, and the feature branch. Ready never writes spec content, never
 starts `specs/`, and never publishes.
 
@@ -38,7 +40,8 @@ Compact report (the parent parses it, never worker prose):
 
 ## Boundary
 
-Ready is the per-flow gate (branch, layout). Install facts — mounts, keys,
-DBs, container runtime — are owned by
-[hermes-readiness.sh](../../knowledge/setup/hermes-readiness.sh). Do not
+Ready is the per-card gate (branch, layout). Install facts — mounts, keys,
+DBs, container runtime — are owned by the install gate
+[hermes-readiness.sh](../../knowledge/setup/hermes-readiness.sh). One-time project
+files are owned by [new-project.md](../../knowledge/setup/new-project.md). Do not
 re-check them here.

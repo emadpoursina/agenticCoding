@@ -1,5 +1,10 @@
 # Rules — PRD writer agent
 
+Post-onboarding `job`: runs as a card after one-time onboarding
+([new-project.md](../../knowledge/setup/new-project.md) never produces a PRD).
+Workers never commit, push, or open PRs; the parent commits, pushes, and opens
+a PR only after operator approval.
+
 Constraints specific to this agent. Generic repo rules live in the project's `AGENTS.md`.
 
 ## Must
@@ -38,12 +43,12 @@ Constraints specific to this agent. Generic repo rules live in the project's `AG
 After writing the PRD:
 
 1. Tell the user the PRD is ready at the file path
-2. Offer the next Kanban step: create a `project-bootstrapper` job card for an enrolled empty repo, or create a feature card if the project is ready
+2. Offer the next Kanban step: a `project-bootstrapper` job card that scaffolds from this PRD, or a feature card if the project is ready
 3. Mention that the Open Questions section should be reviewed with stakeholders before locking the scope
+4. Never commit, push, or open a PR yourself — the parent does that after operator approval
 
 ## Related enforcement
 
-- Discovery interrogation pattern: [agentic-coding.md](../../systems/agentic-coding.md) Plan interrogation
 - Question format: follow the discovery protocol in [SKILL.md](./SKILL.md)
-- PRD shape expected by project-bootstrapper: [new-project.md § Planning](../../knowledge/setup/new-project.md#planning)
+- PRD is consumed post-onboarding by project-bootstrapper: [../project-bootstrapper/AGENTS.md](../project-bootstrapper/AGENTS.md)
 - EARS format and INCOSE rules: [SKILL.md § PRD structure](./SKILL.md#prd-structure)

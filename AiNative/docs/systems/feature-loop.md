@@ -43,9 +43,11 @@ chooses the next state.
 To Hermes, each agent state is a named skill, artifacts, and a compact
 report.
 
-1. **AiNative agents** — folders under `docs/agents/`. Target required: Ready,
-   critic, tester, and pr-reviewer. Other agents may be used by an explicitly
-   named job or remain optional.
+1. **AiNative agents** — folders under `docs/agents/`. Target required states: Ready,
+   critic, tester, and pr-reviewer. `scout` (read-only brief / Repo Q&A) and
+   `legacy-system-assessment-agent` (standalone assessment) are on-hand tools
+   Hermes may call whenever it needs them — not loop states, not tied to one
+   step. Other agents run only as an explicitly named `job`.
 2. **Spec Kit** — project skills stored in the enrolled project. Hermes reads
    these files as skill inputs; this does not require an editor runtime,
    command, or symlink.
@@ -109,7 +111,10 @@ A missing path is `feature`.
 |---|---|---|
 | `feature` | A desired product outcome that needs a spec, plan, and review | The graph below; planning creates child Task Cards |
 | `change` | A small code edit already specified by the card | `ready` → one worker → `tester` |
-| `job` | Work that is not a code change (write a PRD, bootstrap from a PRD) | One worker for the named skill. It may park for a human. After the worker reports `STATUS: ok` it parks for the operator's publish decision: approval commits, pushes the job branch, and opens a pull request; decline completes without publishing. It does not enter the feature graph |
+| `job` | Work that is not a code change (write a PRD, bootstrap from a PRD) | One worker for the named skill. It may park for a human. Workers never publish. After the worker reports `STATUS: ok` the parent parks for the operator's decision: approval commits, pushes the branch, and opens a pull request; decline completes without publishing. It does not enter the feature graph |
+
+No worker on any path publishes. Every path ends the same way: the parent
+commits, pushes the branch, and opens a PR only after operator approval.
 
 A `change` or `job` worker that finds the card is really a feature stops
 and reports that. It does not promote itself onto the feature graph.
@@ -153,7 +158,18 @@ ready
 | `tester` | AiNative | yes | Prove the flows. Project `validation_commands` run **here**, not as a parallel parent phase. Required. |
 | `uat` | parent ↔ human | **no** | Operator exercises the feature (use converge/quickstart test path). Pass/fail confirmation; exact trigger/presentation policy is being refined. |
 | `pr-review` | AiNative | yes | After UAT pass. |
-| `publish` | parent / GitHub | **no** | Hermes commits/pushes and opens a PR on the feature branch only after operator approval; workers never publish. |
+| `publish` | parent / GitHub | **no** | Parent commits/pushes and opens a PR on the branch only after operator approval; workers never publish, on any path. |
+
+**End-of-path rule (all paths):** workers never commit, push, or open PRs.
+The parent does that after operator approval.
+
+## PIV mapping
+
+The loop above is the detailed form of PIV:
+
+* **Plan** = `ready → specify → clarify → confirm → plan → tasks → [analyze]`
+* **Implementation** = `implement ↔ converge`
+* **Validation** = `critic → tester → pr-review` (plus human `uat`)
 
 **Default publish order** (until explicitly changed): pr-review the
 **branch**, then Hermes opens the PR. Do not open a PR and then treat

@@ -1,9 +1,12 @@
 # Agentic coding system
 
-**The target feature workflow is not this file.** Use
-[feature-loop.md](./feature-loop.md) for managed-project work. This document
-is the older homemade PIV write-up (scout, plan-reviewer, critic, tester),
-kept as historical methodology; it is not the live stage list.
+**The live loop is the [feature loop](./feature-loop.md#piv-mapping) as run by
+`/speckit-orchestrate` (`ready → specify → clarify → confirm → plan → tasks →
+[analyze] → implement ↔ converge → critic → tester → uat → pr-review →
+publish).** This document is the older homemade PIV write-up, kept as
+historical methodology; do not use it as the live stage list. PIV maps onto
+that loop as Plan = `ready → tasks`, Implementation = `implement ↔ converge`,
+Validation = `critic → tester → pr-review` (+ human `uat`).
 
 Canonical five-part model (Harness, Model, Context, Tools, Agents): [agentic-system.md](./agentic-system.md).
 

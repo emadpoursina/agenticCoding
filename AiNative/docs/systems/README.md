@@ -6,7 +6,6 @@ How you work — the operational workflows and AI methodology you repeat on ever
 
 | File | Topic |
 |------|-------|
-| [task-management-system.md](./task-management-system.md) | Board, tasks, WIP, meetings |
 | [pr-review-system.md](./pr-review-system.md) | Staged PR review and human decision |
 | [release-management-system.md](./release-management-system.md) | Branching, release flow, backward compatibility, deploy checklists |
 | [client-compatibility-system.md](./client-compatibility-system.md) | Server tags vs client adoption |

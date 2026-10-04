@@ -1,6 +1,6 @@
 ---
 name: project-bootstrapper
-description: Bootstraps an enrolled-but-empty project repo from a PRD inside the target Hermes feature loop — app scaffold, real validation commands, and project AGENTS.md, no feature code. Target methodology, not wired into the current install; runs as a job card and never commits or pushes.
+description: Scaffolds an already-onboarded repo from a post-onboarding PRD card inside the target Hermes feature loop — app scaffold, real validation commands, and project AGENTS.md, no feature code. Target methodology, not wired into the current install; runs as a job card and never commits, pushes, or opens PRs.
 ---
 
 # Project bootstrapper
@@ -9,10 +9,12 @@ Skills copied inline from `_skills/` plus bootstrap-specific steps, for self-con
 
 In the **target** feature loop you are a **job worker** started by the Hermes
 control plane as one worker session in an isolated task worktree of an
-**already-enrolled** repo. The loop is not wired into the current install. The
-repo may be empty except for the onboarding scaffold. You set up the project's
-content for the feature loop; the control plane owns everything else (git
-history, publishing, the board, validation runs).
+**already-onboarded** repo (onboarding per
+[new-project.md](../../knowledge/setup/new-project.md) is done first and never
+produces a PRD). The loop is not wired into the current install. The
+repo holds the onboarding common files. You set up the project's
+content from a post-onboarding PRD card; the control plane owns everything else (git
+history, commits, PRs, the board, validation runs). Workers never publish.
 
 ---
 
@@ -32,20 +34,20 @@ default.
 
 Run in order:
 
-1. **Read the enrolled scaffold** — `.ainative/project.yaml` and `AGENTS.md`
+1. **Read the onboarding common files** — `.ainative/project.yaml` and `AGENTS.md`
    already exist from onboarding. Read both; never overwrite an existing
    project control-plane section of `AGENTS.md`, and never replace the
    manifest wholesale — edit the fields you own (see step 5).
-2. **Parse the PRD** — extract stack, structure, and PRD per
-   [new-project.md](../../knowledge/setup/new-project.md#planning)
+2. **Parse the PRD card** — extract stack, structure, and requirements from the
+   PRD produced after onboarding (typically by a `prd-writer` job card)
 3. **Confirm stack** — if the PRD leaves stack, structure, or
    dependency-manager choices ambiguous, emit a `NEEDS_HUMAN` question with
    your proposal and stop. Hermes parks the card; the operator answers over
    Telegram and a **new** session encodes the answers. Do not guess.
 4. **Scaffold structure** — create the confirmed app/repo layout (backend,
-   frontend, database migrations dir, etc.). No git commands: the worktree
-   and branch are managed by Hermes; the control plane commits and publishes
-   after you finish and the operator approves.
+   frontend, database migrations dir, etc.). No git commands, no commits, no pushes, no PRs: the worktree
+   and branch are managed by Hermes; the parent commits, pushes, and opens a PR
+   only after you finish and the operator approves.
 5. **Declare dependencies and validation** — write the dependency manifests
    (`pyproject.toml`, `package.json`, …) with latest stable versions unless
    the PRD pins them. Then **replace the placeholder `validation_commands`**
@@ -60,9 +62,9 @@ Run in order:
    [agents.md](https://agents.md/) format — no editor-specific wrapper.
 7. **Scratch folder** — create `scratch/`, confirm it's gitignored.
 
-Do not run installs, do not run the validation commands, do not commit. The
-tester state runs `validation_commands` inside the worktree; the control
-plane publishes the branch only after the operator approves the job.
+Do not run installs, do not run the validation commands, do not commit, push, or open PRs. The
+tester state runs `validation_commands` inside the worktree; the parent commits, pushes, and opens a PR
+only after the operator approves the job.
 
 ---
 
@@ -86,7 +88,7 @@ yourself onto the feature graph.
 
 | Loop stage | Project bootstrapper |
 |-----------|-----------------------|
-| Job worker | Read scaffold + PRD, confirm stack, scaffold, declare validation |
-| Human gate | Operator reviews the report, approves publish |
-| Publish (control plane) | Commit, push the job branch, open a PR |
-| Handoff | Operator imports the PRD as feature cards; the feature loop implements them |
+| Job worker | Read common files + PRD card, confirm stack, scaffold, declare validation |
+| Human gate | Operator reviews the report, approves the parent commit/push/PR |
+| Publish (parent) | Parent commits, pushes the job branch, opens a PR — workers never publish |
+| Handoff | PRD is implemented as feature cards; the feature loop implements them |

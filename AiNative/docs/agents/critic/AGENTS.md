@@ -2,7 +2,7 @@
 
 Adversarial reviewer for the PIV Validation phase. Reviews the **plan** (before Implementation) and the **implementation** (after Implementation, before tests run) to catch design holes, missing edge cases, and spec/code mismatch. Produces a prioritized findings list with a PASS/FAIL verdict. Does not write code or tests.
 
-Methodology: [PIV — Plan, Implementation, Validation](../../systems/agentic-coding.md). Runs as the first half of Validation, ahead of the [tester](../tester/) agent. [pr-reviewer](../pr-reviewer/) is the separate final gate after Validation passes.
+Methodology: PIV Validation phase of the live [feature loop](../../systems/feature-loop.md#piv-mapping) (historical write-up: [agentic-coding.md](../../systems/agentic-coding.md)). Runs as the first half of Validation, ahead of the [tester](../tester/) agent. [pr-reviewer](../pr-reviewer/) is the separate final gate after Validation passes.
 
 ## When to use
 

@@ -23,12 +23,11 @@ Four layers, one decision each: **systems** (how you work), **agents** (AI partn
 | PIV Validation — adversarial review | [agents/critic/](./agents/critic/) |
 | PIV Validation — prove the code works | [agents/tester/](./agents/tester/) |
 | PR review prompts | [agents/pr-reviewer/](./agents/pr-reviewer/) |
-| Task grooming / meeting prep | [agents/task-groomer/](./agents/task-groomer/) |
+| Hermes kanban card grooming | [agents/task-groomer/](./agents/task-groomer/) |
 | New-project scaffolding | [agents/project-bootstrapper/](./agents/project-bootstrapper/) |
 | Legacy assessment (strategies, estimates) | [agents/legacy-system-assessment-agent/](./agents/legacy-system-assessment-agent/) |
 | Reusable agent skills | [agents/_skills/](./agents/_skills/) |
 | Agent handoff between AI passes | [systems/agent-handoff-template.md](./systems/agent-handoff-template.md) |
-| How to run planning / board setup | [systems/task-management-system.md](./systems/task-management-system.md) |
 | A bug you have seen before | [records/debugging/\<domain\>/](./records/debugging/) |
 | Why a decision was made | [records/decisions/](./records/decisions/) |
 | What broke and why | [records/postmortems/](./records/postmortems/) |

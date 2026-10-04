@@ -4,9 +4,10 @@ Constraints specific to this agent. Generic repo rules live in `AGENTS.md` (repo
 
 In the target feature loop, this agent runs as a Hermes **job card** — one
 worker session in an isolated `feature/task-<id>` worktree of an
-already-enrolled repo. The loop is not wired into the current install. It
-bootstraps the project's content for the feature loop; the control plane owns
-git, the board, validation runs, and publishing.
+already-onboarded repo (onboarding per `new-project.md` is done first and never
+produces a PRD). The loop is not wired into the current install. It
+scaffolds the project's content from a post-onboarding PRD card; the parent owns
+git commits, pushes, PRs, the board, validation runs, and publishing. Workers never publish.
 
 ## Must
 
@@ -14,8 +15,8 @@ git, the board, validation runs, and publishing.
 - Confirm the tech stack, package versions, and repo layout with the operator
   through the job park/resume path — emit a `NEEDS_HUMAN` question and stop;
   do not guess on anything the PRD leaves ambiguous
-- Read the onboarding scaffold first: `.ainative/project.yaml` and the
-  existing project rules in `AGENTS.md` already exist — edit only the fields
+- Read the onboarding common files first: `.ainative/project.yaml` and the
+  existing project rules in `AGENTS.md` already exist from one-time onboarding — edit only the fields
   you own
 - Replace the placeholder `validation_commands` in `.ainative/project.yaml`
   with real commands that prove the scaffold runs; a leftover scaffold TODO
@@ -31,9 +32,9 @@ git, the board, validation runs, and publishing.
 
 - Write feature/business logic — this worker only sets up the environment;
   implementation happens afterward via feature cards and the feature loop
-- Run git commands that mutate history (commit, push, branch management) —
-  the worktree branch is Hermes-owned; publish happens only after the
-  operator approves the job
+- Run git commands that mutate history or publish (commit, push, branch management, PRs) —
+  the worktree branch is Hermes-owned; the parent commits, pushes, and opens a PR
+  only after the operator approves the job
 - Run installs or the validation commands itself — the tester state runs
   `validation_commands`
 - Pick dependency versions without checking latest via the PRD's package manager
@@ -58,5 +59,5 @@ git, the board, validation runs, and publishing.
 - Placeholder-validation block: the orchestrator refuses to start workflows
   for a project whose `validation_commands` still carry the scaffold marker
 - Worker contract: owned by the Hermes runtime (`personalAgent`); AiNative does not define it
-- Handoff target: PRD import → feature cards → feature loop
+- Handoff target: post-onboarding PRD card → bootstrap job → feature cards → feature loop
   (`docs/systems/feature-loop.md`)
