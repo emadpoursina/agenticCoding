@@ -12,7 +12,7 @@ description: >-
 Stage 0 of every card run through the feature loop — not the one-time install
 gate (`hermes-readiness.sh`), not one-time onboarding (`new-project.md`). Confirm the repo can support specify → clarify →
 confirm → plan → tasks → analyze → implement/converge → critic → tester →
-UAT → pr-review → publish. Do not write spec content, `specs/`, `spec.md`, or
+ship → uat. Do not write spec content, `specs/`, `spec.md`, or
 `feature.json`.
 
 ## What to do

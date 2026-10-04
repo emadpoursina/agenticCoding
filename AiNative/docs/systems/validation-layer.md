@@ -1,6 +1,6 @@
 # Validation layer
 
-Technical guide for the PIV **Validation** phase (`critic → tester → pr-review`, plus human `uat`) — local, independent validation for agentic E2E testing. Methodology context: [agentic-coding.md](./agentic-coding.md). Live graph: [feature-loop.md](./feature-loop.md#piv-mapping). Agents: [critic](../agents/critic/) (evaluator), [tester](../agents/tester/) (executors), and [pr-reviewer](../agents/pr-reviewer/) (final gate before the parent commits/pushes/opens a PR after operator approval).
+Technical guide for the PIVS **Validation** phase (`critic → tester`) — local, independent validation for agentic E2E testing. Methodology context: [agentic-coding.md](./agentic-coding.md). Live graph: [feature-loop.md](./feature-loop.md#pivs-mapping). Agents: [critic](../agents/critic/) (evaluator) and [tester](../agents/tester/) (executors). [pr-reviewer](../agents/pr-reviewer/) is an on-demand tool after Ship, not a loop state.
 
 By separating executor and evaluator roles behind deterministic quality gates, Validation bridges non-deterministic generative AI and strict software engineering requirements.
 
@@ -119,7 +119,7 @@ Loop-back rules: [critic rule.md](../agents/critic/rule.md), [tester rule.md](..
 | 5. Fix functional errors | Implementation | Address bugs found during verification |
 | 6. Validate E2E | tester + critic | Final pass in end-to-end dev environment |
 
-Steps 3–6 are the PIV Validation phase. [pr-reviewer](../agents/pr-reviewer/) runs only after Validation passes.
+Steps 3–6 are the PIVS Validation phase. [pr-reviewer](../agents/pr-reviewer/) is an on-demand tool after Ship, not a loop state.
 
 ---
 
@@ -150,7 +150,7 @@ In traditional models, E2E tests are minimized because they are slow and expensi
 - **E2E elevation** — E2E becomes a primary tier, not a rare capstone
 - **Rapid ROI** — immediate value in complex, evolving codebases where components must meet compliance before "done"
 
-The validation layer is the final quality gate before PR review: every autonomous workflow must reach a deterministic, secure outcome.
+The validation layer is the final quality gate before Ship: every autonomous workflow must reach a deterministic, secure outcome.
 
 ---
 

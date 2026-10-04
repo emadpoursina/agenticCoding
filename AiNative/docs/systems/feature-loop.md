@@ -1,7 +1,7 @@
 # Feature loop
 
 Target workflow for managed-project work. **Hermes** is the control plane and
-the project's Kanban board holds the work. PIV agent definitions are stages on
+the project's Kanban board holds the work. PIVS agent definitions are stages on
 this graph, not a second workflow.
 
 > **Status: target methodology — not wired into the current install.**
@@ -26,7 +26,7 @@ AiNative feature-loop.md  ← the graph (this file)
 ```
 
 Hermes owns state, dispatch, report checks, human relays, retries, and
-publishing. A worker executes only the one state Hermes assigned; it never
+shipping. A worker executes only the one state Hermes assigned; it never
 chooses the next state.
 
 ## Split of ownership
@@ -34,9 +34,9 @@ chooses the next state.
 | Layer | Owns | Does not own |
 |---|---|---|
 | **AiNative** (this tree) | What the loop is. Which states exist. Which agent kind runs a state. Compact-report expectations. Human gates vs agent states. | Board runtime, worktrees, worker process, GitHub, messaging, enrolled-project source. |
-| **Spec Kit** (in the project) | How specify / clarify / plan / tasks / analyze / implement / converge write native artifacts. | The graph. Skip/confirm/UAT policy. Publish. |
-| **Hermes parent** (`personalAgent`) | Board, current state, isolated task worktree, one worker per state, report checks, retries, human gates, messaging, GitHub publish. | Following stage skills in-process; one-shot “run all of Spec Kit.” |
-| **Worker** | Execute the **one** step Hermes named. Read that skill. Write artifacts. Return a compact report. Exit. | The flow. Next state. Skip/confirm/UAT policy. Publish. Merge. AiNative writes. |
+| **Spec Kit** (in the project) | How specify / clarify / plan / tasks / analyze / implement / converge write native artifacts. | The graph. Skip/confirm/UAT policy. Ship. |
+| **Hermes parent** (`personalAgent`) | Board, current state, isolated task worktree, one worker per state, report checks, retries, human gates, messaging, GitHub ship. | Following stage skills in-process; one-shot “run all of Spec Kit.” |
+| **Worker** | Execute the **one** step Hermes named. Read that skill. Write artifacts. Return a compact report. Exit. | The flow. Next state. Skip/confirm/UAT policy. Ship. Merge. AiNative writes. |
 
 ## Agent and skill sources
 
@@ -44,7 +44,8 @@ To Hermes, each agent state is a named skill, artifacts, and a compact
 report.
 
 1. **AiNative agents** — folders under `docs/agents/`. Target required states: Ready,
-   critic, tester, and pr-reviewer. `scout` (read-only brief / Repo Q&A) and
+   critic, and tester. `scout` (read-only brief / Repo Q&A),
+   `pr-reviewer` (on-demand PR review after Ship), and
    `legacy-system-assessment-agent` (standalone assessment) are on-hand tools
    Hermes may call whenever it needs them — not loop states, not tied to one
    step. Other agents run only as an explicitly named `job`.
@@ -87,14 +88,15 @@ The target runtime must satisfy these constraints:
   (`/opt/data/mnt/AiNative`), and the operator's human park/resume path for
   questions and gates.
 - Every agent state starts one new worker session with a one-step request and
-  a compact report contract. Workers never publish, push, merge, or deploy.
+  a compact report contract. Workers never ship, push, merge, or deploy.
 - A Feature Card is planned by a planning role. After planning produces
   `tasks.md`, Hermes creates child Task Cards on the same board. Each child
   is independently executable; the parent stays open until all children are
   complete and feature-level validation passes.
 - The feature-level critic/tester and operator gates belong to the parent
-  Feature Card, not its child cards. UAT is an operator step in this graph;
-  its exact triggering and board presentation remain under active policy work.
+  Feature Card, not its child cards. UAT starts after Ship: the operator
+  exercises the shipped PR using the walkthrough in the PR body; its exact
+  triggering and board presentation remain under active policy work.
 - Keep project rules in `AGENTS.md` and project validation commands in
   `.ainative/project.yaml`. Hermes links to this file rather than copying
   the graph into its dispatcher instructions.
@@ -110,17 +112,17 @@ A missing path is `feature`.
 | Path | When | Graph |
 |---|---|---|
 | `feature` | A desired product outcome that needs a spec, plan, and review | The graph below; planning creates child Task Cards |
-| `change` | A small code edit already specified by the card | `ready` → one worker → `tester` |
-| `job` | Work that is not a code change (write a PRD, bootstrap from a PRD) | One worker for the named skill. It may park for a human. Workers never publish. After the worker reports `STATUS: ok` the parent parks for the operator's decision: approval commits, pushes the branch, and opens a pull request; decline completes without publishing. It does not enter the feature graph |
+| `change` | A small code edit already specified by the card | `ready` → one worker → `tester` → `ship` |
+| `job` | Work that is not a code change (write a PRD, bootstrap from a PRD) | One worker for the named skill. It may park for a human. Workers never ship. After the worker reports `STATUS: ok` the parent parks for the operator's decision: approval commits, pushes the branch, and opens a pull request; decline completes without shipping. It does not enter the feature graph |
 
-No worker on any path publishes. Every path ends the same way: the parent
+No worker on any path ships. Every path ends the same way: the parent
 commits, pushes the branch, and opens a PR only after operator approval.
 
 A `change` or `job` worker that finds the card is really a feature stops
 and reports that. It does not promote itself onto the feature graph.
 
 `change` does not run specify, clarify, confirm, plan, tasks, analyze,
-implement/converge, critic, UAT, pr-review, or publish. `tester` runs the
+implement/converge, critic, or UAT. `tester` runs the
 project `validation_commands`. `ready` on a `change` is branch preflight
 only.
 
@@ -129,8 +131,8 @@ only.
 This graph is the `feature` path. Orchestrator-specific **edges** (not extra loops):
 
 - **Hermes:** pick the Kanban card, isolate its worktree, surface human
-  gates on the operator path, and publish to GitHub only after
-  required reviews pass and the operator approves.
+  gates on the operator path, and ship to GitHub only after
+  required checks pass and the operator approves.
 
 ```text
 ready
@@ -138,9 +140,8 @@ ready
   → plan → tasks → [analyze]
   → implement ↔ converge
   → critic → tester
+  → ship
   → uat
-  → pr-review
-  → publish
 ```
 
 | State | Kind | Worker? | Notes |
@@ -156,24 +157,27 @@ ready
 | `converge` | Spec Kit | yes | `tasks_appended` (new work) → implement again. Unchanged fingerprint → stuck. Only `converged` exits the loop. |
 | `critic` | AiNative | yes | Adversarial review of spec/plan/implementation. Required. After converge; not a “finish” report. |
 | `tester` | AiNative | yes | Prove the flows. Project `validation_commands` run **here**, not as a parallel parent phase. Required. |
-| `uat` | parent ↔ human | **no** | Operator exercises the feature (use converge/quickstart test path). Pass/fail confirmation; exact trigger/presentation policy is being refined. |
-| `pr-review` | AiNative | yes | After UAT pass. |
-| `publish` | parent / GitHub | **no** | Parent commits/pushes and opens a PR on the branch only after operator approval; workers never publish, on any path. |
+| `ship` | parent / GitHub | **no** | Parent commits everything, pushes the branch, and opens a PR with a step-by-step human walkthrough in the PR body, only after operator approval; workers never ship, on any path. |
+| `uat` | parent ↔ human | **no** | Operator exercises the shipped PR using the walkthrough. Pass/fail confirmation; exact trigger/presentation policy is being refined. |
 
 **End-of-path rule (all paths):** workers never commit, push, or open PRs.
-The parent does that after operator approval.
+The parent does that in `ship` after operator approval.
 
-## PIV mapping
+## PIVS mapping
 
-The loop above is the detailed form of PIV:
+The loop above is the detailed form of PIVS:
 
 * **Plan** = `ready → specify → clarify → confirm → plan → tasks → [analyze]`
 * **Implementation** = `implement ↔ converge`
-* **Validation** = `critic → tester → pr-review` (plus human `uat`)
+* **Validation** = `critic → tester`
+* **Ship** = `ship` (commit, push, PR with walkthrough; ends uat-ready) → human `uat`
 
-**Default publish order** (until explicitly changed): pr-review the
-**branch**, then Hermes opens the PR. Do not open a PR and then treat
-review as optional comments.
+`pr-reviewer` is an on-demand tool after Ship, not a loop state. Run it
+whenever a PR needs review; do not gate Ship on it.
+
+**Default ship order** (until explicitly changed): tester PASS, then parent
+ships the **branch** (commit, push, open PR with walkthrough). Do not open a PR
+and then treat the walkthrough as optional.
 
 `skip` is an **operator flag**, not a skipped specify/clarify state.
 Workers self-answer; the parent still shows the choice report and still
@@ -194,8 +198,10 @@ Implement: `IMPLEMENT_STATUS`, `TASKS_DONE`, `TASKS_OPEN`, `BLOCKER`,
 Converge: `CONVERGE_OUTCOME: converged|tasks_appended|blocked`,
 `FINDINGS`, `FINGERPRINT`, `TASKS_APPENDED`, `SUMMARY`.
 
-Critic / tester / pr-reviewer: keep each agent’s existing PASS/FAIL
+Critic / tester: keep each agent’s existing PASS/FAIL
 contract; the parent must get a parseable status, not only narrative.
+
+Ship: `SHIP: ok|blocked`, `PR`, `WALKTHROUGH`, `SUMMARY`.
 
 ## Stuck policy
 
@@ -213,7 +219,7 @@ Human questions are not stuck; they are `confirm` / clarify relay / `uat`.
 - A classifier that picks `feature` / `change` / `job` from card prose.
   The path is a field on the card.
 - Hermes implementing Spec Kit stages in-process.
-- Converge substituting for critic/tester/UAT.
+- Converge substituting for critic/tester/ship.
 - Duplicating this document into Hermes. Hermes **links** here
   (`/opt/data/mnt/AiNative/docs/systems/feature-loop.md`) and describes only
   dispatcher behavior.

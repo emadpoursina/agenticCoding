@@ -6,7 +6,7 @@ install gate ([hermes-readiness.sh](../../knowledge/setup/hermes-readiness.sh)) 
 one-time project onboarding ([new-project.md](../../knowledge/setup/new-project.md)).
 Ready confirms the repo can support the loop before the first Spec Kit session starts: git state, Spec
 Kit layout, and the feature branch. Ready never writes spec content, never
-starts `specs/`, and never publishes.
+starts `specs/`, and never ships.
 
 ## When to invoke
 

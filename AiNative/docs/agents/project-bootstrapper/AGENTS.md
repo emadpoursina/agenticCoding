@@ -6,7 +6,7 @@ the control plane already enrolled and onboarded (see
 [new-project.md](../../knowledge/setup/new-project.md) — onboarding creates no
 PRD and scaffolds no app). Sets up app layout, declared dependencies, real
 validation commands, and project `AGENTS.md` — no feature code, no git. Workers
-never publish; the parent commits, pushes the branch, and opens a PR only after
+never ship; the parent commits, pushes the branch, and opens a PR only after
 operator approval.
 
 > **Status: target methodology — not wired into the current install.**

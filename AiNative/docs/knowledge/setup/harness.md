@@ -28,7 +28,7 @@ the harness and starts **one worker session per agent state**:
 - The worker exits after that step; Hermes owns transitions and recovery.
 - Project `validation_commands` run in the tester state, not as an
   orchestrator-side shortcut.
-- Human gates and publish decisions remain with the operator. Workers do not
+- Human gates and ship decisions remain with the operator. Workers do not
   push, merge, or deploy.
 - Project rules and validation live in the project's `AGENTS.md` and
   `.ainative/project.yaml`; AiNative stays read-only methodology.

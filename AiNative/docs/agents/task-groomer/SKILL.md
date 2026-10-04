@@ -64,7 +64,7 @@ OUTPUT:
    (`feature` | `change` | `job`); always emit it, never rely on the
    `feature` default. Never use a workflow-state name
    (`ready, specify, clarify, confirm, plan, tasks, implement, converge,
-   critic, tester, uat, pr-review, publish`) as `## Path` or `## Profile`.
+   critic, tester, ship, uat`) as `## Path` or `## Profile`.
    - `feature`: full loop, top-level card, MUST NOT carry `## Parent`.
    - `change`: small scoped edit. Standalone, or child of a feature with
      `## Parent` set to exactly one feature card id (never self, never a

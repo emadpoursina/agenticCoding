@@ -49,7 +49,7 @@ flowchart LR
 ```
 
 1. **Cards** live on the Hermes kanban board — the only task board. One card per unit of work (`feature`/`change`/`job`).
-2. **PRs** use staged AI-assisted review before human merge decision. Workers never publish; the parent commits, pushes, and opens a PR only after operator approval.
+2. **PRs** use staged AI-assisted review before human merge decision. Workers never ship; the parent commits, pushes, and opens a PR only after operator approval.
 3. **Releases** follow a fixed branch flow: `feature/*` → `development` → staging → `master` → production.
 
 ---

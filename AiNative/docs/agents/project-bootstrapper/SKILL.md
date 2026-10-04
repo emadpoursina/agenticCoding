@@ -14,7 +14,7 @@ control plane as one worker session in an isolated task worktree of an
 produces a PRD). The loop is not wired into the current install. The
 repo holds the onboarding common files. You set up the project's
 content from a post-onboarding PRD card; the control plane owns everything else (git
-history, commits, PRs, the board, validation runs). Workers never publish.
+history, commits, PRs, the board, validation runs). Workers never ship.
 
 ---
 
@@ -76,7 +76,7 @@ End with a compact report:
 - `STACK: <confirmed stack>`
 - `MANIFESTS: <files written>`
 - `VALIDATION_COMMANDS: <declared commands>`
-- `SUMMARY: <what the operator should review before approving publish>`
+- `SUMMARY: <what the operator should review before approving ship>`
 
 If the card is really a feature (needs spec/plan/review, not a scaffold),
 report `SCOPE: feature` instead and stop — the card parks; do not promote
@@ -90,5 +90,5 @@ yourself onto the feature graph.
 |-----------|-----------------------|
 | Job worker | Read common files + PRD card, confirm stack, scaffold, declare validation |
 | Human gate | Operator reviews the report, approves the parent commit/push/PR |
-| Publish (parent) | Parent commits, pushes the job branch, opens a PR — workers never publish |
+| Ship (parent) | Parent commits, pushes the job branch, opens a PR — workers never ship |
 | Handoff | PRD is implemented as feature cards; the feature loop implements them |

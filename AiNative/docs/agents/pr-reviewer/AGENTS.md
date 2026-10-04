@@ -6,10 +6,10 @@ Workflow context: [pr-review-system.md](../../systems/pr-review-system.md).
 
 ## When to use
 
-- Reviewing a pull request; in the target feature loop ([feature-loop.md](../../systems/feature-loop.md#piv-mapping)) this is the final Validation gate before the parent commits/pushes/opens a PR after operator approval
+- Reviewing a pull request on operator request; in the target feature loop ([feature-loop.md](../../systems/feature-loop.md#pivs-mapping)) this is an on-demand tool after Ship, not a loop state
 - Feature PRs in existing subsystems — always run Phase 1.5
 - Large PRs — use diff compression first
-- After critic and tester report PASS — pr-reviewer is the final gate; a surprise here means validation missed something
+- After critic and tester report PASS and Ship has opened a PR — run whenever review is wanted
 
 ## Inputs
 

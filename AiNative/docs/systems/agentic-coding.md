@@ -1,12 +1,9 @@
 # Agentic coding system
 
-**The live loop is the [feature loop](./feature-loop.md#piv-mapping) as run by
-`/speckit-orchestrate` (`ready → specify → clarify → confirm → plan → tasks →
-[analyze] → implement ↔ converge → critic → tester → uat → pr-review →
-publish).** This document is the older homemade PIV write-up, kept as
-historical methodology; do not use it as the live stage list. PIV maps onto
-that loop as Plan = `ready → tasks`, Implementation = `implement ↔ converge`,
-Validation = `critic → tester → pr-review` (+ human `uat`).
+**The live loop is the [feature loop](./feature-loop.md#pivs-mapping) as run by
+`/speckit-orchestrate`.** This document is the older homemade PIV write-up, kept
+as historical methodology; do not use it as the live stage list. PIVS maps onto
+that loop — see the [PIVS mapping](./feature-loop.md#pivs-mapping).
 
 Canonical five-part model (Harness, Model, Context, Tools, Agents): [agentic-system.md](./agentic-system.md).
 
@@ -25,7 +22,7 @@ This doc covers **Context** (AI layer below) and historical **PIV** agents. Harn
 4. When using MCPs, avoid filling context with poorly scoped MCP server handling.
 5. Developers use the terminal as their environment for better control and lower context consumption.
 
-## PIV: Plan — Implementation — Validation
+## PIVS: Plan — Implementation — Validation — Ship
 
 ### Plan
 
@@ -83,4 +80,8 @@ Validation is owned by two in-house agents: [critic](../agents/critic/) (adversa
    2. **Loop back to Plan:** if the failure reveals a misunderstanding about the task itself, do not patch it in Implement. Revise the spec and run a new cycle.
    3. When the AI misses something, fix the problem and update the project AI layer. Also update the universal overall AI layer (AiNative repo) when the lesson applies globally.
    4. Ask the agent to write unit/integration/E2E tests after implementation.
-   5. [pr-reviewer](../agents/pr-reviewer/) is the final gate, run **after** Validation passes. If the validation layer works correctly there should be little surprise in PR review — a problem reaching PR review means something slipped through Validation, so feed the gap back into the critic/tester agents.
+   5. [pr-reviewer](../agents/pr-reviewer/) is an on-demand tool after Ship, not a loop gate. Run it whenever a PR needs review.
+
+### Ship
+
+Ship commits everything, pushes the branch, and opens a PR with a step-by-step human walkthrough in the PR body. It runs after tester PASS and ends uat-ready: the operator exercises the shipped PR using the walkthrough. Loop definition: [feature loop](./feature-loop.md#pivs-mapping).

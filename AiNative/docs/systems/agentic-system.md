@@ -33,12 +33,12 @@ workflow.
 
 The managed-project runtime is the Hermes agent (the `personalAgent` install).
 Hermes owns the board, worktree isolation, state transitions, human gates, and
-publish decision. In the target design it starts one fresh worker session for
+ship decision. In the target design it starts one fresh worker session for
 each agent state, in the task worktree; the current install has no worker loop
 wired.
 
 Workers return a compact report and exit. They do not own the workflow,
-board, GitHub publishing, or deployment. Runtime details are in
+board, GitHub shipping, or deployment. Runtime details are in
 [feature-loop.md](./feature-loop.md) and the `personalAgent` operator docs.
 
 ---
@@ -95,7 +95,7 @@ What agents invoke beyond generation — scoped narrowly so context stays clean.
 | Tool | Scope | Owner |
 |------|-------|-------|
 | **Worker tools** | Read, edit, test, and inspect code for one assigned state | Hermes runtime configuration and worker contract |
-| **Kanban / GitHub / messaging** | Cards, publish operations, and human notifications | Hermes control plane |
+| **Kanban / GitHub / messaging** | Cards, ship operations, and human notifications | Hermes control plane |
 | **Project services** | Databases, payments, deployment, and other integrations | Project configuration and explicitly granted worker tools |
 
 When using MCP, avoid poorly scoped server handling that fills context with tool metadata. Browser/E2E and other tools may be added here as the system grows.
@@ -114,7 +114,7 @@ symlink is required.
 | [ready](../agents/ready/) | Per-card gate (branch + Spec Kit preflight, before every card) |
 | [critic](../agents/critic/) | Validation — adversarial review after converge |
 | [tester](../agents/tester/) | Validation — proves flows, runs project `validation_commands` |
-| [pr-reviewer](../agents/pr-reviewer/) | Validation — final review before operator-approved parent publish |
+| [pr-reviewer](../agents/pr-reviewer/) | On-demand tool after Ship — PR review on operator request, never a loop state |
 | [project-bootstrapper](../agents/project-bootstrapper/) | Post-onboarding `job` — scaffolds an onboarded repo from a PRD card |
 | [prd-writer](../agents/prd-writer/) | Post-onboarding `job` — writes the PRD as a card |
 | [task-groomer](../agents/task-groomer/) | Per-card helper — turns a rough request into a dispatch-ready Hermes kanban card |
@@ -123,7 +123,7 @@ symlink is required.
 
 Agent library and file contract: [8. agents/README.md](../agents/README.md).
 
-PIV in its detailed form is the [feature loop](./feature-loop.md#piv-mapping): Plan = `ready → tasks`, Implementation = `implement ↔ converge`, Validation = `critic → tester → pr-review` (+ human `uat`). Historical write-up: [agentic-coding.md](./agentic-coding.md).
+PIVS in its detailed form is the [feature loop](./feature-loop.md#pivs-mapping). Historical write-up: [agentic-coding.md](./agentic-coding.md).
 
 ---
 

@@ -25,7 +25,7 @@ Each agent is a folder with three core files tuned for one job.
 | [ready](./ready/) | Per-card gate | Branch + Spec Kit preflight before every card; returns `READY: ok|blocked` ([feature-loop.md](../systems/feature-loop.md)) |
 | [critic](./critic/) | Feature-loop Validation | Adversarial review after converge ([feature-loop.md](../systems/feature-loop.md)) |
 | [tester](./tester/) | Feature-loop Validation | Proves flows and runs project `validation_commands` ([feature-loop.md](../systems/feature-loop.md)) |
-| [pr-reviewer](./pr-reviewer/) | Feature-loop Validation | Final review before operator-approved parent publish |
+| [pr-reviewer](./pr-reviewer/) | On-demand tool | PR review after Ship on operator request; not a loop state |
 | [project-bootstrapper](./project-bootstrapper/) | Post-onboarding `job` | Scaffolds an onboarded repo from a PRD card; onboarding itself never writes a PRD |
 | [prd-writer](./prd-writer/) | Post-onboarding `job` | Writes the PRD as a card after onboarding |
 | [task-groomer](./task-groomer/) | Per-card helper | Turns a rough request into a dispatch-ready Hermes kanban card; not a dispatched worker |
@@ -68,7 +68,7 @@ Third-party persona collections are external reference material, not part of the
 ## Related
 
 - Five-part model: [agentic-system.md](../systems/agentic-system.md)
-- Methodology: [PIV — Plan, Implementation, Validation](../systems/agentic-coding.md)
+- Methodology: [PIVS — Plan, Implementation, Validation, Ship](../systems/agentic-coding.md)
 - Generic templates (not agents): [systems/](../systems/)
 - **Managed projects (target):** Hermes reads AiNative read-only and starts one worker per assigned state or job skill. Not wired in the current install.
 - Formats: [AGENTS.md](https://agents.md/), [Agent Skills](https://agentskills.io/specification)

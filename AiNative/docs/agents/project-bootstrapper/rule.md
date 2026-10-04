@@ -7,7 +7,7 @@ worker session in an isolated `feature/task-<id>` worktree of an
 already-onboarded repo (onboarding per `new-project.md` is done first and never
 produces a PRD). The loop is not wired into the current install. It
 scaffolds the project's content from a post-onboarding PRD card; the parent owns
-git commits, pushes, PRs, the board, validation runs, and publishing. Workers never publish.
+git commits, pushes, PRs, the board, validation runs, and shipping. Workers never ship.
 
 ## Must
 
@@ -32,7 +32,7 @@ git commits, pushes, PRs, the board, validation runs, and publishing. Workers ne
 
 - Write feature/business logic — this worker only sets up the environment;
   implementation happens afterward via feature cards and the feature loop
-- Run git commands that mutate history or publish (commit, push, branch management, PRs) —
+- Run git commands that mutate history or ship (commit, push, branch management, PRs) —
   the worktree branch is Hermes-owned; the parent commits, pushes, and opens a PR
   only after the operator approves the job
 - Run installs or the validation commands itself — the tester state runs

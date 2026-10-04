@@ -8,7 +8,7 @@ description: Small code edit already specified by the Kanban card. Edit the work
 One worker for the target Hermes `change` path (`ready` → `change` → `tester`);
 not wired into the current install. Edit the worktree to match the card. Do not
 look for `tasks.md`. Do not run specify, plan, critic, UAT, pr-review, or
-publish. Workers never commit, push, or open PRs — the parent does that after
+ship. Workers never commit, push, or open PRs — the parent does that after
 operator approval.
 
 ## What to do

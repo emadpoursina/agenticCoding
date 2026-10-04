@@ -160,10 +160,10 @@ container_checks() {
         gate3 "gh-auth" "gh auth passes but gh api user failed — token expired or lacking scopes (${tok:-no token in env})"
       fi
     else
-      gate3 "gh-auth" "gh present but not authenticated (${tok:-no token in env}) — PR publish would fail"
+      gate3 "gh-auth" "gh present but not authenticated (${tok:-no token in env}) — PR ship would fail"
     fi
   else
-    gate3 "gh" "gh CLI not installed — PR publish would fail"
+    gate3 "gh" "gh CLI not installed — PR ship would fail"
   fi
 
   hdr "hermes CLI"
@@ -200,7 +200,7 @@ container_checks() {
 
   if command -v sqlite3 >/dev/null 2>&1; then
     out=$(sqlite3 "$DB_HOME/kanban.db" 'select count(*) from kanban_notify_subs;' 2>/dev/null || echo 0)
-    if [ "${out:-0}" -gt 0 ] 2>/dev/null; then pass "notify-subscribers" "$out"; else gate3 "notify-subscribers" "0 — park/publish gates have nobody to notify"; fi
+    if [ "${out:-0}" -gt 0 ] 2>/dev/null; then pass "notify-subscribers" "$out"; else gate3 "notify-subscribers" "0 — park/ship gates have nobody to notify"; fi
   else
     note "notify-subscribers" "not checkable here (no sqlite3); see host section"
   fi
@@ -275,7 +275,7 @@ host_checks() {
       gate2 "single-task-db" "task DBs:$(printf '%s' "$dbs" | tr '\n' ' ' | sed 's/^$/ none/') — must be exactly one (kanban.db)"
     fi
     out=$(sqlite3 "$HOME/.hermes-personal-coding/kanban.db" 'select count(*) from kanban_notify_subs;' 2>/dev/null || echo 0)
-    if [ "${out:-0}" -gt 0 ] 2>/dev/null; then pass "notify-subscribers" "$out"; else gate3 "notify-subscribers" "0 — park/publish gates have nobody to notify"; fi
+    if [ "${out:-0}" -gt 0 ] 2>/dev/null; then pass "notify-subscribers" "$out"; else gate3 "notify-subscribers" "0 — park/ship gates have nobody to notify"; fi
     out=$(sqlite3 "$HOME/.hermes-personal-coding/projects.db" "select slug || ' → ' || coalesce(primary_path,'?') || ' → board=' || coalesce(board_slug,'none') from projects where archived=0;" 2>/dev/null)
     note "enrolled-projects" "$(printf '%s' "${out:-none}" | tr '\n' ' ')"
     out=$(sqlite3 "$HOME/.hermes-personal-coding/kanban.db" 'select count(*) from tasks;' 2>/dev/null || echo 0)
