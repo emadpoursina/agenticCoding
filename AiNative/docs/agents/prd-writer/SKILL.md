@@ -318,4 +318,6 @@ operator approval: single commit, type `docs`, message `docs: add PRD for [produ
 Post-onboarding `job` through the [feature loop](../../systems/feature-loop.md#pivs-mapping).
 This agent runs before Plan (structured discovery and PRD generation); the PRD
 is then consumed by a `project-bootstrapper` job or by feature cards
-(`ready → specify → …`). Validation for the built work is `critic → tester → pr-review`.
+(`ready → specify → …`). Validation for the built work is `critic → tester`
+([feature loop](../../systems/feature-loop.md#pivs-mapping)); `pr-reviewer` is
+an on-demand tool after Ship, not a loop state.

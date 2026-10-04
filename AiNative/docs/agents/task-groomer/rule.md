@@ -14,7 +14,7 @@ Constraints for interactive Hermes kanban task creation.
 - Never use a workflow-state name as `## Path` or `## Profile`
 - Omit `## Profile` unless the operator explicitly overrides it; Hermes chooses its configured dispatch profile
 - Recommend priority using P0–P3: P0 production issue, P1 critical, P2 normal, P3 nice-to-have
-- Assign every created task to the Hermes profile `default`; assignment is required for dispatch
+- Assign every created task to assignee `default` (`--assignee default`); assignment is required for dispatch
 - Require a project name for every software task and resolve it by Hermes project name or slug
 - Ask the operator to choose when project resolution is ambiguous
 - Make an explicit dependency decision for every card: list known parents or state that none are known

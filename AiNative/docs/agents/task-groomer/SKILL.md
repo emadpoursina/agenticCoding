@@ -55,7 +55,10 @@ OUTPUT:
    `hermes project list` by exact name or slug. If there are multiple matches,
    show them and ask the operator to choose; never guess. If there is no match,
    inspect whether the repository already exists and stop for confirmation:
-   - no repository: propose the confirmed AiNative `project-bootstrapper` path;
+   - no repository: propose one-time onboarding per
+     [new-project.md](../../knowledge/setup/new-project.md) first (never a PRD
+     or scaffold during onboarding), then a `prd-writer` job, then a
+     `project-bootstrapper` job;
    - existing repository: propose confirmed Hermes project registration without
      re-scaffolding.
    Do not mutate the board or create a scratch software task on either path.
@@ -115,7 +118,7 @@ feature | change | job
    - CLI priority: map P0/P1/P2/P3 to `0/1/2/3`; Hermes' `--priority` flag accepts an integer
    - Path from step 3, plus Skill when `job`, plus Parent when child `change`
    - Platform from the template
-   - Assignee profile: `default` (never a human developer)
+   - Assignee: `default` (never a human developer; omit `## Profile` unless the operator overrides it)
    - Blocking dependencies as proposed links: `hermes kanban link <parent> <child>`
      (`## Parent` is hierarchy for child `change` cards only; `## Dependencies`
      is blocking order for any card)
@@ -128,12 +131,12 @@ feature | change | job
      - One `hermes kanban link <parent> <child>` per confirmed dependency
      - `hermes kanban assign <task> default` only if creation did not assign it
      - `hermes kanban set-model ...` only when explicitly requested
-     - For an unregistered project, run the confirmed bootstrapper or registration
+     - For an unregistered project, run the confirmed onboarding or registration
        action before creating the project-linked task.
 
-6. Ask: "Confirm creation and proposed dependency links? [Y/n/edit]"
+7. Ask: "Confirm creation and proposed dependency links? [Y/n/edit]"
 
-7. Only after an explicit confirmation, run the project setup action when needed,
+8. Only after an explicit confirmation, run the project setup action when needed,
    then run the create command, capture the
 
     returned task ID, then run one confirmed link command per parent:
@@ -141,10 +144,10 @@ feature | change | job
     `assignee=default` and report its resulting state. If parents are
     incomplete, expect `todo`; otherwise the task may enter `ready`.
 
-8. If the operator rejects or edits the card, revise the draft and repeat the
+9. If the operator rejects or edits the card, revise the draft and repeat the
      confirmation gate. Do not run any mutation while awaiting approval.
 
-9. If creation succeeds but a dependency link fails, report the task ID and
+10. If creation succeeds but a dependency link fails, report the task ID and
 
     failed link immediately. Do not retry blindly or claim the dependency was
     created.

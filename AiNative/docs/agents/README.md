@@ -68,7 +68,7 @@ Third-party persona collections are external reference material, not part of the
 ## Related
 
 - Five-part model: [agentic-system.md](../systems/agentic-system.md)
-- Methodology: [PIVS — Plan, Implementation, Validation, Ship](../systems/agentic-coding.md)
+- Methodology: PIVS ([feature loop](../systems/feature-loop.md#pivs-mapping); historical write-up: [agentic-coding.md](../systems/agentic-coding.md))
 - Generic templates (not agents): [systems/](../systems/)
 - **Managed projects (target):** Hermes reads AiNative read-only and starts one worker per assigned state or job skill. Not wired in the current install.
 - Formats: [AGENTS.md](https://agents.md/), [Agent Skills](https://agentskills.io/specification)

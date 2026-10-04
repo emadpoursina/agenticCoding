@@ -37,7 +37,7 @@ git commits, pushes, PRs, the board, validation runs, and shipping. Workers neve
   only after the operator approves the job
 - Run installs or the validation commands itself — the tester state runs
   `validation_commands`
-- Pick dependency versions without checking latest via the PRD's package manager
+- Pick dependency versions without checking latest stable versions via the PRD's package manager (unless the PRD pins them)
 - Skip the stack-confirmation park before scaffolding multiple files/directories
 - Overwrite or delete an existing project control-plane section of `AGENTS.md`
 - Emit editor-specific rules, commands, or agent config — `AGENTS.md` is the only agent-instructions target

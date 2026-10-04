@@ -1,7 +1,8 @@
 # Task groomer agent
 
 Interactive Hermes task-creation skill. The groomer turns a rough request into
-a task card, proposes dependency links, assigns the Hermes `default` profile,
+a task card, proposes dependency links, proposes assignee `default` (omits
+`## Profile` unless the operator overrides it),
 and waits for operator confirmation before changing the kanban board.
 
 ## When to use
@@ -28,7 +29,7 @@ and waits for operator confirmation before changing the kanban board.
 | File | Purpose |
 |------|---------|
 | [SKILL.md](./SKILL.md) | Single interactive grooming prompt and confirmation workflow |
-| [rule.md](./rule.md) | Card constraints, profile assignment, dependencies, and stop conditions |
+| [rule.md](./rule.md) | Card constraints, assignee, dependencies, and stop conditions |
 
 ## Quick start
 

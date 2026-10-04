@@ -19,14 +19,14 @@ This file is the agent's instruction surface in the open [AGENTS.md](https://age
 
 - A comprehensive PRD markdown file stored at the project root (`PRD.md`) or in a user-specified path, containing:
   - **Executive summary** — one-paragraph pitch
-  - **Business model** — who, problem, solution, product name (per [new-project.md](../../knowledge/setup/new-project.md#business-model))
+  - **Business model** — who, problem, solution, product name (per [SKILL.md § PRD structure](./SKILL.md#prd-structure))
   - **User personas** — primary and secondary user types with goals and pain points
-  - **User journeys** — key flows and critical paths (per [new-project.md](../../knowledge/setup/new-project.md#prd))
+  - **User journeys** — key flows and critical paths (per [SKILL.md § PRD structure](./SKILL.md#prd-structure))
   - **Feature set** — categorized into must-have (MVP), should-have (v1.1), nice-to-have (future)
-  - **Page/screen list** — structure map for frontend projects (per [new-project.md](../../knowledge/setup/new-project.md#app-structure))
+  - **Page/screen list** — structure map for frontend projects (per [SKILL.md § PRD structure](./SKILL.md#prd-structure))
   - **Functional requirements** — EARS-format acceptance criteria with INCOSE quality rules
   - **Non-functional requirements** — performance, security, scalability, accessibility
-  - **Tech stack recommendations** — backend, frontend, database, devops, third-party services (per [new-project.md](../../knowledge/setup/new-project.md#tech-stack))
+  - **Tech stack recommendations** — backend, frontend, database, devops, third-party services (per [SKILL.md § PRD structure](./SKILL.md#prd-structure))
   - **Design direction** — visual tone, key interactions, accessibility targets
   - **Success metrics** — measurable outcomes (adoption, engagement, revenue, performance)
   - **Risks and assumptions** — known unknowns, dependencies, constraints

@@ -61,7 +61,7 @@ cards during onboarding.
 ## After onboarding
 
 * Empty repo: file a `job` card (`## Skill: prd-writer`) to write the PRD, then
-  a setup card through the loop to scaffold from it. See
+  a `job` card (`## Skill: project-bootstrapper`) to scaffold from it. See
   [project-bootstrapper](../../agents/project-bootstrapper/).
 * Non-empty repo: file cards directly. If the repo needs understanding first,
   Hermes may call `scout` (read-only brief / Repo Q&A) or the standalone
