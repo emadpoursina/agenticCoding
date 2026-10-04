@@ -36,8 +36,32 @@ the harness and starts **one worker session per agent state**:
 Runtime mechanics (process model, profiles, worktrees, model routing) are
 defined by Hermes, not here.
 
+## Gate ownership (one gate per concern)
+
+Three gates touch "is it ready?" at different levels. Each concern has exactly
+one owner; a gate never re-implements another gate's checks.
+
+| Gate | Level | Owns | Report |
+|---|---|---|---|
+| [hermes-readiness.sh](./hermes-readiness.sh) | Install | Can Hermes run? mounts, keys, DBs, config, CLI reachable, GitHub access | `PASS`/`FAIL`/`GAP`/`NOTE`, `ONBOARDING:`/`STEP3:` |
+| `ready-check.sh` (`speckit-ready` skill) — read through [agents/ready/](../../agents/ready/) | Per flow | Branch state, Spec Kit layout, `.specify/ready.yml` | `READY: ok\|blocked`, `FLOW_ID`/`BRANCH`/`CHECKS`/`FIXES` |
+| [task-groomer](../../agents/task-groomer/) | Per card | Card shape and dispatch-readiness | Card fields + `hermes kanban create` proposal |
+
+Rules that prevent future confusion:
+
+- `hermes-readiness.sh` checks a target project only for *sanity* (it is a git
+  repo, origin reachable, worktree works). It does **not** check Spec Kit
+  layout or branch state — the ready gate decides those per card.
+- The ready gate does **not** check mounts, keys, DBs, or container runtime —
+  the install gate decides those.
+- task-groomer does **not** run environment checks.
+- Never add a check to two gates. If a new check is needed, ask which level it
+  belongs to (install / flow / card) and add it in exactly one place.
+
 ## Related
 
+- [harness.md](./harness.md) — what the harness is; canonical runtime facts live in `personalAgent/SYSTEM.md`
+- [hermes-readiness.sh](./hermes-readiness.sh) — the install-gate readiness check: run it on the Mac for host + container, or inside the container as Hermes. Prints `PASS`/`FAIL` (step-2 onboarding gates), `GAP` (step-3 gates), and `ONBOARDING:` / `STEP3:` verdicts. Branch/layout checks belong to the ready gate, not here (see [gate ownership](#gate-ownership-one-gate-per-concern)).
 - [feature-loop.md](../../systems/feature-loop.md) — target state graph and card paths
 - [new-project.md](./new-project.md) — repo enrollment and bootstrap handoff
 - [tmux.md](../commands/tmux.md) — terminal session shortcuts, if needed

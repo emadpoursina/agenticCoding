@@ -33,3 +33,9 @@ UAT → pr-review → publish. Do not write spec content, `specs/`, `spec.md`, o
 
 - `READY: blocked` is final for this pass; the orchestrator parks and a human
   fixes the named problem. Do not bootstrap Spec Kit yourself.
+
+## Boundary
+
+Install facts (mounts, keys, DBs, container runtime, GitHub access) belong to
+[hermes-readiness.sh](../../knowledge/setup/hermes-readiness.sh), not here.
+This gate checks only branch state, Spec Kit layout, and `.specify/ready.yml`.

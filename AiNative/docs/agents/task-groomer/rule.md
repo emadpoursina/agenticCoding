@@ -43,3 +43,10 @@ Constraints for interactive Hermes kanban task creation.
 - A proposed parent task cannot be identified — state the uncertainty and do not invent a task ID
 - The `default` profile is unavailable or a kanban command fails — stop without partial mutation and report the failure
 - The operator has not confirmed the card and command set — do not mutate the board
+
+## Boundary
+
+The groomer owns card shape only. It runs no environment checks: install
+facts belong to [hermes-readiness.sh](../../knowledge/setup/hermes-readiness.sh)
+and per-flow branch/layout checks belong to the ready gate
+([ready/](../ready/)).

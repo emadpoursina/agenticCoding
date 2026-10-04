@@ -35,3 +35,10 @@ Compact report (the parent parses it, never worker prose):
 - Confirm git state (no detached HEAD, no merge in progress) and the Spec
   Kit skill layout.
 - Report exactly the compact report fields. No narrative.
+
+## Boundary
+
+Ready is the per-flow gate (branch, layout). Install facts — mounts, keys,
+DBs, container runtime — are owned by
+[hermes-readiness.sh](../../knowledge/setup/hermes-readiness.sh). Do not
+re-check them here.
