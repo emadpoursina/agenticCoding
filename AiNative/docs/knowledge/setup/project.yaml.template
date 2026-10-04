@@ -1,0 +1,12 @@
+# .ainative/project.yaml — template (copy during onboarding, never edit in place)
+#
+# Copy to <project>/.ainative/project.yaml when onboarding a repo (create only
+# what is missing; never overwrite). Source: AiNative methodology; live copy
+# belongs to the project. See docs/knowledge/setup/new-project.md.
+#
+# The TODO placeholder below is intentional at onboarding time. The loop
+# blocks cards until project-bootstrapper replaces it with real commands
+# that prove the scaffold runs.
+
+validation_commands:
+  - echo "TODO(bootstrap): replace with real validation commands, e.g. uv run pytest"

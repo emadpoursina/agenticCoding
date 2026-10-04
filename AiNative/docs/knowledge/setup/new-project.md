@@ -42,9 +42,10 @@ Same checklist for empty and non-empty repos. Never overwrite existing content.
    - `AGENTS.md` — project rules from
      [ai-rules-template.md](../../systems/ai-rules-template.md); preserve any
      existing control-plane section.
-   - `.ainative/project.yaml` — declare `validation_commands`; a scaffold TODO
-     marker is acceptable here (the loop blocks cards until bootstrap replaces
-     it with real commands).
+   - `.ainative/project.yaml` — declare `validation_commands` (copy
+     [project.yaml.template](./project.yaml.template), never edit it in
+     place); a scaffold TODO marker is acceptable here (the loop blocks
+     cards until bootstrap replaces it with real commands).
    - `scratch/` + gitignored.
    - `.gitignore` covers scratch, env, build output.
 4. **Spec Kit layout (required for `feature` cards, skipped for `change`/`job`):**

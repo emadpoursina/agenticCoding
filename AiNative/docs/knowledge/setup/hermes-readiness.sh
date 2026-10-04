@@ -86,12 +86,14 @@ container_checks() {
     if out=$("$hbin" profile list 2>/dev/null | wc -l | tr -d ' '); then note "profile-list" "$out line(s)"; fi
   fi
   if [ -r "$DB_HOME/config.yaml" ]; then pass "config-file" "$DB_HOME/config.yaml readable"; else gate2 "config-file" "$DB_HOME/config.yaml missing — model routing lives here"; fi
+  # Model auth is Hermes-owned (model selection strategy comes later).
+  # Never gate onboarding or step-3 on specific providers here.
   if [ -n "${ANTHROPIC_API_KEY:-}" ] || [ -n "${OPENAI_API_KEY:-}" ] || [ -n "${OPENROUTER_API_KEY:-}" ]; then
     note "model-key" "provider key present in env (name only, value redacted)"
   else
-    gate3 "model-key" "no ANTHROPIC/OPENAI/OPENROUTER key in env — model calls fail unless key lives in Hermes config"
+    note "model-key" "no provider key in env — auth decided with Hermes in model selection strategy"
   fi
-  if command -v sqlite3 >/dev/null 2>&1; then pass "sqlite3" "available — db integrity verifiable"; else gate3 "sqlite3" "not installed — db integrity not verifiable here (see host section)"; fi
+  if command -v sqlite3 >/dev/null 2>&1; then pass "sqlite3" "available — db integrity verifiable"; else note "sqlite3" "not installed — Hermes image decision; host section covers integrity"; fi
 
   for f in kanban.db projects.db; do
     if [ ! -f "$DB_HOME/$f" ]; then gate2 "db-$f" "$f missing"; continue; fi
@@ -176,15 +178,18 @@ container_checks() {
   fi
 
   hdr "step-3 prerequisites (gaps do not block onboarding)"
+  # Canonical skills live in AiNative (this RO mount), never in host IDE
+  # config. Orchestrator-side skills (speckit-orchestrate, route-work,
+  # speckit-ready) run on the host and are checked there.
   local missing="" skill
-  for skill in speckit-orchestrate/SKILL.md speckit-ready/SKILL.md speckit-ready/scripts/ready-check.sh \
-               route-work/SKILL.md change/SKILL.md; do
-    [ -r "${HOME:-/opt/data/home}/.config/opencode/skill/$skill" ] || missing="$missing $skill"
+  for skill in docs/agents/change/SKILL.md docs/agents/ready/SKILL.md docs/agents/ready/rule.md \
+               docs/agents/critic/SKILL.md docs/agents/critic/rule.md docs/agents/tester/SKILL.md docs/agents/tester/rule.md; do
+    [ -r "/opt/data/mnt/AiNative/$skill" ] || missing="$missing $skill"
   done
   if [ -z "$missing" ]; then
-    pass "opencode-skills" "all present under ~/.config/opencode/skill"
+    pass "ainative-skills" "all present under AiNative docs/agents"
   else
-    gate3 "opencode-skills" "not reachable from container:$missing"
+    gate3 "ainative-skills" "missing in AiNative:$missing"
   fi
 
   # Spec Kit layout and git branch state are intentionally NOT checked here.
@@ -200,7 +205,7 @@ container_checks() {
 
   if command -v sqlite3 >/dev/null 2>&1; then
     out=$(sqlite3 "$DB_HOME/kanban.db" 'select count(*) from kanban_notify_subs;' 2>/dev/null || echo 0)
-    if [ "${out:-0}" -gt 0 ] 2>/dev/null; then pass "notify-subscribers" "$out"; else gate3 "notify-subscribers" "0 — park/ship gates have nobody to notify"; fi
+    if [ "${out:-0}" -gt 0 ] 2>/dev/null; then pass "notify-subscribers" "$out"; else note "notify-subscribers" "0 — Hermes-owned; decided with Hermes"; fi
   else
     note "notify-subscribers" "not checkable here (no sqlite3); see host section"
   fi
@@ -240,10 +245,12 @@ host_checks() {
   else
     gate2 "mount-ro" "AiNative is NOT read-only"
   fi
+  # Skills are canonical in AiNative (read-only mount, checked in the
+  # container view). The container must NOT mount host IDE skills.
   if grep -qE 'config/opencode' "$pa/docker-compose.yml" 2>/dev/null; then
-    pass "mount-skills" "~/.config/opencode referenced in compose"
+    note "mount-skills" "~/.config/opencode referenced in compose — not required; container reads skills from AiNative"
   else
-    gate3 "mount-skills" "~/.config/opencode not in compose mounts — step-3 skills unreachable inside the container"
+    pass "mount-skills" "no IDE skill mount — container reads skills from AiNative RO"
   fi
   if docker inspect -f '{{range .Config.Env}}{{println .}}{{end}}' hermes-personal-coding 2>/dev/null | grep -q '^GIT_SSH_COMMAND='; then
     pass "env-git-ssh" "GIT_SSH_COMMAND set in container env"
@@ -275,7 +282,7 @@ host_checks() {
       gate2 "single-task-db" "task DBs:$(printf '%s' "$dbs" | tr '\n' ' ' | sed 's/^$/ none/') — must be exactly one (kanban.db)"
     fi
     out=$(sqlite3 "$HOME/.hermes-personal-coding/kanban.db" 'select count(*) from kanban_notify_subs;' 2>/dev/null || echo 0)
-    if [ "${out:-0}" -gt 0 ] 2>/dev/null; then pass "notify-subscribers" "$out"; else gate3 "notify-subscribers" "0 — park/ship gates have nobody to notify"; fi
+    if [ "${out:-0}" -gt 0 ] 2>/dev/null; then pass "notify-subscribers" "$out"; else note "notify-subscribers" "0 — Hermes-owned; decided with Hermes"; fi
     out=$(sqlite3 "$HOME/.hermes-personal-coding/projects.db" "select slug || ' → ' || coalesce(primary_path,'?') || ' → board=' || coalesce(board_slug,'none') from projects where archived=0;" 2>/dev/null)
     note "enrolled-projects" "$(printf '%s' "${out:-none}" | tr '\n' ' ')"
     out=$(sqlite3 "$HOME/.hermes-personal-coding/kanban.db" 'select count(*) from tasks;' 2>/dev/null || echo 0)

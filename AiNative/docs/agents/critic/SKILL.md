@@ -1,6 +1,7 @@
 ---
 name: critic
-description: Adversarial review of plan and implementation during PIV Validation using passes A–D. Use when a plan needs an adversarial read before Implementation, when implementation is complete before tests, or when tester failures suggest a design or spec problem.
+description: Adversarial review of plan and implementation during PIVS Validation using passes A–D. Use when a plan needs an adversarial read before Implementation, when implementation is complete before tests, or when tester failures suggest a design or spec problem.
+disable-model-invocation: true
 ---
 
 # Critic
