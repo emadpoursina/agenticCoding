@@ -29,7 +29,10 @@ Hermes (it reads AiNative as read-only guidance).
 ## Decision
 
 - AiNative owns the methodology, not the runtime. Runtime facts live in
-  `personalAgent/` and the operator's private Hermes home.
+  `personalAgent/` (Compose, image, environment) and the operator's private
+  Hermes home. Hermes writes its own context files (`SOUL.md` and the
+  operator/system/user docs) in that home — the reference copies formerly
+  versioned in `personalAgent/` were removed on 2026-10-05.
 - The [feature loop](../../systems/feature-loop.md) and its agents are kept as
   **target methodology** and relabeled from "live" to "target — not wired".
 - Dead runtime references are removed or generalized: Pi is replaced by a
