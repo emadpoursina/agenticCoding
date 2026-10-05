@@ -75,8 +75,9 @@ Hermes: check → next state, retry, or park for a human
 ## Runtime ownership
 
 Runtime mechanics are **not** defined in AiNative. Hermes owns them; this
-install's live configuration lives in `personalAgent` (context docs, Compose,
-image) and `~/.hermes-personal-coding` (SOUL, `config.yaml`). The current
+install's live configuration lives in `personalAgent` (Compose, image,
+environment) and `~/.hermes-personal-coding` (SOUL, `config.yaml`, and the
+context files Hermes writes for itself). The current
 install provides the native `hermes kanban` and `hermes project` commands but
 no worker loop is wired, so do not describe the loop as running.
 

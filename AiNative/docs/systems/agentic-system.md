@@ -39,7 +39,9 @@ wired.
 
 Workers return a compact report and exit. They do not own the workflow,
 board, GitHub shipping, or deployment. Runtime details are in
-[feature-loop.md](./feature-loop.md) and the `personalAgent` operator docs.
+[feature-loop.md](./feature-loop.md) and the live install: `personalAgent`
+(Compose, image, environment) plus the private Hermes home, where Hermes
+writes its own context.
 
 ---
 

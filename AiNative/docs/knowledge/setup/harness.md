@@ -6,9 +6,12 @@ the runtime that runs managed-project work.
 ## Current runtime
 
 The live install is the **Hermes agent**, configured by the `personalAgent`
-repository. Canonical runtime facts (container, mounts, identity, model
-routing) live there, in `personalAgent/SYSTEM.md`, and in the operator's
-private Hermes home. This file does not duplicate them.
+repository (Compose, image, environment). Canonical runtime facts (container,
+mounts, identity, model routing) live in the live install itself: the mounted
+Compose/environment and the operator's private Hermes home
+(`~/.hermes-personal-coding` — `SOUL.md`, `config.yaml`). Hermes writes and
+owns its own context files there; the repo holds no reference copies of them.
+This file does not duplicate them.
 
 What matters to methodology:
 
@@ -60,7 +63,7 @@ Rules that prevent future confusion:
 
 ## Related
 
-- [harness.md](./harness.md) — what the harness is; canonical runtime facts live in `personalAgent/SYSTEM.md`
+- [harness.md](./harness.md) — what the harness is; canonical runtime facts live in the live Hermes home (`~/.hermes-personal-coding`) and `personalAgent` Compose/environment
 - [hermes-readiness.sh](./hermes-readiness.sh) — the install-gate readiness check: run it on the Mac for host + container, or inside the container as Hermes. Prints `PASS`/`FAIL` (step-2 onboarding gates), `GAP` (step-3 gates), and `ONBOARDING:` / `STEP3:` verdicts. Branch/layout checks belong to the ready gate, not here (see [gate ownership](#gate-ownership-one-gate-per-concern)).
 - [feature-loop.md](../../systems/feature-loop.md) — target state graph and card paths
 - [new-project.md](./new-project.md) — repo enrollment and bootstrap handoff

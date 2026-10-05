@@ -162,10 +162,12 @@ Amendments:
 Compliance: every PR and agent review MUST verify the change does not
 violate Core Principles or Hard Constraints. Unjustified complexity
 MUST be rejected or recorded as a dated ADR under AiNative decisions.
-Runtime development guidance for the Hermes runtime lives in
-`personalAgent/AGENTS.md`; this constitution wins on conflict.
+Runtime development guidance for the Hermes runtime lives in the private
+Hermes home (`~/.hermes-personal-coding`), written by Hermes itself; no
+reference copy is versioned in `personalAgent/`. This constitution wins on
+conflict.
 Current repo layout: `AiNative/` (read-only methodology),
-`personalAgent/` (kept Hermes context, compose, and image),
+`personalAgent/` (Hermes compose, image, and environment),
 `specs/` (fresh, empty).
 
-**Version**: 1.0.3 | **Ratified**: 2026-08-28 | **Last Amended**: 2026-09-30
+**Version**: 1.0.4 | **Ratified**: 2026-08-28 | **Last Amended**: 2026-10-05
