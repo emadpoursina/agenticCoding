@@ -34,9 +34,9 @@ chooses the next state.
 | Layer | Owns | Does not own |
 |---|---|---|
 | **AiNative** (this tree) | What the loop is. Which states exist. Which agent kind runs a state. Compact-report expectations. Human gates vs agent states. | Board runtime, worktrees, worker process, GitHub, messaging, enrolled-project source. |
-| **Spec Kit** (in the project) | How specify / clarify / plan / tasks / analyze / implement / converge write native artifacts. | The graph. Skip/confirm/UAT policy. Ship. |
+| **Spec Kit** (in the project) | How specify / clarify / plan / tasks / analyze / implement / converge write native artifacts. | The graph. Skip/UAT policy. Ship. |
 | **Hermes parent** (`personalAgent`) | Board, current state, isolated task worktree, one worker per state, report checks, retries, human gates, messaging, GitHub ship. | Following stage skills in-process; one-shot “run all of Spec Kit.” |
-| **Worker** | Execute the **one** step Hermes named. Read that skill. Write artifacts. Return a compact report. Exit. | The flow. Next state. Skip/confirm/UAT policy. Ship. Merge. AiNative writes. |
+| **Worker** | Execute the **one** step Hermes named. Read that skill. Write artifacts. Return a compact report. Exit. | The flow. Next state. Skip/UAT policy. Ship. Merge. AiNative writes. |
 
 ## Agent and skill sources
 
@@ -105,15 +105,18 @@ Do not add a second task database.
 
 ## Card paths
 
-After a project is enrolled, every unit of work is a Kanban card. The card
-names its path. Hermes does not infer the path from the title or body.
-A missing path is `feature`.
+After a project is enrolled, every unit of work is a Kanban card. `path`
+is an optional card field. When the card names a path, Hermes honors it.
+When it does not, Hermes runs `route` after `ready` to decide the path
+from the task — the same route-work as `speckit-orchestrate`
+(`REQUESTED_PATH` honored when present, inferred from the task when
+absent).
 
 | Path | When | Graph |
 |---|---|---|
 | `feature` | A desired product outcome that needs a spec, plan, and review | The graph below; planning creates child Task Cards |
-| `change` | A small code edit already specified by the card | `ready` → one worker → `tester` → `ship` |
-| `job` | Work that is not a code change (write a PRD, bootstrap from a PRD) | One worker for the named skill. It may park for a human. Workers never ship. After the worker reports `STATUS: ok` the parent parks for the operator's decision: approval commits, pushes the branch, and opens a pull request; decline completes without shipping. It does not enter the feature graph |
+| `change` | A small code edit already specified by the card | `ready` → `route` → one worker → `tester` → `ship` |
+| `job` | Work that is not a code change (write a PRD, bootstrap from a PRD) | `ready` → `route` → one worker for the named skill. It may park for a human. Workers never ship. After the worker reports `STATUS: ok` the parent parks for the operator's decision: approval commits, pushes the branch, and opens a pull request; decline completes without shipping. It does not enter the feature graph |
 
 No worker on any path ships. Every path ends the same way: the parent
 commits, pushes the branch, and opens a PR only after operator approval.
@@ -121,7 +124,7 @@ commits, pushes the branch, and opens a PR only after operator approval.
 A `change` or `job` worker that finds the card is really a feature stops
 and reports that. It does not promote itself onto the feature graph.
 
-`change` does not run specify, clarify, confirm, plan, tasks, analyze,
+`change` does not run specify, clarify, plan, tasks, analyze,
 implement/converge, critic, or UAT. `tester` runs the
 project `validation_commands`. `ready` on a `change` is branch preflight
 only.
@@ -135,8 +138,8 @@ This graph is the `feature` path. Orchestrator-specific **edges** (not extra loo
   required checks pass and the operator approves.
 
 ```text
-ready
-  → specify → clarify → confirm
+ready → route
+  → specify → clarify
   → plan → tasks → [analyze]
   → implement ↔ converge
   → critic → tester
@@ -147,9 +150,9 @@ ready
 | State | Kind | Worker? | Notes |
 |---|---|---|---|
 | `ready` | AiNative [`docs/agents/ready/`](../agents/ready/) (promoted; the single Ready definition) | yes | Git/layout/branch preflight. Not scout. `READY: blocked` stops the run. |
+| `route` | route-work (same as `speckit-orchestrate`) | yes | Decides `feature \| change \| job`. Honors card `path` when present; infers from the task when absent. `ROUTE: job` with no usable skill stops. |
 | `specify` | Spec Kit | yes | |
 | `clarify` | Spec Kit | yes | Questions return to the parent. Parent asks the operator. A **new** worker encodes answers. |
-| `confirm` | parent ↔ human | **no** | One continuation before plan. Not an agent. |
 | `plan` | Spec Kit | yes | No extra plan-approval gate. |
 | `tasks` | Spec Kit | yes | |
 | `analyze` | Spec Kit | yes | Only if plan returned `ANALYZE: yes`. Read-only. Critical finding = park. |
@@ -167,7 +170,7 @@ The parent does that in `ship` after operator approval.
 
 The loop above is the detailed form of PIVS:
 
-* **Plan** = `ready → specify → clarify → confirm → plan → tasks → [analyze]`
+* **Plan** = `ready → route → specify → clarify → plan → tasks → [analyze]`
 * **Implementation** = `implement ↔ converge`
 * **Validation** = `critic → tester`
 * **Ship** = `ship` (commit, push, PR with walkthrough; ends uat-ready) → human `uat`
@@ -180,14 +183,16 @@ ships the **branch** (commit, push, open PR with walkthrough). Do not open a PR
 and then treat the walkthrough as optional.
 
 `skip` is an **operator flag**, not a skipped specify/clarify state.
-Workers self-answer; the parent still shows the choice report and still
-does `confirm` before plan.
+Workers self-answer; the parent still shows the choice report and goes
+straight to plan.
 
 ## Compact reports
 
 The parent parses these report fields; it does not scrape worker chat prose.
 
 Ready: `READY: ok|blocked`, `FLOW_ID`, `BRANCH`, `CHECKS`, `FIXES`.
+
+Route: `ROUTE: feature|change|job`, `SKILL`, `SKILL_PATH`, `WHY`.
 
 Specify/clarify/plan/tasks/analyze: `FLOW_ID`, `ARTIFACTS`,
 `STATUS: ok|stuck|blocked`, `SUMMARY`. Plan also: `ANALYZE: yes|no`.
@@ -209,15 +214,16 @@ Per step, three attempts (original + two resumes) then park.
 Do not retry a stable `READY: blocked`.
 Do not retry missing `spec.md` / `plan.md` / `tasks.md`.
 `CONVERGE_OUTCOME: blocked` parks immediately.
-Human questions are not stuck; they are `confirm` / clarify relay / `uat`.
+Human questions are not stuck; they are clarify relay / `uat`.
 
 ## What this is not
 
 - Scout → 5/10/20 questions → plan-reviewer → wait for plan approval →
   implement → critic → tester as the **target** path.
 - One worker identity that runs the whole Spec Kit playbook in a single session.
-- A classifier that picks `feature` / `change` / `job` from card prose.
-  The path is a field on the card.
+- Treating card `path` as required. `path` is optional; when absent
+  `route` after `ready` decides `feature` / `change` / `job` from the
+  task (honoring `REQUESTED_PATH` when present).
 - Hermes implementing Spec Kit stages in-process.
 - Converge substituting for critic/tester/ship.
 - Duplicating this document into Hermes. Hermes **links** here
