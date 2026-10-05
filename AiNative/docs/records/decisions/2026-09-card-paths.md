@@ -1,8 +1,19 @@
 # ADR: Three explicit card paths
 
 **Date:** 2026-09-22
-**Status:** Accepted
+**Status:** Amended by [feature-loop.md](../../systems/feature-loop.md) (2026-10-05)
 **Note:** the feature loop is not wired in the current install; see [2026-09-fresh-hermes-rebuild.md](./2026-09-fresh-hermes-rebuild.md).
+
+> **Amendment (2026-10-05):** The three-path decision stands, but the missing-path
+> rule below is superseded. `path` is **optional**: when a card names a path,
+> Hermes honors it; when it does not, Hermes runs the `route` state after `ready`
+> to decide `feature` | `change` | `job` from the task (honoring `REQUESTED_PATH`
+> when present). This matches [feature-loop.md](../../systems/feature-loop.md)
+> ("Card paths" and the `route` state) and supersedes "A missing path is
+> `feature`. Hermes does not classify from card prose." task-groomer still emits
+> an explicit `## Path` on every card it creates
+> ([task-groomer/rule.md](../../agents/task-groomer/rule.md)), so the `route`
+> fallback only applies to cards created without the groomer.
 
 ## Context
 
