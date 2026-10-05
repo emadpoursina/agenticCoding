@@ -49,9 +49,21 @@ Same checklist for empty and non-empty repos. Never overwrite existing content.
    - `scratch/` + gitignored.
    - `.gitignore` covers scratch, env, build output.
 4. **Spec Kit layout (required for `feature` cards, skipped for `change`/`job`):**
+   Source is always the official Spec Kit — never copy `.specify/` or
+   `.opencode/` from a sibling project repo (those contain that project's
+   version, integration settings, and possibly a filled `constitution.md`).
+   From the repo root, inside the container:
+   ```bash
+   uv tool install specify-cli==<version>  # record version in the report; 1.0.13 verified 2026-10-05
+   export PATH="/opt/data/home/.local/bin:$PATH"  # uv tool dir is not on PATH in the container
+   specify init --here --force --integration opencode --script sh --non-interactive --ignore-agent-tools
+   ```
+   (`--force` is for the non-empty repo; `--ignore-agent-tools` because the
+   agent runs elsewhere. Init creates no commit.) Verify the 8 required paths:
    `.specify/` + `.opencode/commands/speckit.{specify,clarify,plan,tasks,analyze,implement,converge}.md`.
-   If missing, note it — the per-card `ready` gate will block `feature` cards
-   until it is added.
+   Newer CLI versions may add extra commands (e.g. `constitution`, `checklist`,
+   `taskstoissues`) — a superset is fine. If missing, note it — the per-card
+   `ready` gate will block `feature` cards until it is added.
 5. **Local services (if the project needs a DB):** one database per project per
    [local-shared-services.md](./local-shared-services.md).
 
