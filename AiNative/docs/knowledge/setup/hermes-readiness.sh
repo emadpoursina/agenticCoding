@@ -128,9 +128,25 @@ container_checks() {
   note "workspace-contents" "$(ls -1 /opt/data/mnt/workspace 2>/dev/null | tr '\n' ' ')"
 
   hdr "git & github"
-  if [ -r /opt/data/home/.gitconfig ]; then pass "gitconfig" "/opt/data/home/.gitconfig readable"; else gate2 "gitconfig" "missing"; fi
-  if [ -r /opt/data/home/.ssh/git_key ]; then pass "git-key" "/opt/data/home/.ssh/git_key readable"; else gate2 "git-key" "missing"; fi
-  if [ -n "${GIT_SSH_COMMAND:-}" ]; then pass "git-ssh-command" "set (key path redacted)"; else gate2 "git-ssh-command" "unset — ssh would ignore git_key (must match container env)"; fi
+  # SSH mounts removed for security — HTTPS + token only. Any lingering
+  # ~/.ssh mount from an old compose file is a regression: fail.
+  if [ -n "${GIT_SSH_COMMAND:-}" ]; then gate2 "git-ssh-command" "set — SSH auth removed, unset GIT_SSH_COMMAND"; else pass "git-ssh-command" "unset (SSH disabled)"; fi
+  if [ -d /opt/data/home/.ssh ] && [ -n "$(ls -A /opt/data/home/.ssh 2>/dev/null)" ]; then
+    gate2 "ssh-mount" "/opt/data/home/.ssh present — host ~/.ssh must NOT be mounted"
+  else
+    pass "ssh-mount" "no ~/.ssh mount"
+  fi
+  if [ -n "${GH_TOKEN:-}" ] || [ -n "${GITHUB_TOKEN:-}" ]; then pass "gh-token-env" "present (name only, value redacted)"; else gate2 "gh-token-env" "GH_TOKEN/GITHUB_TOKEN missing — HTTPS auth would fail"; fi
+  if git config --global --get credential.https://github.com.helper 2>/dev/null | grep -q 'gh auth git-credential'; then
+    pass "git-credential-helper" "gh auth git-credential"
+  else
+    gate2 "git-credential-helper" "missing — expected credential.https://github.com.helper='!gh auth git-credential' via GIT_CONFIG_*"
+  fi
+  if git config --global --get-regexp 'url\..*\.insteadOf' 2>/dev/null | grep -q 'github.com'; then
+    pass "git-url-rewrite" "SSH remotes rewritten to HTTPS"
+  else
+    gate2 "git-url-rewrite" "missing — expected url.https://github.com/.insteadOf via GIT_CONFIG_*"
+  fi
   _gname="$(git config --global user.name 2>/dev/null || printf '%s' "${GIT_AUTHOR_NAME:-}")"
   _gemail="$(git config --global user.email 2>/dev/null || printf '%s' "${GIT_AUTHOR_EMAIL:-}")"
   if [ -n "$_gname" ] && [ -n "$_gemail" ]; then pass "git-identity" "user.name+user.email set (values redacted)"; else gate2 "git-identity" "user.name and/or user.email missing — commits would have no identity"; fi
@@ -237,8 +253,12 @@ host_checks() {
 
   hdr "host mounts"
   mounts=$(docker inspect -f '{{range .Mounts}}{{.Destination}} {{end}}' hermes-personal-coding 2>/dev/null)
-  for m in /opt/data /opt/data/mnt/AiNative /opt/data/mnt/workspace /opt/data/home/.ssh /opt/data/home/.gitconfig; do
+  for m in /opt/data /opt/data/mnt/AiNative /opt/data/mnt/workspace; do
     case "$mounts" in *"$m"*) pass "mount" "$m" ;; *) gate2 "mount" "$m not mounted" ;; esac
+  done
+  # Security: host ~/.ssh and ~/.gitconfig must NOT be mounted (HTTPS+token only).
+  for m in /opt/data/home/.ssh /opt/data/home/.gitconfig; do
+    case "$mounts" in *"$m"*) gate2 "mount" "$m MUST NOT be mounted (SSH mount removed)" ;; *) pass "mount" "$m absent (correct)" ;; esac
   done
   if docker inspect -f '{{range .Mounts}}{{if eq .Destination "/opt/data/mnt/AiNative"}}{{.RW}}{{end}}{{end}}' hermes-personal-coding 2>/dev/null | grep -q false; then
     pass "mount-ro" "AiNative read-only"
@@ -253,9 +273,14 @@ host_checks() {
     pass "mount-skills" "no IDE skill mount — container reads skills from AiNative RO"
   fi
   if docker inspect -f '{{range .Config.Env}}{{println .}}{{end}}' hermes-personal-coding 2>/dev/null | grep -q '^GIT_SSH_COMMAND='; then
-    pass "env-git-ssh" "GIT_SSH_COMMAND set in container env"
+    gate2 "env-git-ssh" "GIT_SSH_COMMAND still set — SSH auth removed, unset it"
   else
-    gate2 "env-git-ssh" "GIT_SSH_COMMAND missing from container env"
+    pass "env-git-ssh" "GIT_SSH_COMMAND absent (correct)"
+  fi
+  if docker inspect -f '{{range .Config.Env}}{{println .}}{{end}}' hermes-personal-coding 2>/dev/null | grep -q 'gh auth git-credential'; then
+    pass "env-git-https" "gh credential helper configured"
+  else
+    gate2 "env-git-https" "gh credential helper missing from container env (GIT_CONFIG_*)"
   fi
 
   hdr "host env (names only — no values)"
