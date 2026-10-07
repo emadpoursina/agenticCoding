@@ -111,10 +111,11 @@ non-critical repo. Do not silently pick a real production repository.
 - Python packages in this workspace use Python 3.12 (`>=3.12,<3.14`) via uv.
 - No new external dependencies without explicit owner approval.
 - Never commit secrets, tokens, or credentials. Operational keys live
-  outside git (e.g. `$HOME/.hermes-personal-coding/.env` and
+  outside git (e.g. `$HERMES_DATA_ROOT/state/.env` and
   `personalAgent/.env` which is gitignored).
-- Isolated Hermes home: `~/.hermes-personal-coding` (mounted as `/opt/data`
-  in `personalAgent/docker-compose.yml`). Do not write to
+- Isolated Hermes home: `$HERMES_DATA_ROOT/state` (mounted as `/opt/data`
+  in `personalAgent/docker-compose.yml`). Agent files live under
+  `HERMES_DATA_ROOT`, never in the user's `$HOME`. Do not write to
   `~/.hermes` root.
 - Model routing is configured inside Hermes. Do not hardcode provider
   or model names into agents.
@@ -163,7 +164,7 @@ Compliance: every PR and agent review MUST verify the change does not
 violate Core Principles or Hard Constraints. Unjustified complexity
 MUST be rejected or recorded as a dated ADR under AiNative decisions.
 Runtime development guidance for the Hermes runtime lives in the private
-Hermes home (`~/.hermes-personal-coding`), written by Hermes itself; no
+Hermes home (`$HERMES_DATA_ROOT/state`), written by Hermes itself; no
 reference copy is versioned in `personalAgent/`. This constitution wins on
 conflict.
 Current repo layout: `AiNative/` (read-only methodology),
