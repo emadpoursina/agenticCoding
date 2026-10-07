@@ -11,11 +11,14 @@ services:
       - "${GATEWAY_PORT:-8642}:8642"
       - "${DASH_PORT:-9119}:9119"
     volumes:
-      - "${HOME}/.hermes-personal-coding:/opt/data"
+      # All agent state lives under HERMES_DATA_ROOT — never in the user's $HOME.
+      # .gitconfig needs no mount: it sits at state/home/.gitconfig, which lands at
+      # /opt/data/home/.gitconfig because it is nested inside the state mount.
+      - "${HERMES_DATA_ROOT}/state:/opt/data"
+      - "${HERMES_DATA_ROOT}/workspace:/opt/data/mnt/workspace"
+      # A dedicated key only (~/.ssh is NOT mounted).
+      - "${HERMES_DATA_ROOT}/ssh:/opt/data/home/.ssh:ro"
       - "${AINATIVE_HOST_PATH}:/opt/data/mnt/AiNative:ro"
-      - "${HOME}/hermes-workspace-personal-coding:/opt/data/mnt/workspace"
-      - "${HOME}/.ssh:/opt/data/home/.ssh:ro"
-      - "${HOME}/.gitconfig:/opt/data/home/.gitconfig:ro"
     env_file:
       - .env
     environment:

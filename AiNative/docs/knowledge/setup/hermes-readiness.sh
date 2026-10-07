@@ -218,11 +218,27 @@ container_checks() {
   fi
 }
 
+# Data root (state/ + workspace/ + ssh/) lives in personalAgent/.env — single
+# source of truth. Falls back to the environment, then a sane default.
+hermes_data_root() {
+  local airoot pa r
+  airoot=$(cd "$(dirname "$0")/../../.." && pwd)
+  pa="$(dirname "$airoot")/personalAgent"
+  r=$(sed -n 's/^HERMES_DATA_ROOT=//p' "$pa/.env" 2>/dev/null | head -n 1)
+  [ -n "$r" ] || r=${HERMES_DATA_ROOT:-$HOME/hermes-data}
+  printf '%s' "$r"
+}
+
 # --------------------------------------------------------------------- host ---
 host_checks() {
-  local airoot pa out status mounts m keys k dbs
+  local airoot pa out status mounts m keys k dbs hrd hermes_state hermes_ws hermes_ssh
   airoot=$(cd "$(dirname "$0")/../../.." && pwd)          # .../AiNative
   pa="$(dirname "$airoot")/personalAgent"                 # sibling of AiNative
+
+  hrd=$(hermes_data_root)
+  hermes_state="$hrd/state"
+  hermes_ws="$hrd/workspace"
+  hermes_ssh="$hrd/ssh"
 
   hdr "host runtime"
   if [ -f "$pa/docker-compose.yml" ]; then pass "compose-file" "$pa/docker-compose.yml"; else gate2 "compose-file" "$pa/docker-compose.yml missing"; return; fi
@@ -237,9 +253,21 @@ host_checks() {
 
   hdr "host mounts"
   mounts=$(docker inspect -f '{{range .Mounts}}{{.Destination}} {{end}}' hermes-personal-coding 2>/dev/null)
-  for m in /opt/data /opt/data/mnt/AiNative /opt/data/mnt/workspace /opt/data/home/.ssh /opt/data/home/.gitconfig; do
+  # NOTE: /opt/data/home/.gitconfig is intentionally NOT a mount — it lives inside
+  # the state mount, so it is checked as a file below rather than as a bind.
+  for m in /opt/data /opt/data/mnt/AiNative /opt/data/mnt/workspace /opt/data/home/.ssh; do
     case "$mounts" in *"$m"*) pass "mount" "$m" ;; *) gate2 "mount" "$m not mounted" ;; esac
   done
+  if docker exec hermes-personal-coding test -f /opt/data/home/.gitconfig 2>/dev/null; then
+    pass "gitconfig" "visible via state mount at /opt/data/home/.gitconfig"
+  else
+    gate2 "gitconfig" "missing at /opt/data/home/.gitconfig (expected hermes-data/state/home/.gitconfig)"
+  fi
+  if [ -r "$hermes_ssh/git_key" ]; then
+    pass "ssh-key" "dedicated key: $hermes_ssh/git_key"
+  else
+    gate3 "ssh-key" "no dedicated key at $hermes_ssh/git_key"
+  fi
   if docker inspect -f '{{range .Mounts}}{{if eq .Destination "/opt/data/mnt/AiNative"}}{{.RW}}{{end}}{{end}}' hermes-personal-coding 2>/dev/null | grep -q false; then
     pass "mount-ro" "AiNative read-only"
   else
@@ -268,10 +296,10 @@ host_checks() {
   fi
 
   hdr "host workspace & dbs"
-  probe_write "$HOME/hermes-workspace-personal-coding" workspace-writable 2
+  probe_write "$hermes_ws" workspace-writable 2
   if command -v sqlite3 >/dev/null 2>&1; then
     dbs=""
-    for f in "$HOME"/.hermes-personal-coding/*.db; do
+    for f in "$hermes_state"/*.db; do
       [ -f "$f" ] || continue
       n=$(sqlite3 "$f" "select count(*) from sqlite_master where type='table' and name='tasks';" 2>/dev/null || echo 0)
       [ "${n:-0}" -gt 0 ] 2>/dev/null && dbs="$dbs $(basename "$f")"
@@ -281,11 +309,11 @@ host_checks() {
     else
       gate2 "single-task-db" "task DBs:$(printf '%s' "$dbs" | tr '\n' ' ' | sed 's/^$/ none/') — must be exactly one (kanban.db)"
     fi
-    out=$(sqlite3 "$HOME/.hermes-personal-coding/kanban.db" 'select count(*) from kanban_notify_subs;' 2>/dev/null || echo 0)
+    out=$(sqlite3 "$hermes_state/kanban.db" 'select count(*) from kanban_notify_subs;' 2>/dev/null || echo 0)
     if [ "${out:-0}" -gt 0 ] 2>/dev/null; then pass "notify-subscribers" "$out"; else note "notify-subscribers" "0 — Hermes-owned; decided with Hermes"; fi
-    out=$(sqlite3 "$HOME/.hermes-personal-coding/projects.db" "select slug || ' → ' || coalesce(primary_path,'?') || ' → board=' || coalesce(board_slug,'none') from projects where archived=0;" 2>/dev/null)
+    out=$(sqlite3 "$hermes_state/projects.db" "select slug || ' → ' || coalesce(primary_path,'?') || ' → board=' || coalesce(board_slug,'none') from projects where archived=0;" 2>/dev/null)
     note "enrolled-projects" "$(printf '%s' "${out:-none}" | tr '\n' ' ')"
-    out=$(sqlite3 "$HOME/.hermes-personal-coding/kanban.db" 'select count(*) from tasks;' 2>/dev/null || echo 0)
+    out=$(sqlite3 "$hermes_state/kanban.db" 'select count(*) from tasks;' 2>/dev/null || echo 0)
     note "board-tasks" "$out"
   else
     gate2 "sqlite3" "sqlite3 not installed on host — db checks skipped"
@@ -320,7 +348,8 @@ if [ -d /opt/data/mnt/AiNative ]; then
   container_checks "$T"
 else
   # ---- host mode
-  HOST_T=${1:-$(first_with_scaffold "$HOME/hermes-workspace-personal-coding" || printf '%s' "$HOME/hermes-workspace-personal-coding/agenticCoding")}
+  HRD=$(hermes_data_root)
+  HOST_T=${1:-$(first_with_scaffold "$HRD/workspace" || printf '%s' "$HRD/workspace/agenticCoding")}
   host_checks
   if docker inspect -f '{{.State.Status}}' hermes-personal-coding 2>/dev/null | grep -q running; then
     C_T="/opt/data/mnt/workspace/$(basename "$HOST_T")"
