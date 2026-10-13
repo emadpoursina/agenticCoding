@@ -44,14 +44,22 @@ To Hermes, each agent state is a named skill, artifacts, and a compact
 report.
 
 1. **AiNative agents** — folders under `docs/agents/`. Target required states: Ready,
-   critic, and tester. `scout` (read-only brief / Repo Q&A),
+   route-work, critic, and tester. `pi-harness` is the Pi worker backend every
+   Pi-executed state uses (required `--model`, no harness default). `scout` (read-only brief / Repo Q&A),
    `pr-reviewer` (on-demand PR review after Ship), and
    `legacy-system-assessment-agent` (standalone assessment) are on-hand tools
    Hermes may call whenever it needs them — not loop states, not tied to one
-   step. Other agents run only as an explicitly named `job`.
-2. **Spec Kit** — project skills stored in the enrolled project. Hermes reads
+   step. `speckit-orchestrate` is the Cursor parent implementation of this same
+   graph (Cursor `Task` workers or Pi fallback); the Hermes parent implements
+   the same graph via dispatch. Other agents run only as an explicitly named `job`.
+2. **Spec Kit** — project prompts stored in the enrolled project by
+   `specify init --integration pi` (`.pi/prompts/speckit.*.md`; Pi is the only
+   integrated runtime). Hermes reads
    these files as skill inputs; this does not require an editor runtime,
-   command, or symlink.
+   command, or symlink. Legacy Cursor (`.cursor/skills/`) and retired Opencode
+   (`.opencode/commands/`) layouts are honored as fallbacks by the `ready` gate
+   only. Pi has built-in MCP support since 1.0, so tool-using prompts
+   (`taskstoissues`, etc.) work without an adapter.
 
 Hermes maps each state to a skill path and starts **one** worker. It does not
 run skills in-process.
@@ -150,8 +158,8 @@ ready → route
 
 | State | Kind | Worker? | Notes |
 |---|---|---|---|
-| `ready` | AiNative [`docs/agents/ready/`](../agents/ready/) (promoted; the single Ready definition) | yes | Git/layout/branch preflight. Not scout. `READY: blocked` stops the run. |
-| `route` | route-work (same as `speckit-orchestrate`) | yes | Decides `feature \| change \| job`. Honors card `path` when present; infers from the task when absent. `ROUTE: job` with no usable skill stops. |
+| `ready` | AiNative [`docs/agents/ready/`](../agents/ready/) (promoted; the single Ready definition; Cursor stage name `speckit-ready`) | yes | Git/worktree/layout preflight. Not scout. `READY: blocked` stops the run. Returns `WORKTREE` on `ok`. |
+| `route` | AiNative [`docs/agents/route-work/`](../agents/route-work/) (same as `speckit-orchestrate` route stage) | yes | Decides `feature \| change \| job`. Honors card `path` when present; infers from the task when absent. `ROUTE: job` with no usable skill stops. |
 | `specify` | Spec Kit | yes | |
 | `clarify` | Spec Kit | yes | Questions return to the parent. Parent asks the operator. A **new** worker encodes answers. |
 | `plan` | Spec Kit | yes | No extra plan-approval gate. |

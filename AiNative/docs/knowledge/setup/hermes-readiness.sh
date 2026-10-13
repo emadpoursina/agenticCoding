@@ -179,11 +179,15 @@ container_checks() {
 
   hdr "step-3 prerequisites (gaps do not block onboarding)"
   # Canonical skills live in AiNative (this RO mount), never in host IDE
-  # config. Orchestrator-side skills (speckit-orchestrate, route-work,
-  # speckit-ready) run on the host and are checked there.
+  # config. Host Cursor paths are symlinks to these files, checked on the host.
   local missing="" skill
   for skill in docs/agents/change/SKILL.md docs/agents/ready/SKILL.md docs/agents/ready/rule.md \
-               docs/agents/critic/SKILL.md docs/agents/critic/rule.md docs/agents/tester/SKILL.md docs/agents/tester/rule.md; do
+               docs/agents/ready/scripts/ready-check.sh docs/agents/route-work/SKILL.md \
+               docs/agents/route-work/rule.md docs/agents/speckit-ready/SKILL.md \
+               docs/agents/speckit-orchestrate/SKILL.md docs/agents/pi-harness/SKILL.md \
+               docs/agents/pi-harness/worker-contract.md docs/agents/critic/SKILL.md \
+               docs/agents/critic/rule.md docs/agents/tester/SKILL.md docs/agents/tester/rule.md \
+               docs/agents/pr-reviewer/SKILL.md; do
     [ -r "/opt/data/mnt/AiNative/$skill" ] || missing="$missing $skill"
   done
   if [ -z "$missing" ]; then
@@ -275,8 +279,9 @@ host_checks() {
   fi
   # Skills are canonical in AiNative (read-only mount, checked in the
   # container view). The container must NOT mount host IDE skills.
-  if grep -qE 'config/opencode' "$pa/docker-compose.yml" 2>/dev/null; then
-    note "mount-skills" "~/.config/opencode referenced in compose — not required; container reads skills from AiNative"
+  # Opencode hosting is retired; host Cursor paths must be symlinks to AiNative.
+  if grep -qE 'config/opencode|\.cursor/skills' "$pa/docker-compose.yml" 2>/dev/null; then
+    note "mount-skills" "IDE skill path referenced in compose — not required; container reads skills from AiNative"
   else
     pass "mount-skills" "no IDE skill mount — container reads skills from AiNative RO"
   fi
@@ -319,12 +324,18 @@ host_checks() {
     gate2 "sqlite3" "sqlite3 not installed on host — db checks skipped"
   fi
 
-  hdr "host skills (needed by speckit-orchestrate)"
+  hdr "host skills (AiNative canonical, Cursor symlinks)"
   local missing="" s
-  for s in speckit-orchestrate/SKILL.md speckit-ready/SKILL.md speckit-ready/scripts/ready-check.sh route-work/SKILL.md change/SKILL.md; do
-    [ -r "$HOME/.config/opencode/skill/$s" ] || missing="$missing $s"
+  for s in speckit-orchestrate/SKILL.md speckit-ready/SKILL.md speckit-ready/scripts/ready-check.sh route-work/SKILL.md change/SKILL.md pi-harness/SKILL.md pi-harness/worker-contract.md pi-harness/pi-spawn.mjs; do
+    [ -r "$HOME/.cursor/skills/$s" ] || missing="$missing $s"
   done
-  if [ -z "$missing" ]; then pass "opencode-skills" "all present on host"; else gate3 "opencode-skills" "missing:$missing"; fi
+  if [ -z "$missing" ]; then pass "cursor-skills" "all present on host (symlinks to AiNative)"; else gate3 "cursor-skills" "missing:$missing"; fi
+  # Retired Opencode hosting must be gone (critic/tester symlinks excepted during transition).
+  local stale=""
+  for s in speckit-orchestrate/SKILL.md speckit-ready/SKILL.md route-work/SKILL.md change/SKILL.md pi-harness/SKILL.md; do
+    [ -e "$HOME/.config/opencode/skill/$s" ] && stale="$stale $s"
+  done
+  if [ -z "$stale" ]; then pass "opencode-retired" "no stale opencode-hosted skills"; else note "opencode-retired" "stale (remove):$stale"; fi
 
   if curl -s -o /dev/null -w '%{http_code}' --max-time 3 http://localhost:9119/ 2>/dev/null | grep -qE '200|301|302'; then
     pass "dashboard" "localhost:9119 reachable"

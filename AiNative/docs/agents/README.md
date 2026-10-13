@@ -22,10 +22,15 @@ Each agent is a folder with three core files tuned for one job.
 
 | Agent | Hermes use | Purpose |
 |-------|------------|---------|
-| [ready](./ready/) | Per-card gate | Branch + Spec Kit preflight before every card; returns `READY: ok|blocked` ([feature-loop.md](../systems/feature-loop.md)) |
+| [ready](./ready/) | Per-card gate | Branch + worktree + Spec Kit preflight before every card; returns `READY: ok\|blocked` with `WORKTREE` ([feature-loop.md](../systems/feature-loop.md)) |
+| [route-work](./route-work/) | Per-card router | Decides `feature\|change\|job` after `ready`; returns `ROUTE` + job `SKILL_PATH` |
+| [speckit-orchestrate](./speckit-orchestrate/) | Cursor parent only | Cursor implementation of the feature-loop graph; Hermes implements the same graph via dispatch |
+| [speckit-ready](./speckit-ready/) | Shared gate impl | Same body/script as `ready/` (Cursor stage name); canonical script `scripts/ready-check.sh` |
+| [pi-harness](./pi-harness/) | Worker backend | Delegates one bounded job to Pi (required `--model`); `pi-spawn.mjs` + `worker-contract.md` |
+| [change](./change/) | `change` path worker | Thin inspect→edit→tester path; stops with `SCOPE: feature` when underspecified |
 | [critic](./critic/) | Feature-loop Validation | Adversarial review after converge ([feature-loop.md](../systems/feature-loop.md)) |
 | [tester](./tester/) | Feature-loop Validation | Proves flows and runs project `validation_commands` ([feature-loop.md](../systems/feature-loop.md)) |
-| [pr-reviewer](./pr-reviewer/) | On-demand tool | PR review after Ship on operator request; not a loop state |
+| [pr-reviewer](./pr-reviewer/) | On-demand tool | PR review after Ship on operator request; not a loop state (`SKILL.md` + `prompts.md` + `rules.md`) |
 | [project-bootstrapper](./project-bootstrapper/) | Post-onboarding `job` | Scaffolds an onboarded repo from a PRD card; onboarding itself never writes a PRD |
 | [prd-writer](./prd-writer/) | Post-onboarding `job` | Writes the PRD as a card after onboarding |
 | [task-groomer](./task-groomer/) | Per-card helper | Turns a rough request into a dispatch-ready Hermes kanban card; not a dispatched worker |

@@ -1,189 +1,130 @@
 ---
 name: pr-reviewer
-description: Staged PR review covering understanding, architecture compliance, risk, deep focus, and adversarial testing. Use when reviewing a pull request, especially after PIV Validation passes, or for feature PRs in existing subsystems.
+description: >-
+  Staged PR review (understanding → architecture → risk → one deep focus →
+  adversarial). Use when the user runs /pr-review or asks to review a PR,
+  branch, or uncommitted changes. Loads prompts in this skill plus optional
+  project context from .cursor/agents.yaml.
+  Canonical source: AiNative docs/agents/pr-reviewer/ (promoted from Cursor pr-review 2026-10-07).
+disable-model-invocation: true
 ---
 
-# PR reviewer
+# PR review (staged)
 
-Review phase prompts copied inline for self-contained use.
+Staged workflow: understanding → architecture compliance → risk → one deep focus → adversarial. AI is a thinking partner, not an authority.
 
----
+Prompts: read `prompts.md` in this skill directory.  
+Rules: read `rules.md` in this skill directory.
 
-## PR understanding (Phase 1)
+## Parse input
 
-```text
-Analyze this PR first.
-Explain:
-- what problem it solves
-- core architectural changes
-- important files
-- risky areas
-- possible production impact
-- database/auth/api implications
-Do not review yet.
+Accept (`project-root` defaults to this workspace):
+
+- `/pr-review` — review branch changes vs default base
+- `/pr-review --pr <number>` — review GitHub PR
+- `/pr-review --uncommitted` — working tree only
+- `/pr-review --extra @file1 @file2` — one-off context for this run
+- Optional: `--focus security|reliability|maintainability|performance` overrides manifest default
+- Optional: `--base <branch>` when not using repo default
+- Optional: an absolute `project-root` if reviewing a different clone
+
+Resolve relative paths against the workspace.
+
+## Load project context
+
+1. `cd` to `project-root` for all git/gh commands and file reads.
+2. Load shared + agent config (first match wins for agent-specific file):
+   - `<project-root>/.cursor/agents.yaml` — preferred; use `agents.pr-reviewer` section
+   - `<project-root>/.cursor/pr-review.yaml` — legacy single-agent file
+3. From config, collect:
+   - `context.*` — rules, architecture, adrs, debugging (shared across agents)
+   - `agents.pr-reviewer.default_focus` (Phase 3 tie-breaker only), `subsystems`, `path_triggers`, `skip_phase_1_5_when`
+4. Attach `@` files that exist. Skip missing paths silently.
+5. Merge `--extra` paths into Phase 1.5 context.
+6. If no project config exists, proceed with prompts/rules only (skip subsystem attach; still run Phase 1.5 against obvious nearby design docs if present).
+
+## Detect subsystem (Phase 1.5)
+
+1. Get changed file paths from the diff.
+2. Match against `path_triggers` globs in project config.
+3. If one subsystem matches, attach its `docs`, `must_use`, `similar`.
+4. If multiple match, run Phase 1.5 per subsystem.
+5. If none match and `subsystems.default` exists, use it.
+
+## Skip Phase 1.5
+
+Skip when the PR is clearly typo-only, dependency-only, or config-only with no logic — per `rules.md` and `skip_phase_1_5_when` in project config.
+
+## Get diff
+
+In `project-root`:
+
+| Mode | Command |
+|------|---------|
+| `--pr N` | `gh pr diff N` and `gh pr view N` for title/body |
+| default | `git diff <base>...HEAD` (+ staged/unstaged if meaningful) |
+| `--uncommitted` | `git diff` and `git diff --cached` |
+
+Base branch: `--base` if given, else `git symbolic-ref refs/remotes/origin/HEAD` or `main`/`master`.
+
+Large PR (>500 lines changed): run diff compression prompt from `prompts.md` before Phase 1.
+
+## Run phases (in order)
+
+Read the matching prompt block from `prompts.md` each phase. Do not combine phases in one response.
+
+| Phase | Stop condition |
+|-------|----------------|
+| 1 — Understanding | No review yet — mental model only |
+| 1.5 — Architecture compliance | **blocking** → stop entire review, request rework |
+| 2 — Risk classification | Continue |
+| 3 — Select focus | `--focus` if given; else the highest Phase 2 risk rating; `default_focus` only on a tie |
+| 4 — Deep focus | Exactly one of security / reliability / maintainability / performance |
+| 5 — Adversarial | Final AI pass |
+
+If the project has extra review rules (e.g. `.cursor/rules/*pr-review*`), apply those in addition to the one Phase 4 focus when the PR touches API or multi-client behavior.
+
+## Problem scores (required)
+
+For each problem give 2 score between 0.0 - 1.0:
+  - how often it could happen
+  - if it happended, how much trouble it makes
+
+Use one decimal (e.g. `0.3`, `0.8`). Score every concrete problem in Phases 1.5, 2, 4, and 5 — not the Phase 1 summary.
+
+```markdown
+### <problem title>
+- how often it could happen: 0.X
+- if it happended, how much trouble it makes: 0.Y
+- why: <one short reason>
 ```
 
----
+## Output format
 
-## Architecture compliance (Phase 1.5)
+One consolidated report:
 
-**When to run:** Any PR that adds or changes behavior in an existing subsystem. Skip for typo-only, dependency-only, or config-only changes with no logic.
+```markdown
+# PR review — <project-name> (<pr or branch>)
 
-Attach context first: `@` the design doc, ADR, or 2–3 similar features in the codebase.
-
-```text
-Compare this PR to the existing [SUBSYSTEM_OR_FEATURE] design and established codebase patterns.
-
-Before reviewing risks or code quality:
-1. Read the relevant design doc / ADR (use attached @files).
-2. Scan the codebase for similar features — note how they integrate (shared routers, modals, services, logging hooks).
-3. List platform abstractions this PR MUST go through.
-
-Check specifically:
-- Does it reuse existing abstractions instead of reimplementing them?
-- Does it bypass shared infrastructure (config/model routers, provider layers, logging/monitoring wrappers)?
-- Does it hard-code values that should be dynamic (models, prompts, feature flags)?
-- Does it duplicate functionality that already exists elsewhere?
-- Does it follow the same layer boundaries as similar features?
-
-Output:
-- MUST USE — existing abstractions this feature should go through
-- BYPASSED — existing code this PR skips, and what breaks (logs, monitoring, config, etc.)
-- DUPLICATED — logic reimplemented instead of reused
-- INTEGRATION VERDICT — clean / needs rework / blocking
-
-Do not run security, reliability, or performance review yet.
+## Summary
+## Phase 1 — Understanding
+## Phase 1.5 — Architecture (or SKIPPED — reason)
+## Phase 2 — Risks
+## Phase 3 — Focus chosen
+## Phase 4 — Deep review
+## Phase 5 — Adversarial
+## Verdict — APPROVE / REQUEST CHANGES / BLOCKED (Phase 1.5)
+## Human checklist (Phase 6)
 ```
 
-**Example review request:**
+Every listed problem must include both scores.
 
-```text
-I'm reviewing PR #[N]. Subsystem: Dynamic Transcribe.
-Context: @docs/dynamic-transcribe-design.md @src/chatWithProvider @src/modelRouter
+Phase 6 is for the human — do not auto-approve.
 
-Run Phase 1.5 architecture compliance only.
-```
+## Errors
 
----
+- `project-root` missing or not a git repo → explain and stop
+- `gh` missing when `--pr` used → explain and stop
+- No diff → report "nothing to review"
 
-## Risk classification (Phase 2)
-
-```text
-Classify the risks in this PR.
-Rate:
-- security risk
-- scalability risk
-- migration risk
-- reliability risk
-- maintainability risk
-Explain why.
-```
-
----
-
-## Select review focus (Phase 3)
-
-Do NOT run all review types. Choose exactly one.
-
-**Default:** pick the category with the highest rating from Phase 2's risk classification (security, scalability, migration, reliability, maintainability). Ties → pick the one whose reasoning in Phase 2 named concrete PR-specific failures over generic concerns. Phase 2 drives Phase 3 — never skip Phase 2, and never default to a fixed category out of habit.
-
-**Override:** if the caller passes `--focus <security|reliability|maintainability|performance>`, use that and say so explicitly. The override is for when the human sees something the ratings missed, not a shortcut around Phase 2.
-
-Map Phase 2 categories to Phase 4 prompts:
-- security → Security
-- reliability, migration → Reliability
-- maintainability → Maintainability / architecture
-- scalability → Performance
-
-Allowed focus areas:
-- Security Review
-- Reliability Review
-- Maintainability / Architecture Review
-- Performance Review
-
----
-
-## Deep focus review (Phase 4)
-
-### Security
-
-```text
-Review this PR like a security engineer.
-Look for:
-- auth issues
-- permission leaks
-- JWT/session risks
-- SQL injection
-- unsafe validation
-- secrets exposure
-- multi-tenant risks
-- rate limiting issues
-```
-
-### Reliability
-
-```text
-Review this PR for production reliability.
-Focus on:
-- failure handling
-- retries
-- logging quality
-- observability
-- rollback safety
-- migrations
-- partial failure scenarios
-- timeout handling
-```
-
-### Maintainability / architecture
-
-```text
-Review ONLY architecture and maintainability.
-Ignore formatting.
-Focus on:
-- coupling
-- separation of concerns
-- abstraction quality
-- domain boundaries
-- future extensibility
-- hidden complexity
-- technical debt
-```
-
-### Performance
-
-```text
-Review performance implications.
-Focus on:
-- DB query efficiency
-- N+1 problems
-- memory usage
-- caching opportunities
-- async behavior
-- scalability bottlenecks
-```
-
----
-
-## Adversarial review (Phase 5)
-
-```text
-Act like a hostile senior engineer.
-Assume this PR will fail in production.
-Find:
-- hidden assumptions
-- edge cases
-- race conditions
-- rollback risks
-- scalability traps
-- long-term maintenance issues
-```
-
----
-
-## Diff compression (large PRs)
-
-```text
-Summarize only meaningful logic changes.
-Ignore formatting and refactors.
-```
+Do not fix code unless the user asks after the review.

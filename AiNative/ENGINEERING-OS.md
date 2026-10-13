@@ -40,6 +40,12 @@ AiNative/
 │   │   ├── _skills/                   # Central skill library (source of truth)
 │   │   ├── template/                  # Scaffold for new agents
 │   │   ├── scout/
+│   │   ├── ready/
+│   │   ├── route-work/
+│   │   ├── speckit-orchestrate/
+│   │   ├── speckit-ready/
+│   │   ├── pi-harness/
+│   │   ├── change/
 │   │   ├── plan-reviewer/
 │   │   ├── critic/
 │   │   ├── tester/
