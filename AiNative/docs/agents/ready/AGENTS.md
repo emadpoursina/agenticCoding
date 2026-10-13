@@ -28,6 +28,7 @@ Compact report (the parent parses it, never worker prose):
 - `READY: ok|blocked`
 - `FLOW_ID`
 - `BRANCH`
+- `WORKTREE` (absolute feature worktree path on `ok`; `REPO_ROOT` itself when already on the branch)
 - `CHECKS`
 - `FIXES`
 
