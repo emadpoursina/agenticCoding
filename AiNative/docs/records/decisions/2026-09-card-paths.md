@@ -14,6 +14,12 @@
 > an explicit `## Path` on every card it creates
 > ([task-groomer/rule.md](../../agents/task-groomer/rule.md)), so the `route`
 > fallback only applies to cards created without the groomer.
+>
+> **Amendment (2026-10-13):** the 2026-10-05 groomer clause above is superseded.
+> task-groomer now omits `## Path` (and therefore `## Skill` / `## Parent`)
+> unless the human explicitly wrote `feature|change|job`, copied verbatim as an
+> override. Absent path is the normal case and means machine-infer by `route-work`;
+> the `route` fallback now applies to groomer cards too.
 
 ## Context
 

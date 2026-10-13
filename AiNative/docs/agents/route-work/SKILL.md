@@ -27,8 +27,12 @@ route-work ─────────┼─ change  → change skill
 
 ## Decide
 
+`REQUESTED_PATH=none` is the normal case — the groomer omits `## Path`
+unless the human explicitly wrote one. Absent path never means a default;
+it means machine-infer below.
+
 1. If `REQUESTED_PATH` is not `none`, use it. Do not second-guess the user.
-2. Otherwise read the task, glance at the repo (README, layout, the files the
+2. Otherwise (absent path) read the task, glance at the repo (README, layout, the files the
    task names), and pick one:
 
 | Path | Pick it when |
