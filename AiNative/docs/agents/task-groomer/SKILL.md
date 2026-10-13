@@ -1,7 +1,7 @@
 ---
 name: task-groomer
 description: Turn a rough request into a confirmed Hermes kanban task. Use when the operator says "new task: ..." or needs a task made dispatcher-ready.
-version: 1.1.0
+version: 1.2.0
 platforms: [linux, macos, windows]
 metadata:
   hermes:
@@ -63,20 +63,30 @@ OUTPUT:
      re-scaffolding.
    Do not mutate the board or create a scratch software task on either path.
 
-3. Decide the dispatch path with the operator. Hermes reads `## Path`
-   (`feature` | `change` | `job`); always emit it, never rely on the
-   `feature` default. Never use a workflow-state name
+3. Handle `## Path` as a human override only. Do not propose, infer, or
+   default a path. The groomer defines only title, priority, problem,
+   expected result, testable acceptance criteria, platform, technical notes,
+   and dependencies — omit `## Path` (and therefore `## Skill` / `## Parent`)
+   entirely unless the operator explicitly wrote `feature`, `change`, or `job`
+   in the request, in which case copy that value verbatim as the human override.
+   Never use a workflow-state name
    (`ready, specify, clarify, confirm, plan, tasks, implement, converge,
    critic, tester, ship, uat`) as `## Path` or `## Profile`.
-   - `feature`: full loop, top-level card, MUST NOT carry `## Parent`.
-   - `change`: small scoped edit. Standalone, or child of a feature with
+   - human `feature`: full loop, top-level card, MUST NOT carry `## Parent`.
+   - human `change`: small scoped edit. Standalone, or child of a feature with
      `## Parent` set to exactly one feature card id (never self, never a
      path-like id).
-   - `job`: only with `## Skill` set to exactly `prd-writer` or
+   - human `job`: only with `## Skill` set to exactly `prd-writer` or
      `project-bootstrapper`. No other skill dispatches.
+   After card creation the dispatcher owns routing and always runs `ready` for
+   worktree preflight then `route-work`, honoring `REQUESTED_PATH` without
+   second-guessing when present and inferring `feature|change|job` from the task
+   plus repo glance plus job-skill resolution when absent.
 
-4. Fill this card template exactly, in this order. Omit `## Skill` unless
-   `Path=job`. Omit `## Parent` unless this is a child `change` card.
+4. Fill this card template exactly, in this order. Omit `## Path` unless the
+   operator explicitly wrote `feature|change|job`. Omit `## Skill` unless the
+   human override is `Path=job`. Omit `## Parent` unless the human override is
+   a child `change` card.
    Omit `## Profile` unless the operator explicitly overrides it; Hermes
    selects its configured dispatch profile:
 
@@ -102,13 +112,13 @@ P0 | P1 | P2 | P3
 (only if inferred from input; otherwise "TBD in planning")
 
 ## Path
-feature | change | job
+(feature | change | job — human override only, delete section otherwise)
 
 ## Skill
-(prd-writer | project-bootstrapper — job path only, delete section otherwise)
+(prd-writer | project-bootstrapper — human job override only, delete section otherwise)
 
 ## Parent
-(<single feature card id> — child change cards only, delete section otherwise)
+(<single feature card id> — human child change override only, delete section otherwise)
 
 ## Dependencies
 (list known blocking task IDs, or "None known"; explain what must be checked)
@@ -116,11 +126,11 @@ feature | change | job
 5. Recommend:
    - Priority: P0 | P1 | P2 | P3 (P0 production issue, P1 critical, P2 normal, P3 nice-to-have)
    - CLI priority: map P0/P1/P2/P3 to `0/1/2/3`; Hermes' `--priority` flag accepts an integer
-   - Path from step 3, plus Skill when `job`, plus Parent when child `change`
+   - Path only when the operator explicitly wrote it in step 3, plus Skill when human `job`, plus Parent when human child `change`; otherwise no path recommendation — the dispatcher infers via `route-work`
    - Platform from the template
    - Assignee: `default` (never a human developer; omit `## Profile` unless the operator overrides it)
    - Blocking dependencies as proposed links: `hermes kanban link <parent> <child>`
-     (`## Parent` is hierarchy for child `change` cards only; `## Dependencies`
+     (`## Parent` is hierarchy for human child `change` overrides only; `## Dependencies`
      is blocking order for any card)
 
 6. Show the exact mutation plan, but do not execute it:
@@ -143,6 +153,10 @@ feature | change | job
     `hermes kanban link <parent> <child>`. Verify the created task has
     `assignee=default` and report its resulting state. If parents are
     incomplete, expect `todo`; otherwise the task may enter `ready`.
+    The dispatcher owns routing after creation and always runs `ready` for
+    worktree preflight then `route-work`; when `## Path` was omitted,
+    `route-work` infers `feature|change|job` (honoring `REQUESTED_PATH` when
+    the human override is present).
 
 9. If the operator rejects or edits the card, revise the draft and repeat the
      confirmation gate. Do not run any mutation while awaiting approval.

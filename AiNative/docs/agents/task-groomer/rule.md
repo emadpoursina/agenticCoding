@@ -6,11 +6,11 @@ Constraints for interactive Hermes kanban task creation.
 
 - Keep acceptance criteria testable and measurable; at least one criterion is required for dispatch
 - Flag ambiguous items as questions — do not fill gaps with invented requirements
-- Use the task template in order: `# Title`, Priority, Problem, Expected Result, Acceptance Criteria, Platform, Technical Notes, Path, Skill (job only), Parent (child change only), Dependencies
-- Always emit `## Path` as `feature` | `change` | `job`; never rely on the `feature` default
-- Emit `## Skill` only for `job`, exactly `prd-writer` or `project-bootstrapper`
-- Emit `## Parent` only for child `change` cards: exactly one feature card id, never self
-- Top-level `feature` cards MUST NOT carry `## Parent`
+- Use the task template in order: `# Title`, Priority, Problem, Expected Result, Acceptance Criteria, Platform, Technical Notes, Path (human override only), Skill (human job override only), Parent (human child change override only), Dependencies
+- Emit `## Path` only on explicit human path intent with no default or inference; omit the section otherwise
+- Emit `## Skill` only when the human override is `job`, exactly `prd-writer` or `project-bootstrapper`
+- Emit `## Parent` only when the human override is a child `change` card: exactly one feature card id, never self
+- Top-level human `feature` override MUST NOT carry `## Parent`
 - Never use a workflow-state name as `## Path` or `## Profile`
 - Omit `## Profile` unless the operator explicitly overrides it; Hermes chooses its configured dispatch profile
 - Recommend priority using P0–P3: P0 production issue, P1 critical, P2 normal, P3 nice-to-have
@@ -31,15 +31,16 @@ Constraints for interactive Hermes kanban task creation.
 - Pretend a missing parent is complete; linked parents must be done before a child can become ready
 - Guess between multiple projects or create a scratch software task when the named project is unregistered
 - Mutate the board before the operator confirms any required bootstrap or registration action
-- Emit `## Skill` on `feature`/`change` cards, or any skill outside `prd-writer` / `project-bootstrapper`
-- Emit `## Parent` on top-level `feature` cards or `job` cards
+- Emit `## Skill` on human `feature`/`change` overrides, or any skill outside `prd-writer` / `project-bootstrapper`
+- Emit `## Parent` on top-level human `feature` overrides or `job` cards
+- Propose, infer, or default a dispatch path; the dispatcher infers via `route-work` when `## Path` is absent
 
 ## Stop conditions
 
 - Card is too large or has untestable criteria — split it or ask focused questions before proposing creation
 - Required product information is missing — stop and list the unanswered questions
-- Dispatch path is unclear — stop and ask `feature` / `change` / `job` before drafting
-- A `job` card lacks an allowlisted skill, or a child `change` card lacks exactly one parent id — stop, do not guess
+- Dispatch path is unclear — do not stop; omit `## Path` and defer to dispatcher `route-work` inference
+- A human-overridden `job` card lacks an allowlisted skill, or a human-overridden child `change` card lacks exactly one parent id — stop, do not guess
 - A proposed parent task cannot be identified — state the uncertainty and do not invent a task ID
 - The `default` profile is unavailable or a kanban command fails — stop without partial mutation and report the failure
 - The operator has not confirmed the card and command set — do not mutate the board

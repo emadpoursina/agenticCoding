@@ -119,7 +119,9 @@ is an optional card field. When the card names a path, Hermes honors it.
 When it does not, Hermes runs `route` after `ready` to decide the path
 from the task — the same route-work as `speckit-orchestrate`
 (`REQUESTED_PATH` honored when present, inferred from the task when
-absent).
+absent). The groomer omits `## Path` unless the human explicitly wrote
+`feature|change|job`; that omission is the normal case. Absent path never
+means a default — it means machine-infer by `route-work`.
 
 | Path | When | Graph |
 |---|---|---|
@@ -232,7 +234,7 @@ Human questions are not stuck; they are clarify relay / `uat`.
 - One worker identity that runs the whole Spec Kit playbook in a single session.
 - Treating card `path` as required. `path` is optional; when absent
   `route` after `ready` decides `feature` / `change` / `job` from the
-  task (honoring `REQUESTED_PATH` when present).
+  task (honoring `REQUESTED_PATH` when present, machine-inferring when absent).
 - Hermes implementing Spec Kit stages in-process.
 - Converge substituting for critic/tester/ship.
 - Duplicating this document into Hermes. Hermes **links** here

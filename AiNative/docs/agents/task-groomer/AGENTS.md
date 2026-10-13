@@ -19,8 +19,8 @@ and waits for operator confirmation before changing the kanban board.
 
 ## Outputs
 
-- A filled dispatch-ready card: `# Title`, Priority, Problem, Expected Result, Acceptance Criteria, Platform, Technical Notes, Path, Skill (job only), Parent (child change only), Dependencies
-- Dispatch path `feature` | `change` | `job` plus allowlisted job skill (`prd-writer`, `project-bootstrapper`) when needed
+- A filled dispatch-ready card: `# Title`, Priority, Problem, Expected Result, Acceptance Criteria, Platform, Technical Notes, Dependencies — plus `## Path` (and `## Skill` / `## Parent`) only when the operator explicitly wrote `feature` | `change` | `job`, copied verbatim as a human override
+- Dispatcher owns routing after creation (`ready` preflight then `route-work`; absent path means machine-infer)
 - A proposed `hermes kanban create` command and any `kanban link` operations
 - Board mutations only after the operator confirms the complete card and command set
 
