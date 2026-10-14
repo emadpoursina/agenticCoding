@@ -43,10 +43,11 @@ arguments or in a later reply during specify or clarify. Match case-insensitivel
 ## Parent vs worker (hard)
 
 While this skill is running it outranks `pi-handoff`, `plan-orchestrator`, and
-changelog/version bootstrap. Do not leave this pipeline to spawn Pi (except
-the Luna fallback below), to run plan-orchestrator, or to add versioning the
-spec/tasks did not ask for. `pi-harness` has no default model — Luna fallback
-MUST pass the registry Pi flags as `--provider` / `--model` / `--thinking`.
+changelog/version bootstrap. Do not leave this pipeline to spawn Pi except for
+Luna stages (those stages are Pi-first). Do not run plan-orchestrator, or add
+versioning the spec/tasks did not ask for. `pi-harness` has no default model —
+Luna stages MUST pass the registry Pi flags as `--provider` / `--model` /
+`--thinking`.
 
 The parent is a dispatcher. It MUST NOT execute ready, route, specify, clarify,
 plan, tasks, analyze, implement, converge, change, tester, or a job skill
@@ -54,12 +55,14 @@ itself: not by following those skills in this session, not by writing their
 artifacts, not by running `ready-check.sh`, not by editing code in-place
 because context is already loaded.
 
-Never omit `model`. Never pass `inherit`. Ban `inherit` for every worker launch
-in this pipeline.
+Never omit `model`. Never pass `inherit` on Cursor Task launches. Ban
+`inherit` for every Grok-stage Task in this pipeline.
 
-For every stage the parent MUST always launch a foreground `generalPurpose`
-Task (`run_in_background: false`) with the **exact** `model` slug listed for
-that stage, unless a Luna-stage Pi fallback below applies.
+For Grok stages the parent MUST launch a foreground `generalPurpose` Task
+(`run_in_background: false`) with the **exact** Grok Task slug from the
+registry, unless the Grok substitute below applies. For Luna stages the
+parent MUST spawn Pi via `pi-harness` with the Luna Pi primary flags; do
+not launch a Cursor Task for those stages.
 
 ## flow_id
 
@@ -76,49 +79,57 @@ values onto Task `model` / the Pi flags; never invent nearby slugs.
 
 | Role | Value |
 | --- | --- |
-| Luna Task slug | `gpt-5.6-luna-high` |
-| Luna Pi fallback | `--provider opencode-go --model mimo-v2.6-flash --thinking high` |
-| Grok Task slug | `cursor-grok-4.6-medium` |
-| Grok substitute | none — use of the exact Grok slug is mandatory or the stage stops |
+| Luna Pi primary | `--provider opencode --model mimo-v2.6-flash-free --thinking xhigh` |
+| Luna Pi fallback | `--provider opencode-go --model mimo-v2.6-flash --thinking xhigh` |
+| Grok Task slug | `muse-spark-1.3-max` |
+| Grok substitute | `cursor-grok-4.6-medium` |
 
 ## Model access and fallback
 
-The exact stage slug is always the first choice. Pass it on every Task. Check
-the session's allowed Task model list before launch. If the required slug is
-missing from that list, do not attempt that Task with a different Cursor slug.
+The registry value is always the first choice. Copy it; never invent nearby
+slugs.
 
 If the user named a Cursor Task slug that is in the allowed list, use that
-slug for the launch instead of the registry. If they named a Pi
-provider/model, use that only on the Pi path below. If they named a model that
-is neither an allowed Task slug nor a Pi model, stop and say so. Do not guess.
+slug for Grok-stage launches instead of the registry. If they named a Pi
+provider/model, use that only on Luna-stage Pi launches. If they named a model
+that is neither an allowed Task slug nor a Pi model, stop and say so. Do not
+guess.
 
 **Luna stages** (`ready`, `specify`, `clarify`, `plan`, `tasks`, `implement`,
-`change`, `job`): if Luna is not available — missing from the allowed model
-list, Task rejects the Luna slug, or the launch fails because of the model —
-do not swap to another Cursor model. Spawn that stage as a Pi sub-agent
-instead. Follow the `pi-harness` skill. You stay in control; Pi is the worker.
-Give Pi the same worker prompt this skill would have given the Task (repo
-root, skill path, skip, report format, `FLOW_ID`, `BRANCH` and `WORKTREE` when
-known); for any stage after ready, run Pi with `--cwd` set to `WORKTREE` so it
-lands in the feature worktree. Pass the Luna Pi fallback flags from the
-registry on the Pi command line, unless the user named a Pi model. Then
-continue the pipeline from Pi's compact report.
+`change`, `job`): spawn as a Pi sub-agent. Follow the `pi-harness` skill. You
+stay in control; Pi is the worker. Give Pi the same worker prompt this skill
+would have given a Task (repo root, skill path, skip, report format,
+`FLOW_ID`, `BRANCH` and `WORKTREE` when known); for any stage after ready, run
+Pi with `--cwd` set to `WORKTREE` so it lands in the feature worktree. Pass
+the Luna Pi primary flags from the registry on the Pi command line, unless the
+user named a Pi model. Then continue the pipeline from Pi's compact report.
 
-**Grok stages** (`route`, `analyze`, `converge`, `tester`): if the exact Grok
-slug cannot be used, STOP immediately. Do not continue to the next stage and do not
-count this as a stuck retry. Wait for the user to fix it.
+If the primary Pi launch cannot be used — Pi missing, provider/auth failure,
+spawn reject, or the launch fails because of the model — do not swap to a
+Cursor Task. Retry once with the Luna Pi fallback flags. If that fallback
+also fails, STOP (this is not a stuck retry of the primary). Wait for the
+user to fix it.
+
+**Grok stages** (`route`, `analyze`, `converge`, `tester`): launch a Cursor
+Task with the Grok Task slug. Check the session's allowed Task model list
+before launch. If that slug is missing from the list, Task rejects it, or the
+launch fails because of the model, do not invent another slug: launch once
+more with the Grok substitute. If the substitute also cannot be used, STOP
+immediately. Do not continue to the next stage and do not count this as a
+stuck retry. Wait for the user to fix it.
 
 Then tell the user, in plain language:
 
 - which stage stopped
-- which model slug was required
+- which model slug or Pi flags were required
 - what failed (no access, could not open, rejected slug, or worker report)
 - the available slugs, if known
 
-Do **not**: run any stage in the parent; pass or omit `inherit`; switch to
-Auto, Composer, Fast, or any nearby slug; retry the same exact-slug launch; or
-keep a Grok-stage pipeline going so the user never sees the problem. Pi is the
-only non-Task substitute, and only for Luna stages, using the Luna Pi fallback.
+Do **not**: run any stage in the parent; pass or omit `inherit` on Tasks;
+switch to Auto, Composer, Fast, or any nearby slug; retry the same
+exact-slug or same Pi flags after a model-access failure; or keep a
+Grok-stage pipeline going so the user never sees the problem. Pi is the
+only worker runtime for Luna stages. Grok stages stay on Cursor Task.
 
 The parent MAY only: mint `FLOW_ID`, check prerequisites, dispatch workers,
 parse reports, honor the keywords, relay a worker's queued questions to the
@@ -200,8 +211,8 @@ flowchart TD
 
 ### Shared start
 
-1. **Ready** — launch a `generalPurpose` worker with the Luna
-   slug. Tell it to follow the **global**
+1. **Ready** — spawn Pi via `pi-harness` with the Luna Pi primary
+   flags. Tell it to follow the **global**
    `~/.cursor/skills/speckit-ready/SKILL.md` (not a project copy). Pass
    `REPO_ROOT`, `FLOW_ID`, and `FEATURE_DESCRIPTION` (user args verbatim).
    Ready runs against the original `REPO_ROOT` and never checks out the
@@ -221,7 +232,7 @@ flowchart TD
    `move_agent_to_root` with that path **before** route and all later
    stages; skip the move when the two paths are the same.
 2. **Route** — launch a `generalPurpose` worker with the Grok
-   slug. Tell it to follow
+   Task slug. Tell it to follow
    `~/.cursor/skills/route-work/SKILL.md`. Pass `REPO_ROOT` (the feature
    `WORKTREE` from ready), `FLOW_ID`,
    `TASK_DESCRIPTION` (user args verbatim), `REQUESTED_PATH`, and
@@ -231,8 +242,8 @@ flowchart TD
 
 ### Feature path
 
-3. **Specify** — launch a `generalPurpose` worker with the Luna
-   slug. Tell it to follow the project's
+3. **Specify** — spawn Pi via `pi-harness` with the Luna Pi primary
+   flags. Tell it to follow the project's
    `.cursor/skills/speckit-specify/SKILL.md` exactly. Include `FLOW_ID`,
    `BRANCH`, and `WORKTREE` from ready, and pass `WORKTREE` as the
    worker's `REPO_ROOT`. When this prompt includes `FLOW_ID` + `BRANCH` +
@@ -249,8 +260,8 @@ flowchart TD
    If the specify worker still presents questions, the parent MUST NOT wait on
    the user for those: answer them as assumptions and tell the worker to
    finish. The parent MUST NOT write `spec.md`.
-4. **Clarify** — launch a `generalPurpose` worker with the Luna
-   slug, same rules as specify. Tell it to follow the
+4. **Clarify** — spawn Pi via `pi-harness` with the Luna Pi primary
+   flags, same rules as specify. Tell it to follow the
    project's `.cursor/skills/speckit-clarify/SKILL.md` exactly. The parent
    MUST NOT write `spec.md`.
 
@@ -279,22 +290,23 @@ flowchart TD
    **When clarify completes, go straight to plan.** Do not ask the user to
    confirm, do not wait for "continue", and do not pause after the choice
    report. There is no continuation gate in this run.
-5. **Plan** — launch a `generalPurpose` worker with the Luna
-   slug. It follows `.cursor/skills/speckit-plan/SKILL.md`
+5. **Plan** — spawn Pi via `pi-harness` with the Luna Pi primary
+   flags. It follows `.cursor/skills/speckit-plan/SKILL.md`
    and returns the plan artifacts plus `ANALYZE: yes|no` and a one-line
    reason. Use `yes` for cross-cutting contracts, constitution tension, or
    many unknowns; use `no` for a small, local change. The parent MUST NOT
    write plan artifacts.
-6. **Tasks** — launch a `generalPurpose` worker with the Luna
-   slug to follow `.cursor/skills/speckit-tasks/SKILL.md`.
+6. **Tasks** — spawn Pi via `pi-harness` with the Luna Pi primary
+   flags to follow `.cursor/skills/speckit-tasks/SKILL.md`.
    The parent MUST NOT write `tasks.md`.
 7. **Analyze** — only when plan returned `ANALYZE: yes`, launch a
-   `generalPurpose` worker with the Grok slug to follow
+   `generalPurpose` worker with the Grok Task slug to follow
    `.cursor/skills/speckit-analyze/SKILL.md`. This is read-only. Treat a
    critical finding as stuck and stop to ask the user; do not edit artifacts
    automatically. The parent MUST NOT perform the analysis.
-8. **Implement ↔ converge** — start the loop with a `generalPurpose` worker
-   using the Luna slug for implement and the Grok slug for converge. Never launch these two workers in
+8. **Implement ↔ converge** — start the loop with Pi (`pi-harness`, Luna
+   Pi primary flags) for implement and a `generalPurpose` Task with the Grok
+   Task slug for converge. Never launch these two workers in
    parallel. Continue until converge returns `CONVERGE_OUTCOME: converged`.
    `tasks_appended` with genuinely new tasks starts another implementation
    pass. Do not request user confirmation. The parent MUST NOT implement
@@ -306,14 +318,14 @@ flowchart TD
 
 ### Change path
 
-3. **Change** — launch a `generalPurpose` worker with the Luna
-   slug. Tell it to follow `~/.cursor/skills/change/SKILL.md`
+3. **Change** — spawn Pi via `pi-harness` with the Luna Pi primary
+   flags. Tell it to follow `~/.cursor/skills/change/SKILL.md`
    with `STEP: change`. Pass `REPO_ROOT` (the feature `WORKTREE` from
    ready), `FLOW_ID`, `BRANCH`, `TASK_DESCRIPTION`, and `ATTEMPT`. On
    `SCOPE: feature`, stop and tell the user the task needs the feature path
    (re-run with `path: feature`). Do not switch paths on your own.
 4. **Tester** — launch a fresh `generalPurpose` worker with the
-   Grok slug. Tell it to follow the same skill with
+   Grok Task slug. Tell it to follow the same skill with
    `STEP: tester`, and pass the change report. On `TESTER: FAIL`, launch a new
    change worker with the `FINDINGS` and the next `ATTEMPT`, then test again.
    This counts toward the change step's stuck limit.
@@ -324,8 +336,8 @@ flowchart TD
 
 ### Job path
 
-3. **Job** — launch a `generalPurpose` worker with the Luna
-   slug. Tell it to read `SKILL_PATH` from route-work and
+3. **Job** — spawn Pi via `pi-harness` with the Luna Pi primary
+   flags. Tell it to read `SKILL_PATH` from route-work and
    follow it exactly, with the user args verbatim as the task input, and
    pass `REPO_ROOT` (the feature `WORKTREE` from ready). Tell it to write
    outputs inside `REPO_ROOT` and not to commit, push, or open a pull
@@ -379,22 +391,23 @@ and UAT add no worker launch or model-registry entry.
 
 ## Worker launches
 
-Required `model` on every worker Task (always pass the slug; never omit it;
-never pass `inherit`; use Pi only for Luna stages when Luna is unavailable).
-Copy the values by role from **Model registry (edit here only)** above:
+Required `model` on every worker (always pass the registry value; never omit
+it; never pass `inherit` on Tasks). Copy the values by role from **Model
+registry (edit here only)** above:
 
-| Stage | `model` |
+| Stage | worker |
 | --- | --- |
-| ready, specify, clarify, plan, tasks, implement, change, job | the Luna slug |
-| route, analyze, converge, tester | the Grok slug |
+| ready, specify, clarify, plan, tasks, implement, change, job | Pi with Luna Pi primary flags |
+| route, analyze, converge, tester | Task `model` = Grok Task slug |
 
-Pass the registry's Luna slug or Grok slug exactly as written. If the Luna
-slug is unavailable, use Pi (`pi-harness`) with the Luna Pi fallback flags
-from the registry. If the Grok slug is unavailable, stop — the Grok stages
-have no substitute. Never substitute a different Cursor slug.
+Pass the registry values exactly as written. If Luna Pi primary cannot be
+used, use Luna Pi fallback. If the Grok Task slug cannot be used, use the
+Grok substitute. If both values for that role fail, stop. Never substitute a
+different Cursor slug or Pi model than the registry.
 
-Every worker must be a foreground `generalPurpose` Task with
-`run_in_background: false`. Do not create or retain per-command Cursor agents.
+Grok-stage workers must be a foreground `generalPurpose` Task with
+`run_in_background: false`. Luna-stage workers must be Pi via `pi-harness`.
+Do not create or retain per-command Cursor agents.
 Each worker starts with empty context, so include all of the following in its
 prompt:
 
@@ -509,10 +522,10 @@ Do not retry these cases:
   or job worker that returned `STATUS: blocked` with a question queue — the
   parent relays those questions to the user, then resumes the worker with the
   answers; that is not stuck)
-- a Grok-stage required model remains unavailable, inaccessible, or could
-  not be opened (see **Model access and fallback**)
-- a Luna-stage Pi fallback also failed (Pi missing, job hung, or unusable
-  report) after Luna was unavailable
+- a Grok-stage required model and its substitute both remain unavailable,
+  inaccessible, or could not be opened (see **Model access and fallback**)
+- a Luna-stage Pi primary and Pi fallback both failed (Pi missing, provider
+  or auth failure, job hung, or unusable report)
 
 For these cases, stop immediately and tell the user the prerequisite,
 decision, or model problem required.
