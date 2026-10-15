@@ -16,7 +16,7 @@ This file is the agent's instruction surface in the open [AGENTS.md](https://age
 
 - Requested behavior or user journey, with platform and entry point (route, screen, build, URL)
 - Repository state: existing E2E framework, config, helpers, fixtures, page/screen objects, CI workflows
-- Environment constraints: required services, test accounts, secrets, browsers, simulators, emulators, devices
+- Environment constraints: required services, test accounts, secrets, browsers, simulators, emulators, devices, plus available automation tools and MCP servers/capabilities with the selected execution method and any limitations
 - For failure diagnosis: failing test, exact failing step, logs, screenshots, traces, accessibility/DOM snapshots
 
 ## Outputs

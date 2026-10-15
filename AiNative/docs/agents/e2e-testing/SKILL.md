@@ -5,10 +5,11 @@ description: >-
   native iOS, native Android, React Native, and other application platforms.
   Use when testing real user journeys, adding E2E coverage, verifying
   cross-layer application behavior, or diagnosing E2E failures. Inspect the
-  project's existing test stack before choosing tools. When UI interaction
-  becomes blocked, stop at the retry limit, collect diagnostic evidence,
-  request targeted human guidance, and resume from the last verified
-  checkpoint.
+  project's existing test stack and available automation tools/MCPs before
+  choosing tools. When UI interaction becomes blocked, use available
+  inspection capabilities to gather fresh evidence, stop at the retry
+  limit, collect diagnostic evidence, request targeted human guidance,
+  and resume from the last verified checkpoint.
 ---
 
 # E2E Testing
@@ -72,6 +73,44 @@ project stack, required coverage, execution environment, and maintenance cost.
 
 Do not assume a command, tool, device, or capability is available until
 the project or runtime confirms it.
+
+### 3.1 Discover Available Automation Tools and MCPs
+
+Before choosing how to interact with the application, inspect the tools
+available in the current agent environment, including MCP servers and
+their exposed capabilities.
+
+Check whether available tools can provide:
+
+- Browser automation and DOM inspection.
+- Screenshots, accessibility trees, and element inspection.
+- Mobile simulator, emulator, or real-device interaction.
+- App installation, launch, navigation, and UI interaction.
+- Logs, traces, test results, and failure artifacts.
+
+Prefer an already available, suitable automation tool when it meets
+the testing requirements. Do not assume that a particular MCP exists;
+inspect its actual capabilities and limitations.
+
+Choose the execution method based on the project and available tools:
+
+1. Existing project test framework and runner.
+2. Suitable MCP tools for application interaction, inspection, and
+   debugging.
+3. Platform-native CLI or automation APIs when needed.
+4. A combination of these when it provides the most reliable workflow.
+
+An MCP used to explore or interact with the UI does not automatically
+replace the project's E2E test framework. Prefer implementing
+repeatable, maintainable tests in the project's established framework
+unless the user explicitly requests a different approach.
+
+If an MCP is unavailable, lacks a required capability, or cannot
+provide reliable evidence, fall back to an appropriate supported
+method. Do not repeatedly attempt unsupported operations.
+
+Record which tools are available, which method was selected, and
+any relevant limitations before implementation.
 
 ## 4. Plan the User Journey
 
@@ -287,6 +326,12 @@ say so and provide the evidence that is available.
 Before reaching the retry limit, a recovery attempt should be informed
 by the observed state.
 
+When a UI interaction becomes blocked, use available MCP inspection
+capabilities to gather fresh evidence before asking the user for help.
+If an MCP provides a more reliable way to inspect or interact with the
+blocked element, consider switching to it within the existing retry
+and execution limits.
+
 Examples include:
 
 - Inspecting whether a modal is covering the target.
@@ -440,7 +485,7 @@ Provide a concise report covering:
 
 - User journeys and scenarios tested.
 - Files created or changed.
-- Framework and commands used.
+- Framework, commands, and automation tools/MCPs used, including the selected execution method and any limitations.
 - Tests actually executed and their results.
 - Bugs discovered and whether they were resolved.
 - Tests that were blocked, skipped, or not run, with reasons.
