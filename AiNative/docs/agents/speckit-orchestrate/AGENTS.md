@@ -1,18 +1,24 @@
-# Spec Kit orchestrator (Cursor parent)
+# Spec Kit orchestrator (parent dispatcher)
 
-Cursor parent implementation of the feature-loop graph
+Parent implementation of the feature-loop graph
 ([feature-loop.md](../../systems/feature-loop.md)): `ready` → `route`, then
 one of `feature` / `change` / `job`, with shared ship/UAT.
 
 Canonical source: AiNative `docs/agents/speckit-orchestrate/` (promoted from
-Cursor `speckit-orchestrate` 2026-10-13). The Hermes parent implements the
-same graph via `personalAgent` dispatch; neither copies the graph, both link
-`feature-loop.md`. Workers are stage-dumb in both runtimes (Cursor `Task` or
-Pi via `pi-harness` here; Pi workers under Hermes there).
+Cursor `speckit-orchestrate` 2026-10-13). Symlinked into Cursor
+(`~/.cursor/skills/speckit-orchestrate/`) and OpenCode
+(`~/.config/opencode/skill/speckit-orchestrate/`); the Hermes parent
+references the same graph via `personalAgent` dispatch rather than copying
+it — all link `feature-loop.md`. Workers are stage-dumb in every runtime
+(host Task or Pi via `pi-harness` here; Pi workers under Hermes there).
+Model values are never pinned here; each runtime resolves them per run (see
+SKILL.md Model resolution).
 
 ## When to use
 
-- User invokes `/speckit-orchestrate` or asks to run the full Spec Kit flow in Cursor.
+- User invokes `/speckit-orchestrate` (Cursor) / skill `speckit-orchestrate`
+  (OpenCode) or asks to run the full Spec Kit flow; Hermes references the
+  same graph for dispatch.
 
 ## Inputs
 
@@ -27,5 +33,5 @@ Pi via `pi-harness` here; Pi workers under Hermes there).
 
 | File | Purpose |
 |------|---------|
-| [SKILL.md](./SKILL.md) | Control flow, model registry, pipeline, stuck policy |
+| [SKILL.md](./SKILL.md) | Control flow, model resolution (runtime-owned, no pinned values), pipeline, stuck policy |
 | [rule.md](./rule.md) | Parent-vs-worker boundary |

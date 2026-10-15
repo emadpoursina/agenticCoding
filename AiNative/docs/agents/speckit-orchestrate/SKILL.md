@@ -39,15 +39,24 @@ arguments or in a later reply during specify or clarify. Match case-insensitivel
   as `REQUESTED_PATH`; route-work must honor it.
 - **skill: <name>** — the skill a job must use. Pass it to route-work as
   `REQUESTED_SKILL`.
+- **worker: <pi-model>** — per-role override for the worker role only
+  (all Pi stages). Accepts `provider/model`, `provider/model:thinking`, or
+  full Pi flags (`--provider <p> --model <m> [--thinking <t>]`). Example:
+  `worker: my-provider/my-exec-model`. Validated by launching Pi; never
+  applied to reasoning stages.
+- **reasoning: <task-slug>** — per-role override for the reasoning role only
+  (`route`, `analyze`, `converge`, `tester`). Must be a slug from the
+  runtime's allowed Task model list. Example: `reasoning: my-reviewer-slug`.
+  Never applied to worker stages.
 
 ## Parent vs worker (hard)
 
 While this skill is running it outranks `pi-handoff`, `plan-orchestrator`, and
 changelog/version bootstrap. Do not leave this pipeline to spawn Pi except for
-Luna stages (those stages are Pi-first). Do not run plan-orchestrator, or add
+worker stages (those stages are Pi-first). Do not run plan-orchestrator, or add
 versioning the spec/tasks did not ask for. `pi-harness` has no default model —
-Luna stages MUST pass the registry Pi flags as `--provider` / `--model` /
-`--thinking`.
+worker stages MUST pass explicit `--provider` / `--model` / `--thinking`
+resolved per run from **Model resolution** below (never a skill-pinned value).
 
 The parent is a dispatcher. It MUST NOT execute ready, route, specify, clarify,
 plan, tasks, analyze, implement, converge, change, tester, or a job skill
@@ -55,14 +64,15 @@ itself: not by following those skills in this session, not by writing their
 artifacts, not by running `ready-check.sh`, not by editing code in-place
 because context is already loaded.
 
-Never omit `model`. Never pass `inherit` on Cursor Task launches. Ban
-`inherit` for every Grok-stage Task in this pipeline.
+Never omit `model`. Never pass `inherit` on Task launches. Ban
+`inherit` for every reasoning-stage Task in this pipeline.
 
-For Grok stages the parent MUST launch a foreground `generalPurpose` Task
-(`run_in_background: false`) with the **exact** Grok Task slug from the
-registry, unless the Grok substitute below applies. For Luna stages the
-parent MUST spawn Pi via `pi-harness` with the Luna Pi primary flags; do
-not launch a Cursor Task for those stages.
+For reasoning stages the parent MUST launch a foreground `generalPurpose` Task
+(`run_in_background: false`) with the **resolved** reasoning model from
+**Model resolution** below (user override else runtime default — never a
+skill-pinned slug, never `inherit`). For worker stages the
+parent MUST spawn Pi via `pi-harness` with the resolved worker Pi flags; do
+not launch a Task for those stages.
 
 ## flow_id
 
@@ -72,49 +82,99 @@ Before launching ready, mint an opaque `FLOW_ID` of the form
 line; parse it. This is prompt-scaffold only — do not edit project speckit
 skills to teach them `flow_id`.
 
-## Model registry (edit here only)
+## Skill path resolution (AiNative-first)
 
-The only place in this skill that spells out the model values. Copy these
-values onto Task `model` / the Pi flags; never invent nearby slugs.
+`<AINATIVE>` is the AiNative repo root. Canonical source is always
+`<AINATIVE>/docs/agents/<name>/SKILL.md`. Resolve hosts as:
 
-| Role | Value |
+| Host | Path (same file) |
 | --- | --- |
-| Luna Pi primary | `--provider opencode --model mimo-v2.6-flash-free --thinking xhigh` |
-| Luna Pi fallback | `--provider opencode-go --model mimo-v2.6-flash --thinking xhigh` |
-| Grok Task slug | `muse-spark-1.3-max` |
-| Grok substitute | `cursor-grok-4.6-medium` |
+| AiNative canonical | `<AINATIVE>/docs/agents/<name>/SKILL.md` |
+| Cursor host | `~/.cursor/skills/<name>/SKILL.md` → canonical (symlink) |
+| OpenCode host | `~/.config/opencode/skill/<name>/SKILL.md` → canonical (symlink) |
+| Hermes worker | `/opt/data/mnt/AiNative/docs/agents/<name>/SKILL.md` (read-only mount) |
+
+AiNative-owned skills below are named by their canonical `<AINATIVE>` path;
+never assume the host `~/.cursor/...` spelling inside a worker prompt — pass
+the canonical path and let the runtime resolve its symlink/mount. Spec Kit
+project prompts are different: they live in the target repo at
+`REPO_ROOT/.pi/prompts/speckit.<step>.md` (canonical), with
+`REPO_ROOT/.cursor/skills/speckit-<step>/SKILL.md` as legacy fallback only.
+`pr-generate/template.md` is the one exception: Cursor-only
+(`~/.cursor/skills/pr-generate/`), not an AiNative agent — see Ship / UAT.
+
+## Model resolution (runtime-owned, no pinned values)
+
+This skill pins no provider, model, or thinking flag. Concrete values are
+resolved per run from the runtime, per
+`docs/systems/agentic-system.md` §2 Model: Hermes configuration owns provider
+and model selection; card profiles name execution roles, not providers. Do
+not put provider names or credentials in cards or in this skill.
+
+Roles (stage kinds, not model IDs):
+
+| Role | Stages |
+| --- | --- |
+| worker | `ready`, `specify`, `clarify`, `plan`, `tasks`, `implement`, `change`, `job` (Pi via `pi-harness`) |
+| reasoning | `route`, `analyze`, `converge`, `tester` (host Task: Cursor `generalPurpose` Task, OpenCode subagent equivalent, or Hermes worker session) |
+
+Resolution order for each role, per run (set each role separately —
+`worker:` never affects reasoning stages, `reasoning:` never affects worker stages):
+
+1. **Invocation keywords** — `worker: <pi-model>` sets the worker role
+   only; `reasoning: <task-slug>` sets the reasoning role only. Validate before
+   use (Pi must launch; Task slug must be in the runtime's allowed list).
+   Invalid value for that role → STOP for that role, say what was rejected
+   and list what the runtime allows. Do not guess, do not cross-apply.
+2. **Env override** — `SPECKIT_WORKER_MODEL` (Pi flags or `provider/model[:thinking]`,
+   worker only), `SPECKIT_REASONING_MODEL` (Task slug, reasoning only). Same validation
+   as keywords. Env beats runtime defaults but loses to invocation keywords.
+3. **Runtime default** — otherwise use the runtime's configured default **per role**:
+   - Hermes: `config.yaml` model + card profile (`hermes kanban set-model`,
+     `default` profile fallback). Suggested mapping: worker → implementation/
+     execution tier (cheap, fast), reasoning → reasoning tier (route/analyze/
+     converge/tester), with critic/tester on a model distinct from plan/
+     implement per `validation-layer.md`. Keys live in Hermes
+     (`$HERMES_DATA_ROOT/state/config.yaml`); this skill never invents them —
+     read what `hermes config get model.*` / `hermes profile list` reports.
+   - Cursor: reasoning = session default Task model (must be in the allowed Task
+     model list); worker = operator-confirmed Pi provider/model (env or last
+     working Pi flags). Set them independently in the session before invoking.
+   - OpenCode: reasoning = configured subagent model for this session;
+     worker = same Pi provider/model mechanism as Cursor (Pi is external to
+     both editors).
+   Pass `--thinking` only when that role's resolved source specifies it;
+   never invent it.
+4. **Unresolved** — if a role has no usable value from 1–3, STOP before
+   launching that role and ask the operator for that role's value only. Never
+   invent a nearby slug, never reuse the other role's model.
 
 ## Model access and fallback
 
-The registry value is always the first choice. Copy it; never invent nearby
-slugs.
+The resolved value is always the first choice. Never invent nearby slugs.
 
-If the user named a Cursor Task slug that is in the allowed list, use that
-slug for Grok-stage launches instead of the registry. If they named a Pi
-provider/model, use that only on Luna-stage Pi launches. If they named a model
-that is neither an allowed Task slug nor a Pi model, stop and say so. Do not
-guess.
-
-**Luna stages** (`ready`, `specify`, `clarify`, `plan`, `tasks`, `implement`,
+**Worker stages** (`ready`, `specify`, `clarify`, `plan`, `tasks`, `implement`,
 `change`, `job`): spawn as a Pi sub-agent. Follow the `pi-harness` skill. You
 stay in control; Pi is the worker. Give Pi the same worker prompt this skill
 would have given a Task (repo root, skill path, skip, report format,
 `FLOW_ID`, `BRANCH` and `WORKTREE` when known); for any stage after ready, run
 Pi with `--cwd` set to `WORKTREE` so it lands in the feature worktree. Pass
-the Luna Pi primary flags from the registry on the Pi command line, unless the
-user named a Pi model. Then continue the pipeline from Pi's compact report.
+the resolved worker Pi flags on the Pi command line. Then continue the pipeline from Pi's compact report.
 
-If the primary Pi launch cannot be used — Pi missing, provider/auth failure,
+If the resolved Pi launch cannot be used — Pi missing, provider/auth failure,
 spawn reject, or the launch fails because of the model — do not swap to a
-Cursor Task. Retry once with the Luna Pi fallback flags. If that fallback
+Task. Retry once only if the runtime defines a distinct fallback value for
+that role (e.g. Hermes fallback profile, second operator-confirmed Pi
+model). If there is no runtime fallback, or that fallback
 also fails, STOP (this is not a stuck retry of the primary). Wait for the
 user to fix it.
 
-**Grok stages** (`route`, `analyze`, `converge`, `tester`): launch a Cursor
-Task with the Grok Task slug. Check the session's allowed Task model list
-before launch. If that slug is missing from the list, Task rejects it, or the
+**Reasoning stages** (`route`, `analyze`, `converge`, `tester`): launch a Task
+with the resolved reasoning model. Check the session's allowed Task model list
+before launch. If the resolved value is missing from the list, Task rejects it, or the
 launch fails because of the model, do not invent another slug: launch once
-more with the Grok substitute. If the substitute also cannot be used, STOP
+more only if the runtime defines a distinct fallback model. If there is no
+runtime fallback, or the fallback also cannot be used, STOP
 immediately. Do not continue to the next stage and do not count this as a
 stuck retry. Wait for the user to fix it.
 
@@ -128,8 +188,9 @@ Then tell the user, in plain language:
 Do **not**: run any stage in the parent; pass or omit `inherit` on Tasks;
 switch to Auto, Composer, Fast, or any nearby slug; retry the same
 exact-slug or same Pi flags after a model-access failure; or keep a
-Grok-stage pipeline going so the user never sees the problem. Pi is the
-only worker runtime for Luna stages. Grok stages stay on Cursor Task.
+reasoning-stage pipeline going so the user never sees the problem. Pi is the
+only worker runtime for worker stages. Reasoning stages stay on the host Task
+mechanism (never Pi, never in-parent).
 
 The parent MAY only: mint `FLOW_ID`, check prerequisites, dispatch workers,
 parse reports, honor the keywords, relay a worker's queued questions to the
@@ -139,24 +200,25 @@ park feature/change runs for UAT, ask the job ship decision and carry it out,
 enforce stuck policy, and write the finish report. Ship and UAT are parent-only
 operations; workers remain ship-dumb on every path. It MAY read
 worker reports, `git diff --stat`, and `quickstart.md` for that report. It MUST NOT read the
-stage skills or the project Spec Kit prompts
-(`.pi/prompts/speckit.*.md`, legacy `.cursor/skills/speckit-{specify,clarify,plan,tasks,analyze,implement,converge}/SKILL.md`)
+stage skills (AiNative `<AINATIVE>/docs/agents/...` or project Spec Kit prompts
+`REPO_ROOT/.pi/prompts/speckit.*.md`, legacy `REPO_ROOT/.cursor/skills/speckit-{specify,clarify,plan,tasks,analyze,implement,converge}/SKILL.md`)
 in order to perform those stages.
 
 ## Prerequisites
 
-Before launching a worker, verify:
+Before launching a worker, verify (AiNative-first; hosts resolve via symlink/mount per **Skill path resolution** above):
 
-- Canonical skills (AiNative source of truth; host `~/.cursor/skills/<name>`
-  symlinks resolve here):
+- Canonical AiNative skills (source of truth):
   - `<AINATIVE>/docs/agents/speckit-ready/SKILL.md`
   - `<AINATIVE>/docs/agents/speckit-ready/scripts/ready-check.sh`
+    (Hermes: `/opt/data/mnt/AiNative/docs/agents/speckit-ready/scripts/ready-check.sh`)
   - `<AINATIVE>/docs/agents/route-work/SKILL.md`
-  - `<AINATIVE>/docs/agents/change/SKILL.md`
+  - `<AINATIVE>/docs/agents/change/SKILL.md` (covers `STEP: change` and `STEP: tester`)
+  - `<AINATIVE>/docs/agents/pi-harness/SKILL.md` (Pi worker backend)
 - The target repository contains `.specify/`
-- `.pi/prompts/speckit.specify.md` (Pi enrollment, canonical)
-- the sibling prompts needed for clarify, plan, tasks, analyze, implement, and
-  converge (legacy fallback: `.cursor/skills/speckit-*/SKILL.md`)
+- `REPO_ROOT/.pi/prompts/speckit.specify.md` (Pi enrollment, canonical)
+- the sibling project prompts needed for clarify, plan, tasks, analyze, implement, and
+  converge (legacy fallback: `REPO_ROOT/.cursor/skills/speckit-*/SKILL.md`)
 
 If a global skill/script is missing, or the repository is not a Spec Kit
 project, stop and tell the user what is missing. Do not create the missing
@@ -164,11 +226,13 @@ project structure. Do not require a project-local `speckit-ready`.
 
 ## Pipeline
 
-> Path resolution: project Spec Kit prompts live at `.pi/prompts/speckit.<step>.md`
-> (Pi enrollment, canonical). Every `.cursor/skills/speckit-<step>/SKILL.md`
-> path below means the Pi prompt first, with the Cursor path as legacy
-> fallback. Host `~/.cursor/skills/<name>` paths resolve via symlink to the
-> AiNative canonical files.
+> Path resolution: AiNative skills resolve per **Skill path resolution**
+> above (canonical `<AINATIVE>/docs/agents/<name>/SKILL.md`). Project Spec
+> Kit prompts resolve to `REPO_ROOT/.pi/prompts/speckit.<step>.md`
+> (canonical), with `REPO_ROOT/.cursor/skills/speckit-<step>/SKILL.md` as
+> legacy fallback. Every bare `speckit-<step>` path below means the project
+> Pi prompt first, Cursor legacy second — never an AiNative path (Spec Kit
+> stages are not AiNative agents).
 
 ```mermaid
 flowchart TD
@@ -211,9 +275,9 @@ flowchart TD
 
 ### Shared start
 
-1. **Ready** — spawn Pi via `pi-harness` with the Luna Pi primary
-   flags. Tell it to follow the **global**
-   `~/.cursor/skills/speckit-ready/SKILL.md` (not a project copy). Pass
+1. **Ready** — spawn Pi via `pi-harness` with the resolved worker Pi
+   flags. Tell it to follow the AiNative
+   `<AINATIVE>/docs/agents/speckit-ready/SKILL.md` (not a project copy). Pass
    `REPO_ROOT`, `FLOW_ID`, and `FEATURE_DESCRIPTION` (user args verbatim).
    Ready runs against the original `REPO_ROOT` and never checks out the
    feature branch in the current worktree. Instead, it creates or reuses a
@@ -231,9 +295,9 @@ flowchart TD
    original `REPO_ROOT`, the parent MUST call cursor-app-control
    `move_agent_to_root` with that path **before** route and all later
    stages; skip the move when the two paths are the same.
-2. **Route** — launch a `generalPurpose` worker with the Grok
-   Task slug. Tell it to follow
-   `~/.cursor/skills/route-work/SKILL.md`. Pass `REPO_ROOT` (the feature
+2. **Route** — launch a `generalPurpose` worker with the resolved reasoning
+   model. Tell it to follow
+   `<AINATIVE>/docs/agents/route-work/SKILL.md`. Pass `REPO_ROOT` (the feature
    `WORKTREE` from ready), `FLOW_ID`,
    `TASK_DESCRIPTION` (user args verbatim), `REQUESTED_PATH`, and
    `REQUESTED_SKILL` (`none` when absent). Tell the user the route and `WHY`
@@ -242,9 +306,10 @@ flowchart TD
 
 ### Feature path
 
-3. **Specify** — spawn Pi via `pi-harness` with the Luna Pi primary
+3. **Specify** — spawn Pi via `pi-harness` with the resolved worker Pi
    flags. Tell it to follow the project's
-   `.cursor/skills/speckit-specify/SKILL.md` exactly. Include `FLOW_ID`,
+   `REPO_ROOT/.pi/prompts/speckit.specify.md` exactly (legacy fallback:
+   `REPO_ROOT/.cursor/skills/speckit-specify/SKILL.md`). Include `FLOW_ID`,
    `BRANCH`, and `WORKTREE` from ready, and pass `WORKTREE` as the
    worker's `REPO_ROOT`. When this prompt includes `FLOW_ID` + `BRANCH` +
    `WORKTREE`, **that instruction outranks the specify skill's
@@ -260,9 +325,10 @@ flowchart TD
    If the specify worker still presents questions, the parent MUST NOT wait on
    the user for those: answer them as assumptions and tell the worker to
    finish. The parent MUST NOT write `spec.md`.
-4. **Clarify** — spawn Pi via `pi-harness` with the Luna Pi primary
+4. **Clarify** — spawn Pi via `pi-harness` with the resolved worker Pi
    flags, same rules as specify. Tell it to follow the
-   project's `.cursor/skills/speckit-clarify/SKILL.md` exactly. The parent
+   project's `REPO_ROOT/.pi/prompts/speckit.clarify.md` exactly (legacy fallback:
+   `REPO_ROOT/.cursor/skills/speckit-clarify/SKILL.md`). The parent
    MUST NOT write `spec.md`.
 
    **Default:** the worker must not wait inside the Task for answers. It
@@ -290,23 +356,26 @@ flowchart TD
    **When clarify completes, go straight to plan.** Do not ask the user to
    confirm, do not wait for "continue", and do not pause after the choice
    report. There is no continuation gate in this run.
-5. **Plan** — spawn Pi via `pi-harness` with the Luna Pi primary
-   flags. It follows `.cursor/skills/speckit-plan/SKILL.md`
+5. **Plan** — spawn Pi via `pi-harness` with the resolved worker Pi
+   flags. It follows `REPO_ROOT/.pi/prompts/speckit.plan.md`
+   (legacy fallback: `REPO_ROOT/.cursor/skills/speckit-plan/SKILL.md`)
    and returns the plan artifacts plus `ANALYZE: yes|no` and a one-line
    reason. Use `yes` for cross-cutting contracts, constitution tension, or
    many unknowns; use `no` for a small, local change. The parent MUST NOT
    write plan artifacts.
-6. **Tasks** — spawn Pi via `pi-harness` with the Luna Pi primary
-   flags to follow `.cursor/skills/speckit-tasks/SKILL.md`.
+6. **Tasks** — spawn Pi via `pi-harness` with the resolved worker Pi
+   flags to follow `REPO_ROOT/.pi/prompts/speckit.tasks.md`
+   (legacy fallback: `REPO_ROOT/.cursor/skills/speckit-tasks/SKILL.md`).
    The parent MUST NOT write `tasks.md`.
 7. **Analyze** — only when plan returned `ANALYZE: yes`, launch a
-   `generalPurpose` worker with the Grok Task slug to follow
-   `.cursor/skills/speckit-analyze/SKILL.md`. This is read-only. Treat a
+   `generalPurpose` worker with the resolved reasoning model to follow
+   `REPO_ROOT/.pi/prompts/speckit.analyze.md` (legacy fallback:
+   `REPO_ROOT/.cursor/skills/speckit-analyze/SKILL.md`). This is read-only. Treat a
    critical finding as stuck and stop to ask the user; do not edit artifacts
    automatically. The parent MUST NOT perform the analysis.
-8. **Implement ↔ converge** — start the loop with Pi (`pi-harness`, Luna
-   Pi primary flags) for implement and a `generalPurpose` Task with the Grok
-   Task slug for converge. Never launch these two workers in
+8. **Implement ↔ converge** — start the loop with Pi (`pi-harness`, resolved worker
+   Pi flags) for implement and a `generalPurpose` Task with the resolved reasoning
+   model for converge. Never launch these two workers in
    parallel. Continue until converge returns `CONVERGE_OUTCOME: converged`.
    `tasks_appended` with genuinely new tasks starts another implementation
    pass. Do not request user confirmation. The parent MUST NOT implement
@@ -318,14 +387,14 @@ flowchart TD
 
 ### Change path
 
-3. **Change** — spawn Pi via `pi-harness` with the Luna Pi primary
-   flags. Tell it to follow `~/.cursor/skills/change/SKILL.md`
+3. **Change** — spawn Pi via `pi-harness` with the resolved worker Pi
+   flags. Tell it to follow `<AINATIVE>/docs/agents/change/SKILL.md`
    with `STEP: change`. Pass `REPO_ROOT` (the feature `WORKTREE` from
    ready), `FLOW_ID`, `BRANCH`, `TASK_DESCRIPTION`, and `ATTEMPT`. On
    `SCOPE: feature`, stop and tell the user the task needs the feature path
    (re-run with `path: feature`). Do not switch paths on your own.
 4. **Tester** — launch a fresh `generalPurpose` worker with the
-   Grok Task slug. Tell it to follow the same skill with
+   resolved reasoning model. Tell it to follow the same skill with
    `STEP: tester`, and pass the change report. On `TESTER: FAIL`, launch a new
    change worker with the `FINDINGS` and the next `ATTEMPT`, then test again.
    This counts toward the change step's stuck limit.
@@ -336,7 +405,7 @@ flowchart TD
 
 ### Job path
 
-3. **Job** — spawn Pi via `pi-harness` with the Luna Pi primary
+3. **Job** — spawn Pi via `pi-harness` with the resolved worker Pi
    flags. Tell it to read `SKILL_PATH` from route-work and
    follow it exactly, with the user args verbatim as the task input, and
    pass `REPO_ROOT` (the feature `WORKTREE` from ready). Tell it to write
@@ -361,7 +430,8 @@ operator once:
   Commits, then create a PR with `gh pr create`. Run Git as
   `git -C <WORKTREE>` and never commit to or push the protected base branch
   (`main`, `master`, `develop`, `development`, or another protected name).
-  The PR body must follow `~/.cursor/skills/pr-generate/template.md` and include
+  The PR body must follow the host PR template when present (Cursor-only:
+  `~/.cursor/skills/pr-generate/template.md`, not an AiNative agent) and always include
   a mandatory `## Walkthrough` section with step-by-step human instructions.
   Source the walkthrough from plan test flows, `quickstart.md`, and the
   implement summary. Once a PR exists, the walkthrough is required, not
@@ -387,27 +457,29 @@ For feature and change only, `SHIP: ok` parks the run for operator UAT:
 Do not run UAT after a job ship. A ship failure is `SHIP: blocked`, not an
 implicit keep-local decision; report the blocker and stop. Workers do not
 commit, push, create PRs, write walkthroughs, or perform UAT on any path. Ship
-and UAT add no worker launch or model-registry entry.
+and UAT add no worker launch or model-resolution entry.
 
 ## Worker launches
 
-Required `model` on every worker (always pass the registry value; never omit
-it; never pass `inherit` on Tasks). Copy the values by role from **Model
-registry (edit here only)** above:
+Required `model` on every worker (always pass the resolved value; never omit
+it; never pass `inherit` on Tasks). Resolve the value per run from **Model
+resolution (runtime-owned, no pinned values)** above:
 
 | Stage | worker |
 | --- | --- |
-| ready, specify, clarify, plan, tasks, implement, change, job | Pi with Luna Pi primary flags |
-| route, analyze, converge, tester | Task `model` = Grok Task slug |
+| ready, specify, clarify, plan, tasks, implement, change, job | Pi via `pi-harness` with resolved worker Pi flags |
+| route, analyze, converge, tester | Host Task with `model` = resolved reasoning model |
 
-Pass the registry values exactly as written. If Luna Pi primary cannot be
-used, use Luna Pi fallback. If the Grok Task slug cannot be used, use the
-Grok substitute. If both values for that role fail, stop. Never substitute a
-different Cursor slug or Pi model than the registry.
+Pass the resolved values exactly as resolved. If the resolved value for that
+role cannot be used, use the runtime's distinct fallback for that role if one
+exists; otherwise stop. If both the resolved value and the runtime fallback
+fail, stop. Never substitute an invented slug or Pi model outside the
+resolution order above.
 
-Grok-stage workers must be a foreground `generalPurpose` Task with
-`run_in_background: false`. Luna-stage workers must be Pi via `pi-harness`.
-Do not create or retain per-command Cursor agents.
+Reasoning-stage workers must be a foreground `generalPurpose` Task with
+`run_in_background: false` (or the host equivalent: OpenCode subagent /
+Hermes worker session with the resolved reasoning model). Worker stages must run as Pi via `pi-harness`.
+Do not create or retain per-command agents.
 Each worker starts with empty context, so include all of the following in its
 prompt:
 
@@ -422,12 +494,13 @@ prompt:
 - the relevant prior report (implement/converge summary, change report,
   tester findings)
 - the relevant open tasks and findings
-- the skill file to read and follow exactly:
-  - ready: `~/.cursor/skills/speckit-ready/SKILL.md`
-  - route: `~/.cursor/skills/route-work/SKILL.md`
-  - change / tester: `~/.cursor/skills/change/SKILL.md` plus `STEP`
-  - job: the `SKILL_PATH` from route-work
-  - feature stages: the project's `.cursor/skills/speckit-<step>/SKILL.md`
+- the skill file to read and follow exactly (AiNative-first per **Skill path resolution**; hosts resolve via symlink/mount):
+  - ready: `<AINATIVE>/docs/agents/speckit-ready/SKILL.md`
+  - route: `<AINATIVE>/docs/agents/route-work/SKILL.md`
+  - change / tester: `<AINATIVE>/docs/agents/change/SKILL.md` plus `STEP`
+  - job: the `SKILL_PATH` from route-work (already AiNative-first resolved)
+  - feature stages: the project's `REPO_ROOT/.pi/prompts/speckit-<step>.md`
+    (legacy fallback: `REPO_ROOT/.cursor/skills/speckit-<step>/SKILL.md`)
 - specify after ready: the `FLOW_ID` + `BRANCH` + `WORKTREE` precedence rule
   for `before_specify` (branch/worktree creation only)
 
@@ -522,9 +595,9 @@ Do not retry these cases:
   or job worker that returned `STATUS: blocked` with a question queue — the
   parent relays those questions to the user, then resumes the worker with the
   answers; that is not stuck)
-- a Grok-stage required model and its substitute both remain unavailable,
+- a reasoning-stage resolved model and its runtime fallback both remain unavailable,
   inaccessible, or could not be opened (see **Model access and fallback**)
-- a Luna-stage Pi primary and Pi fallback both failed (Pi missing, provider
+- a worker-stage resolved Pi flags and runtime fallback both failed (Pi missing, provider
   or auth failure, job hung, or unusable report)
 
 For these cases, stop immediately and tell the user the prerequisite,

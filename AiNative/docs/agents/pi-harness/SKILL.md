@@ -55,7 +55,7 @@ node "$HOME/.cursor/skills/pi-harness/pi-spawn.mjs" \
   --provider <name> --model <id> --thinking <level> "<prompt>"
 ```
 
-`--provider` / `--thinking` are optional when the parent includes them (Pi accepts `provider/id` and `id:thinking` in `--model`). The spawning agent chooses the model (user request, Spec Kit registry, etc.). Do not invent a fallback inside this skill.
+`--provider` / `--thinking` are optional when the parent includes them (Pi accepts `provider/id` and `id:thinking` in `--model`). The spawning agent chooses the model (user request, runtime default, etc. — never a skill-pinned value). Do not invent a fallback inside this skill.
 
 ## Worker contract (required)
 
