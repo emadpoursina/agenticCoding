@@ -30,6 +30,8 @@ Each agent is a folder with three core files tuned for one job.
 | [change](./change/) | `change` path worker | Thin inspect→edit→tester path; stops with `SCOPE: feature` when underspecified |
 | [critic](./critic/) | Feature-loop Validation | Adversarial review after converge ([feature-loop.md](../systems/feature-loop.md)) |
 | [tester](./tester/) | Feature-loop Validation | Proves flows and runs project `validation_commands` ([feature-loop.md](../systems/feature-loop.md)) |
+| [e2e-testing](./e2e-testing/) | On-demand tool | Plans, implements, executes, debugs, and maintains E2E tests across web, iOS, Android, and React Native; honest Passed/Failed/Blocked reporting with human handoff on retry exhaustion |
+| [handoff](./handoff/) | On-demand tool | Capture or resume session state in `.agent/handoff/`; not a loop state |
 | [pr-reviewer](./pr-reviewer/) | On-demand tool | PR review after Ship on operator request; not a loop state (`SKILL.md` + `prompts.md` + `rules.md`) |
 | [project-bootstrapper](./project-bootstrapper/) | Post-onboarding `job` | Scaffolds an onboarded repo from a PRD card; onboarding itself never writes a PRD |
 | [prd-writer](./prd-writer/) | Post-onboarding `job` | Writes the PRD as a card after onboarding |
@@ -59,6 +61,21 @@ Third-party persona collections are external reference material, not part of the
 |----------|-------------|
 | [The Agency (agency-agents)](https://github.com/msitarzewski/agency-agents) | Specialized AI agent personas (engineering, design, marketing, PM, etc.) with setup for multiple coding tools |
 
+## Host editor access (Cursor and OpenCode)
+
+Same folders, two hosts. Do not copy skill bodies into either editor.
+
+| Host | Skills | Invoke |
+|------|--------|--------|
+| OpenCode | `~/.config/opencode/skill/<name>` → this directory | Skill name |
+| Cursor | `~/.cursor/skills/<name>` → this directory | Skill name, or `/<name>` command |
+
+Cursor slash commands live in [`../../.cursor/commands/`](../../.cursor/commands/) and only wrap the skill. That is the Cursor-only difference; see [cursor-setup.md](../knowledge/setup/cursor-setup.md). Relink after adding an agent:
+
+```bash
+./docs/knowledge/setup/link-host-skills.sh --all
+```
+
 ## Add a new agent
 
 1. Copy [`template/`](./template/) to `docs/agents/<task-name>/`
@@ -67,8 +84,9 @@ Third-party persona collections are external reference material, not part of the
 4. Capture agent-specific constraints in `rule.md`
 5. Add supporting prompt files if the workflow has phases
 6. Register the agent in this README table
-7. If Hermes must dispatch it, wire it to the relevant feature-loop state or named job skill in the control plane. Do not add editor command wrappers or project symlinks.
-8. Tune all three files as the agent is used
+7. If Hermes must dispatch it, wire it to the relevant feature-loop state or named job skill in the control plane.
+8. Run `docs/knowledge/setup/link-host-skills.sh --all` so Cursor and OpenCode symlink this folder. Cursor gets a slash command that only points at the skill; do not fork the workflow in the command file.
+9. Tune all three files as the agent is used
 
 ## Related
 

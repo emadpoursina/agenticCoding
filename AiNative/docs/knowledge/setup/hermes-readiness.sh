@@ -343,18 +343,35 @@ host_checks() {
     gate2 "sqlite3" "sqlite3 not installed on host — db checks skipped"
   fi
 
-  hdr "host skills (AiNative canonical, Cursor symlinks)"
-  local missing="" s
-  for s in speckit-orchestrate/SKILL.md speckit-ready/SKILL.md speckit-ready/scripts/ready-check.sh route-work/SKILL.md change/SKILL.md pi-harness/SKILL.md pi-harness/worker-contract.md pi-harness/pi-spawn.mjs; do
-    [ -r "$HOME/.cursor/skills/$s" ] || missing="$missing $s"
-  done
-  if [ -z "$missing" ]; then pass "cursor-skills" "all present on host (symlinks to AiNative)"; else gate3 "cursor-skills" "missing:$missing"; fi
-  # Retired Opencode hosting must be gone (critic/tester symlinks excepted during transition).
-  local stale=""
-  for s in speckit-orchestrate/SKILL.md speckit-ready/SKILL.md route-work/SKILL.md change/SKILL.md pi-harness/SKILL.md; do
-    [ -e "$HOME/.config/opencode/skill/$s" ] && stale="$stale $s"
-  done
-  if [ -z "$stale" ]; then pass "opencode-retired" "no stale opencode-hosted skills"; else note "opencode-retired" "stale (remove):$stale"; fi
+  hdr "host skills (AiNative canonical, editor symlinks)"
+  local missing="" s name agents_dir
+  agents_dir="$airoot/docs/agents"
+  if [ -d "$agents_dir" ]; then
+    for name in "$agents_dir"/*; do
+      [ -d "$name" ] || continue
+      s=$(basename "$name")
+      case "$s" in template|_skills) continue ;; esac
+      [ -f "$name/SKILL.md" ] || continue
+      [ -r "$HOME/.cursor/skills/$s/SKILL.md" ] || missing="$missing $s"
+    done
+    for s in speckit-ready/scripts/ready-check.sh pi-harness/worker-contract.md pi-harness/pi-spawn.mjs; do
+      [ -r "$HOME/.cursor/skills/$s" ] || missing="$missing $s"
+    done
+  else
+    missing=" agents-dir-not-found"
+  fi
+  if [ -z "$missing" ]; then pass "cursor-skills" "all agents present on host (symlinks to AiNative)"; else gate3 "cursor-skills" "missing:$missing"; fi
+  local oc_missing=""
+  if [ -d "$agents_dir" ]; then
+    for name in "$agents_dir"/*; do
+      [ -d "$name" ] || continue
+      s=$(basename "$name")
+      case "$s" in template|_skills) continue ;; esac
+      [ -f "$name/SKILL.md" ] || continue
+      [ -r "$HOME/.config/opencode/skill/$s/SKILL.md" ] || oc_missing="$oc_missing $s"
+    done
+  fi
+  if [ -z "$oc_missing" ]; then pass "opencode-skills" "all agents present (symlinks to AiNative)"; else note "opencode-skills" "missing:$oc_missing"; fi
 
   if curl -s -o /dev/null -w '%{http_code}' --max-time 3 http://localhost:9119/ 2>/dev/null | grep -qE '200|301|302'; then
     pass "dashboard" "localhost:9119 reachable"

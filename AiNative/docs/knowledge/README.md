@@ -7,6 +7,7 @@ Evergreen technical knowledge — updated in place, no dates. Copy-paste code li
 | File | Topic |
 |------|-------|
 | [new-project.md](./setup/new-project.md) | PRD and project-enrollment planning (enrollment flow is target, not wired) |
+| [cursor-setup.md](./setup/cursor-setup.md) | Host Cursor/OpenCode skill symlinks and Cursor slash-command wrappers |
 | [harness.md](./setup/harness.md) | Current Hermes runtime and target worker model |
 | [server-setup.md](./setup/server-setup.md) | SSH keys, users, remote access |
 | [local-shared-services.md](./setup/local-shared-services.md) | Local Docker databases (MariaDB, MongoDB, Adminer) |
