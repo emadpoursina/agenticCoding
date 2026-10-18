@@ -6,8 +6,8 @@ the control plane already enrolled and onboarded (see
 [new-project.md](../../knowledge/setup/new-project.md) — onboarding creates no
 PRD and scaffolds no app). Sets up app layout, declared dependencies, real
 validation commands, and project `AGENTS.md` — no feature code, no git. Workers
-never ship; the parent commits, pushes the branch, and opens a PR only after
-operator approval.
+never ship; after the job reports `STATUS: ok` the parent ships automatically
+(commit, push, PR; no approval prompt, `keep-local` opts out).
 
 > **Status: target methodology — not wired into the current install.**
 > The current Hermes install has no worker loop running; see
@@ -29,7 +29,7 @@ operator approval.
 - Dependency manifests declared; installs and validation runs happen in the loop's tester state
 - `.ainative/project.yaml` with **real** `validation_commands` (placeholder marker removed — the orchestrator blocks workflows while it remains)
 - `AGENTS.md` project rules filled from [ai-rules-template.md](../../systems/ai-rules-template.md), preserving any existing project control-plane or agent-rules section
-- Handoff: parent commits, pushes the branch, and opens a PR only after operator approval; then the PRD is implemented as feature cards through the [feature loop](../../systems/feature-loop.md)
+- Handoff: after `STATUS: ok` the parent ships automatically (commit, push, PR; no approval prompt, `keep-local` opts out); then the PRD is implemented as feature cards through the [feature loop](../../systems/feature-loop.md)
 
 ## Supporting files
 

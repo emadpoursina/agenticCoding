@@ -83,8 +83,9 @@ cards during onboarding.
   Hermes may call `scout` (read-only brief / Repo Q&A) or the standalone
   `legacy-system-assessment-agent` as on-hand tools — neither is a loop stage
   and neither runs automatically at onboarding.
-* Every card ends the same way: workers never ship; the parent commits,
-  pushes the branch, and opens a PR only after operator approval.
+* Every card ends the same way: workers never ship; once validation passes the
+  parent commits, pushes the branch, and opens a PR automatically (no
+  confirmation prompt; `keep-local` opts out). Merge stays human.
 
 ## Development (unchanged)
 

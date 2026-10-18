@@ -46,8 +46,8 @@ Run in order:
    Telegram and a **new** session encodes the answers. Do not guess.
 4. **Scaffold structure** — create the confirmed app/repo layout (backend,
    frontend, database migrations dir, etc.). No git commands, no commits, no pushes, no PRs: the worktree
-   and branch are managed by Hermes; the parent commits, pushes, and opens a PR
-   only after you finish and the operator approves.
+   and branch are managed by Hermes; the parent ships automatically once you
+   finish with `STATUS: ok`.
 5. **Declare dependencies and validation** — write the dependency manifests
    (`pyproject.toml`, `package.json`, …) with latest stable versions unless
    the PRD pins them. Then **replace the placeholder `validation_commands`**
@@ -63,8 +63,8 @@ Run in order:
 7. **Scratch folder** — create `scratch/`, confirm it's gitignored.
 
 Do not run installs, do not run the validation commands, do not commit, push, or open PRs. The
-tester state runs `validation_commands` inside the worktree; the parent commits, pushes, and opens a PR
-only after the operator approves the job.
+tester state runs `validation_commands` inside the worktree; the parent ships
+the job automatically once it reports `STATUS: ok`.
 
 ---
 
@@ -76,7 +76,7 @@ End with a compact report:
 - `STACK: <confirmed stack>`
 - `MANIFESTS: <files written>`
 - `VALIDATION_COMMANDS: <declared commands>`
-- `SUMMARY: <what the operator should review before approving ship>`
+- `SUMMARY: <what the operator should review in the shipped PR>`
 
 If the card is really a feature (needs spec/plan/review, not a scaffold),
 report `SCOPE: feature` instead and stop — the card parks; do not promote
@@ -89,6 +89,6 @@ yourself onto the feature graph.
 | Loop stage | Project bootstrapper |
 |-----------|-----------------------|
 | Job worker | Read common files + PRD card, confirm stack, scaffold, declare validation |
-| Human gate | Operator reviews the report, approves the parent commit/push/PR |
-| Ship (parent) | Parent commits, pushes the job branch, opens a PR — workers never ship |
+| Human gate | Operator reviews the shipped PR (UAT); merge stays human |
+| Ship (parent) | After `STATUS: ok` the parent commits, pushes the job branch, and opens a PR automatically — workers never ship |
 | Handoff | PRD is implemented as feature cards; the feature loop implements them |

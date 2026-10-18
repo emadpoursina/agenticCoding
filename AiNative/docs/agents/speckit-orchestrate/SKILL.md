@@ -14,10 +14,13 @@ standalone and must not assume any project-specific workflow beyond the
 project's Spec Kit skills and the global skills it names.
 
 ```text
-ready → route-work ─┬─ feature → specify … converge → ship → UAT
-                    ├─ change  → change → tester → ship → UAT
-                    └─ job     → named skill → ship (no UAT)
+ready → route-work ─┬─ feature → specify … converge → ship* → UAT
+                    ├─ change  → change → tester → ship* → UAT
+                    └─ job     → named skill → ship* (no UAT)
 ```
+
+\* `ship` is automatic once validation passes; `keep-local` opts out. Merge is
+manual and outside this loop.
 
 Only **feature** uses the heavy Spec Kit machinery. **change** and **job** are
 thin.
@@ -33,8 +36,13 @@ arguments or in a later reply during specify or clarify. Match case-insensitivel
   workers not to ask; they document assumptions or pick recommended options and
   write those into the spec. After clarify, show the worker's **choice report**
   (what was chosen and why), then continue to plan. Do not treat `skip` as
-  permission to skip plan, tasks, implement, or converge. `skip` does not
-  answer the ship decision or authorize shipping; the parent must still ask.
+  permission to skip plan, tasks, implement, or converge. `skip` has no effect
+  on ship: ship is automatic after validation passes (see **Ship / UAT**).
+- **keep-local** — A lone word `keep-local` (alias `no-ship`) opts this run out
+  of shipping. After validation passes the parent leaves the work uncommitted
+  in `WORKTREE`, emits `SHIP: declined`, and skips UAT. It is the only way to
+  suppress the automatic ship; the default is to ship. Committing the work
+  locally afterward is the operator's job.
 - **path: feature|change|job** — the user chose the path. Pass it to route-work
   as `REQUESTED_PATH`; route-work must honor it.
 - **skill: <name>** — the skill a job must use. Pass it to route-work as
@@ -195,9 +203,10 @@ mechanism (never Pi, never in-parent).
 The parent MAY only: mint `FLOW_ID`, check prerequisites, dispatch workers,
 parse reports, honor the keywords, relay a worker's queued questions to the
 user one at a time (relay only; do not score or write the answer into files),
-show the clarify choice report, ask the shared ship decision, execute ship,
-park feature/change runs for UAT, ask the job ship decision and carry it out,
-enforce stuck policy, and write the finish report. Ship and UAT are parent-only
+show the clarify choice report, run the pre-push guards, execute the automatic
+ship (commit, push, PR) once validation passes unless the operator passed
+`keep-local`, park feature/change runs for UAT, enforce stuck policy, and write
+the finish report. Ship and UAT are parent-only
 operations; workers remain ship-dumb on every path. It MAY read
 worker reports, `git diff --stat`, and `quickstart.md` for that report. It MUST NOT read the
 stage skills (AiNative `<AINATIVE>/docs/agents/...` or project Spec Kit prompts
@@ -252,25 +261,28 @@ flowchart TD
   analyzeRun --> impl
   impl --> conv[converge]
   conv -->|tasks_appended| impl
-  conv -->|converged| featureShip[ship decision]
-  featureShip -->|ship ok| featureUat[UAT park]
-  featureShip -->|declined| featureDone[finish report]
+  conv -->|converged| featureShip[ship: commit, push, PR]
+  featureShip -->|ok| featureUat[UAT park]
+  featureShip -->|keep-local / declined| featureDone[finish report]
+  featureShip -->|blocked| featureShipHalt[halt: ship blocked]
   featureUat -->|pass| featureDone
   featureUat -->|fail| featureHalt[halt with findings]
 
   change -->|SCOPE feature| haltScope[stop: needs feature path]
   change --> tester[tester]
   tester -->|FAIL| change
-  tester -->|PASS| changeShip[ship decision]
-  changeShip -->|ship ok| changeUat[UAT park]
-  changeShip -->|declined| changeDone[finish report]
+  tester -->|PASS| changeShip[ship: commit, push, PR]
+  changeShip -->|ok| changeUat[UAT park]
+  changeShip -->|keep-local / declined| changeDone[finish report]
+  changeShip -->|blocked| changeShipHalt[halt: ship blocked]
   changeUat -->|pass| changeDone
   changeUat -->|fail| changeHalt[halt with findings]
 
   job -->|questions| job
-  job --> publish{ship?}
-  publish -->|yes| pr[commit, push, PR]
-  publish -->|no| jobDone[job report]
+  job --> publish[ship: commit, push, PR]
+  publish -->|ok| jobDone[job report]
+  publish -->|keep-local / declined| jobDone
+  publish -->|blocked| jobShipHalt[halt: ship blocked]
 ```
 
 ### Shared start
@@ -380,10 +392,12 @@ flowchart TD
    `tasks_appended` with genuinely new tasks starts another implementation
    pass. Do not request user confirmation. The parent MUST NOT implement
    application code or append converge tasks itself.
-9. **Ship / UAT** — after `CONVERGE_OUTCOME: converged`, use the shared
-   **Ship / UAT** procedure below. On ship decline, finish with the report.
-   On ship success, park for UAT; a UAT pass completes the run and a UAT
-   failure halts with findings.
+9. **Ship / UAT** — after `CONVERGE_OUTCOME: converged`, run the shared
+   **Ship / UAT** procedure below automatically. There is no ship confirmation
+   prompt: unless the operator passed `keep-local`, the parent commits, pushes,
+   and opens the PR, then parks for UAT; a UAT pass completes the run and a UAT
+   failure halts with findings. On `SHIP: blocked`, halt with the blocker. On
+   `keep-local` / `SHIP: declined`, finish with the report and skip UAT.
 
 ### Change path
 
@@ -398,10 +412,11 @@ flowchart TD
    `STEP: tester`, and pass the change report. On `TESTER: FAIL`, launch a new
    change worker with the `FINDINGS` and the next `ATTEMPT`, then test again.
    This counts toward the change step's stuck limit.
-5. **Ship / UAT** — after `TESTER: PASS`, use the shared **Ship / UAT**
-   procedure below. On ship decline, finish with the report. On ship success,
-   park for UAT; a UAT failure halts with findings; v1 does not loop back to
-   implement.
+5. **Ship / UAT** — after `TESTER: PASS`, run the shared **Ship / UAT**
+   procedure below automatically (no confirmation prompt). Unless the operator
+   passed `keep-local`, the parent commits, pushes, and opens the PR, then parks
+   for UAT; a UAT failure halts with findings; v1 does not loop back to
+   implement. On `SHIP: blocked`, halt with the blocker.
 
 ### Job path
 
@@ -415,29 +430,48 @@ flowchart TD
    and resume or relaunch the worker with the answers. If the worker reports
    the task is really a code change, stop and tell the user; do not switch
    paths on your own.
-4. **Ship decision** — after `STATUS: ok`, use the shared **Ship / UAT**
-   procedure below. For jobs, ship is the final action: do not run UAT.
+4. **Ship** — after `STATUS: ok`, run the shared **Ship / UAT** procedure
+   below automatically (no confirmation prompt), unless the operator passed
+   `keep-local`. For jobs, ship is the final action: do not run UAT.
 5. **Complete** — report the skill used, the artifacts, and the PR URL when
    published.
 
 ## Ship / UAT (parent only; job skips UAT)
 
 Feature enters this procedure after `CONVERGE_OUTCOME: converged`; change
-enters after `TESTER: PASS`; job enters after `STATUS: ok`. The parent asks the
-operator once:
+enters after `TESTER: PASS`; job enters after `STATUS: ok`.
 
-- **A — ship:** commit and push from `WORKTREE` on `BRANCH` using Conventional
-  Commits, then create a PR with `gh pr create`. Run Git as
-  `git -C <WORKTREE>` and never commit to or push the protected base branch
-  (`main`, `master`, `develop`, `development`, or another protected name).
-  The PR body must follow the host PR template when present (Cursor-only:
-  `~/.cursor/skills/pr-generate/template.md`, not an AiNative agent) and always include
-  a mandatory `## Walkthrough` section with step-by-step human instructions.
-  Source the walkthrough from plan test flows, `quickstart.md`, and the
-  implement summary. Once a PR exists, the walkthrough is required, not
-  optional.
-- **B — keep local:** leave files uncommitted; skip UAT. This is the only
-  meaning of a declined ship decision.
+**Ship is automatic and asks no confirmation.** Once the path's validation
+gate passes, the parent commits, pushes, and opens a PR. The PR *is* the
+review surface: the operator reviews the concrete diff and walkthrough, not the
+intent beforehand. Merge is never part of this loop — the parent never merges
+anything, on any path. Human judgment keeps exactly two gates: UAT on the open
+PR, and merge (outside the loop).
+
+Opt out with the `keep-local` keyword (see **Keywords**): when present, skip
+ship, emit `SHIP: declined`, and finish.
+
+**Pre-push guards — all must hold before pushing; otherwise `SHIP: blocked`:**
+
+- Path validation passed (feature: `CONVERGE_OUTCOME: converged`; change:
+  `TESTER: PASS`; job: `STATUS: ok`).
+- `BRANCH` is a topic branch, never a protected base branch (`main`, `master`,
+  `develop`, `development`, or another protected name).
+- The remote is the project's expected `origin`.
+- No obvious secret material is staged (`.env`, credential files, keys). If
+  found, stop and report rather than push.
+
+**Ship action:**
+
+- Commit and push from `WORKTREE` on `BRANCH` using Conventional Commits, then
+  create a PR with `gh pr create`. Run Git as `git -C <WORKTREE>`.
+- Never commit to or push the protected base branch.
+- The PR body must follow the host PR template when present (Cursor-only:
+  `~/.cursor/skills/pr-generate/template.md`, not an AiNative agent) and always
+  include a mandatory `## Walkthrough` section with step-by-step human
+  instructions. Source the walkthrough from plan test flows, `quickstart.md`,
+  and the implement summary. Once a PR exists, the walkthrough is required, not
+  optional — it is what the operator reviews.
 
 After the parent completes the ship action, emit:
 
@@ -445,7 +479,7 @@ After the parent completes the ship action, emit:
 SHIP: ok | blocked | declined
 PR: <PR URL, or none>
 WALKTHROUGH: <included | none | blocked>
-SUMMARY: <what shipped or why it was kept/blocked>
+SUMMARY: <what shipped, why it was kept local, or what blocked>
 ```
 
 For feature and change only, `SHIP: ok` parks the run for operator UAT:
@@ -454,10 +488,11 @@ For feature and change only, `SHIP: ok` parks the run for operator UAT:
 - **B — UAT fail:** halt with the findings. In v1, do not loop back to
   implement.
 
-Do not run UAT after a job ship. A ship failure is `SHIP: blocked`, not an
-implicit keep-local decision; report the blocker and stop. Workers do not
-commit, push, create PRs, write walkthroughs, or perform UAT on any path. Ship
-and UAT add no worker launch or model-resolution entry.
+Do not run UAT after a job ship, nor after `SHIP: blocked` or `SHIP: declined`.
+A ship failure is `SHIP: blocked`, not an implicit keep-local decision; report
+the blocker and stop. `SHIP: declined` means only the `keep-local` opt-out.
+Workers do not commit, push, create PRs, write walkthroughs, or perform UAT on
+any path. Ship and UAT add no worker launch or model-resolution entry.
 
 ## Worker launches
 
@@ -611,8 +646,8 @@ work; an unchanged fingerprint follows the stuck policy. Only
 During the loop, keep updates short: iteration number, implement status,
 converge outcome, and finding count. On `CONVERGE_OUTCOME: converged`, state
 that the feature satisfies the specification, plan, and tasks, give the number
-of iterations, then proceed to the shared ship decision (and UAT when the
-operator ships). On a stop, state the failed step, attempt count,
+of iterations, then proceed to the automatic ship (and UAT when ship
+succeeds). On a stop, state the failed step, attempt count,
 worker report, actions already tried, and what the user must do next.
 
 Do not handle constitution, checklist, taskstoissues, or other commands outside

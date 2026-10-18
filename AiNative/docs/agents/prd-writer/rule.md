@@ -2,8 +2,8 @@
 
 Post-onboarding `job`: runs as a card after one-time onboarding
 ([new-project.md](../../knowledge/setup/new-project.md) never produces a PRD).
-Workers never commit, push, or open PRs; the parent commits, pushes, and opens
-a PR only after operator approval.
+Workers never commit, push, or open PRs; after `STATUS: ok` the parent ships
+the `job` automatically (no operator approval prompt; `keep-local` opts out).
 
 Constraints specific to this agent. Generic repo rules live in the project's `AGENTS.md`.
 
@@ -45,7 +45,7 @@ After writing the PRD:
 1. Tell the user the PRD is ready at the file path
 2. Offer the next Kanban step: a `project-bootstrapper` job card that scaffolds from this PRD, or a feature card if the project is ready
 3. Mention that the Open Questions section should be reviewed with stakeholders before locking the scope
-4. Never commit, push, or open a PR yourself — the parent does that after operator approval
+4. Never commit, push, or open a PR yourself — the parent ships the job automatically after `STATUS: ok`
 
 ## Related enforcement
 

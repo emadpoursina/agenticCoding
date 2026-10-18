@@ -33,8 +33,8 @@ git commits, pushes, PRs, the board, validation runs, and shipping. Workers neve
 - Write feature/business logic — this worker only sets up the environment;
   implementation happens afterward via feature cards and the feature loop
 - Run git commands that mutate history or ship (commit, push, branch management, PRs) —
-  the worktree branch is Hermes-owned; the parent commits, pushes, and opens a PR
-  only after the operator approves the job
+  the worktree branch is Hermes-owned; the parent ships the job automatically
+  once it reports `STATUS: ok`
 - Run installs or the validation commands itself — the tester state runs
   `validation_commands`
 - Pick dependency versions without checking latest stable versions via the PRD's package manager (unless the PRD pins them)

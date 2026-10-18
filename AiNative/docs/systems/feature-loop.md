@@ -127,10 +127,13 @@ means a default — it means machine-infer by `route-work`.
 |---|---|---|
 | `feature` | A desired product outcome that needs a spec, plan, and review | The graph below; planning creates child Task Cards |
 | `change` | A small code edit already specified by the card | `ready` → `route` → one worker → `tester` → `ship` |
-| `job` | Work that is not a code change (write a PRD, bootstrap from a PRD) | `ready` → `route` → one worker for the named skill. It may park for a human. Workers never ship. After the worker reports `STATUS: ok` the parent parks for the operator's decision: approval commits, pushes the branch, and opens a pull request; decline completes without shipping. It does not enter the feature graph |
+| `job` | Work that is not a code change (write a PRD, bootstrap from a PRD) | `ready` → `route` → one worker for the named skill. It may park for a human. Workers never ship. After the worker reports `STATUS: ok` the parent automatically commits, pushes the branch, and opens a pull request (the PR is the review surface; `keep-local` opts out). It does not enter the feature graph |
 
-No worker on any path ships. Every path ends the same way: the parent
-commits, pushes the branch, and opens a PR only after operator approval.
+No worker on any path ships. Every path ends the same way: once validation
+passes, the parent commits, pushes the branch, and opens a PR automatically,
+with no confirmation prompt. The PR is the review surface; the operator's
+gates are UAT on the open PR and merge (outside the loop). `keep-local` opts a
+run out of shipping.
 
 A `change` or `job` worker that finds the card is really a feature stops
 and reports that. It does not promote itself onto the feature graph.
@@ -145,8 +148,8 @@ only.
 This graph is the `feature` path. Orchestrator-specific **edges** (not extra loops):
 
 - **Hermes:** pick the Kanban card, isolate its worktree, surface human
-  gates on the operator path, and ship to GitHub only after
-  required checks pass and the operator approves.
+  gates on the operator path, and ship to GitHub once required checks pass
+  (automatic; `keep-local` opts out).
 
 ```text
 ready → route
@@ -171,11 +174,12 @@ ready → route
 | `converge` | Spec Kit | yes | `tasks_appended` (new work) → implement again. Unchanged fingerprint → stuck. Only `converged` exits the loop. |
 | `critic` | AiNative | yes | Adversarial review of spec/plan/implementation. Required. After converge; not a “finish” report. |
 | `tester` | AiNative | yes | Prove the flows. Project `validation_commands` run **here**, not as a parallel parent phase. Required. |
-| `ship` | parent / GitHub | **no** | Parent commits everything, pushes the branch, and opens a PR with a step-by-step human walkthrough in the PR body, only after operator approval; workers never ship, on any path. |
+| `ship` | parent / GitHub | **no** | Parent commits everything, pushes the branch, and opens a PR with a step-by-step human walkthrough in the PR body. Automatic once validation passes (feature: `converged`; change: tester PASS; job: `STATUS: ok`); `keep-local` opts out; workers never ship, on any path. |
 | `uat` | parent ↔ human | **no** | Operator exercises the shipped PR using the walkthrough. Pass/fail confirmation; exact trigger/presentation policy is being refined. |
 
 **End-of-path rule (all paths):** workers never commit, push, or open PRs.
-The parent does that in `ship` after operator approval.
+The parent does that in `ship` automatically once validation passes; the
+operator then reviews the PR (UAT) and merges. Merge is never done by this loop.
 
 ## PIVS mapping
 
@@ -184,14 +188,15 @@ The loop above is the detailed form of PIVS:
 * **Plan** = `ready → route → specify → clarify → plan → tasks → [analyze]`
 * **Implementation** = `implement ↔ converge`
 * **Validation** = `critic → tester`
-* **Ship** = `ship` (commit, push, PR with walkthrough; ends uat-ready) → human `uat`
+* **Ship** = `ship` (commit, push, PR with walkthrough; ends uat-ready) → human `uat` → human merge (outside the loop)
 
 `pr-reviewer` is an on-demand tool after Ship, not a loop state. Run it
 whenever a PR needs review; do not gate Ship on it.
 
 **Default ship order** (until explicitly changed): tester PASS, then parent
-ships the **branch** (commit, push, open PR with walkthrough). Do not open a PR
-and then treat the walkthrough as optional.
+ships the **branch** (commit, push, open PR with walkthrough) automatically,
+with no confirmation prompt; `keep-local` opts out. Do not open a PR and then
+treat the walkthrough as optional. Merge stays human and outside the loop.
 
 `skip` is an **operator flag**, not a skipped specify/clarify state.
 Workers self-answer; the parent still shows the choice report and goes
@@ -217,7 +222,7 @@ Converge: `CONVERGE_OUTCOME: converged|tasks_appended|blocked`,
 Critic / tester: keep each agent’s existing PASS/FAIL
 contract; the parent must get a parseable status, not only narrative.
 
-Ship: `SHIP: ok|blocked`, `PR`, `WALKTHROUGH`, `SUMMARY`.
+Ship: `SHIP: ok|blocked|declined`, `PR`, `WALKTHROUGH`, `SUMMARY`.
 
 ## Stuck policy
 

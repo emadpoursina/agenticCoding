@@ -32,8 +32,9 @@ workflow.
 ## 1. Harness
 
 The managed-project runtime is the Hermes agent (the `personalAgent` install).
-Hermes owns the board, worktree isolation, state transitions, human gates, and
-ship decision. In the target design it starts one fresh worker session for
+Hermes owns the board, worktree isolation, state transitions, human gates
+(UAT and merge), and the automatic ship step. In the target design it starts
+one fresh worker session for
 each agent state, in the task worktree; the current install has no worker loop
 wired.
 

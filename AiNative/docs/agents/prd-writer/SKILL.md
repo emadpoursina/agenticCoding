@@ -308,8 +308,9 @@ Read the user's entire idea description before asking any questions. Extract wha
 
 <!-- source: _skills/conventional-commits/SKILL.md -->
 
-Workers never commit, push, or open PRs. If the parent commits this PRD after
-operator approval: single commit, type `docs`, message `docs: add PRD for [product name]`.
+Workers never commit, push, or open PRs. The parent ships a `job`
+automatically after `STATUS: ok` (no operator approval prompt; `keep-local`
+opts out): single commit, type `docs`, message `docs: add PRD for [product name]`.
 
 ---
 
