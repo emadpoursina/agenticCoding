@@ -48,14 +48,20 @@ arguments or in a later reply during specify or clarify. Match case-insensitivel
 - **skill: <name>** — the skill a job must use. Pass it to route-work as
   `REQUESTED_SKILL`.
 - **worker: <pi-model>** — per-role override for the worker role only
-  (all Pi stages). Accepts `provider/model`, `provider/model:thinking`, or
+  (`ready`, `specify`, `clarify`, `tasks`, `implement`, `change`, `job` — the
+  Pi stages). Accepts `provider/model`, `provider/model:thinking`, or
   full Pi flags (`--provider <p> --model <m> [--thinking <t>]`). Example:
   `worker: my-provider/my-exec-model`. Validated by launching Pi; never
-  applied to reasoning stages.
+  applied to reasoning or validation stages.
 - **reasoning: <task-slug>** — per-role override for the reasoning role only
-  (`route`, `analyze`, `converge`, `tester`). Must be a slug from the
+  (`plan`, `route`, `analyze`, `converge`; plan-reviewer when used = reasoning,
+  same model as plan). Must be a slug from the
   runtime's allowed Task model list. Example: `reasoning: my-reviewer-slug`.
-  Never applied to worker stages.
+  Never applied to worker or validation stages.
+- **validation: <task-slug>** — per-role override for the validation role only
+  (`critic`, `tester`). Must be a slug from the runtime's allowed Task model
+  list. Example: `validation: my-validator-slug`. Never applied to worker or
+  reasoning stages.
 
 ## Parent vs worker (hard)
 
@@ -73,12 +79,14 @@ artifacts, not by running `ready-check.sh`, not by editing code in-place
 because context is already loaded.
 
 Never omit `model`. Never pass `inherit` on Task launches. Ban
-`inherit` for every reasoning-stage Task in this pipeline.
+`inherit` for every reasoning- or validation-stage Task in this pipeline.
 
 For reasoning stages the parent MUST launch a foreground `generalPurpose` Task
 (`run_in_background: false`) with the **resolved** reasoning model from
 **Model resolution** below (user override else runtime default — never a
-skill-pinned slug, never `inherit`). For worker stages the
+skill-pinned slug, never `inherit`). Validation stages use the same host Task
+launch with the **resolved** validation model, in a fresh session. For worker
+stages the
 parent MUST spawn Pi via `pi-harness` with the resolved worker Pi flags; do
 not launch a Task for those stages.
 
@@ -123,45 +131,51 @@ Roles (stage kinds, not model IDs):
 
 | Role | Stages |
 | --- | --- |
-| worker | `ready`, `specify`, `clarify`, `plan`, `tasks`, `implement`, `change`, `job` (Pi via `pi-harness`) |
-| reasoning | `route`, `analyze`, `converge`, `tester` (host Task: Cursor `generalPurpose` Task, OpenCode subagent equivalent, or Hermes worker session) |
+| worker | `ready`, `specify`, `clarify`, `tasks`, `implement`, `change`, `job` (Pi via `pi-harness`) |
+| reasoning | `plan`, `route`, `analyze`, `converge` (host Task: Cursor `generalPurpose` Task, OpenCode subagent equivalent, or Hermes worker session). plan-reviewer when used = reasoning, same model as plan. |
+| validation | `critic`, `tester` (host Task or equivalent, fresh session, validation model — distinct from plan/implement) |
 
-Resolution order for each role, per run (set each role separately —
-`worker:` never affects reasoning stages, `reasoning:` never affects worker stages):
+Which role fits which job is the authority of `docs/systems/agentic-system.md`
+§2 Model; this skill only resolves concrete values per role.
+
+Resolution order for each role, per run (each keyword/env affects only its own
+role — `worker:` never affects reasoning or validation stages, `reasoning:`
+and `validation:` never affect worker stages):
 
 1. **Invocation keywords** — `worker: <pi-model>` sets the worker role
-   only; `reasoning: <task-slug>` sets the reasoning role only. Validate before
+   only; `reasoning: <task-slug>` sets the reasoning role only;
+   `validation: <task-slug>` sets the validation role only. Validate before
    use (Pi must launch; Task slug must be in the runtime's allowed list).
    Invalid value for that role → STOP for that role, say what was rejected
    and list what the runtime allows. Do not guess, do not cross-apply.
 2. **Env override** — `SPECKIT_WORKER_MODEL` (Pi flags or `provider/model[:thinking]`,
-   worker only), `SPECKIT_REASONING_MODEL` (Task slug, reasoning only). Same validation
+   worker only), `SPECKIT_REASONING_MODEL` (Task slug, reasoning only),
+   `SPECKIT_VALIDATION_MODEL` (Task slug, validation only). Same validation
    as keywords. Env beats runtime defaults but loses to invocation keywords.
 3. **Runtime default** — otherwise use the runtime's configured default **per role**:
-   - Hermes: `config.yaml` model + card profile (`hermes kanban set-model`,
-     `default` profile fallback). Suggested mapping: worker → implementation/
-     execution tier (cheap, fast), reasoning → reasoning tier (route/analyze/
-     converge/tester), with critic/tester on a model distinct from plan/
-     implement per `validation-layer.md`. Keys live in Hermes
+   - Hermes: per-role `config.yaml` model + card profile (`hermes kanban set-model`,
+     `default` profile fallback). Keys live in Hermes
      (`$HERMES_DATA_ROOT/state/config.yaml`); this skill never invents them —
      read what `hermes config get model.*` / `hermes profile list` reports.
    - Cursor: reasoning = session default Task model (must be in the allowed Task
-     model list); worker = operator-confirmed Pi provider/model (env or last
+     model list); validation = a different allowed Task model for the session
+     (fresh session for critic/tester); worker = operator-confirmed Pi provider/model (env or last
      working Pi flags). Set them independently in the session before invoking.
-   - OpenCode: reasoning = configured subagent model for this session;
+   - OpenCode: reasoning/validation = the configured subagent model for this
+     session (validation distinct from reasoning);
      worker = same Pi provider/model mechanism as Cursor (Pi is external to
      both editors).
    Pass `--thinking` only when that role's resolved source specifies it;
    never invent it.
 4. **Unresolved** — if a role has no usable value from 1–3, STOP before
    launching that role and ask the operator for that role's value only. Never
-   invent a nearby slug, never reuse the other role's model.
+   invent a nearby slug, never reuse another role's model.
 
 ## Model access and fallback
 
 The resolved value is always the first choice. Never invent nearby slugs.
 
-**Worker stages** (`ready`, `specify`, `clarify`, `plan`, `tasks`, `implement`,
+**Worker stages** (`ready`, `specify`, `clarify`, `tasks`, `implement`,
 `change`, `job`): spawn as a Pi sub-agent. Follow the `pi-harness` skill. You
 stay in control; Pi is the worker. Give Pi the same worker prompt this skill
 would have given a Task (repo root, skill path, skip, report format,
@@ -177,7 +191,7 @@ model). If there is no runtime fallback, or that fallback
 also fails, STOP (this is not a stuck retry of the primary). Wait for the
 user to fix it.
 
-**Reasoning stages** (`route`, `analyze`, `converge`, `tester`): launch a Task
+**Reasoning stages** (`plan`, `route`, `analyze`, `converge`): launch a Task
 with the resolved reasoning model. Check the session's allowed Task model list
 before launch. If the resolved value is missing from the list, Task rejects it, or the
 launch fails because of the model, do not invent another slug: launch once
@@ -185,6 +199,13 @@ more only if the runtime defines a distinct fallback model. If there is no
 runtime fallback, or the fallback also cannot be used, STOP
 immediately. Do not continue to the next stage and do not count this as a
 stuck retry. Wait for the user to fix it.
+
+**Validation stages** (`critic`, `tester`): launch a fresh foreground host
+Task with the resolved validation model — never continue a plan or implement
+session. Same rules as reasoning stages: check the allowed Task model list,
+never invent a slug, retry only a runtime-defined distinct fallback, and STOP
+(that role, not a stuck retry) if both the resolved value and the fallback
+fail. Wait for the user to fix it.
 
 Then tell the user, in plain language:
 
@@ -196,9 +217,9 @@ Then tell the user, in plain language:
 Do **not**: run any stage in the parent; pass or omit `inherit` on Tasks;
 switch to Auto, Composer, Fast, or any nearby slug; retry the same
 exact-slug or same Pi flags after a model-access failure; or keep a
-reasoning-stage pipeline going so the user never sees the problem. Pi is the
-only worker runtime for worker stages. Reasoning stages stay on the host Task
-mechanism (never Pi, never in-parent).
+reasoning- or validation-stage pipeline going so the user never sees the problem. Pi is the
+only worker runtime for worker stages. Reasoning and validation stages
+stay on the host Task mechanism (never Pi, never in-parent).
 
 The parent MAY only: mint `FLOW_ID`, check prerequisites, dispatch workers,
 parse reports, honor the keywords, relay a worker's queued questions to the
@@ -368,8 +389,9 @@ flowchart TD
    **When clarify completes, go straight to plan.** Do not ask the user to
    confirm, do not wait for "continue", and do not pause after the choice
    report. There is no continuation gate in this run.
-5. **Plan** — spawn Pi via `pi-harness` with the resolved worker Pi
-   flags. It follows `REPO_ROOT/.pi/prompts/speckit.plan.md`
+5. **Plan** — launch a `generalPurpose` worker with the resolved reasoning
+   model (spawn like route; plan is a reasoning stage, not a Pi worker stage).
+   It follows `REPO_ROOT/.pi/prompts/speckit.plan.md`
    (legacy fallback: `REPO_ROOT/.cursor/skills/speckit-plan/SKILL.md`)
    and returns the plan artifacts plus `ANALYZE: yes|no` and a one-line
    reason. Use `yes` for cross-cutting contracts, constitution tension, or
@@ -408,7 +430,7 @@ flowchart TD
    `SCOPE: feature`, stop and tell the user the task needs the feature path
    (re-run with `path: feature`). Do not switch paths on your own.
 4. **Tester** — launch a fresh `generalPurpose` worker with the
-   resolved reasoning model. Tell it to follow the same skill with
+   resolved validation model (fresh session; never the change worker's model). Tell it to follow the same skill with
    `STEP: tester`, and pass the change report. On `TESTER: FAIL`, launch a new
    change worker with the `FINDINGS` and the next `ATTEMPT`, then test again.
    This counts toward the change step's stuck limit.
@@ -500,10 +522,11 @@ Required `model` on every worker (always pass the resolved value; never omit
 it; never pass `inherit` on Tasks). Resolve the value per run from **Model
 resolution (runtime-owned, no pinned values)** above:
 
-| Stage | worker |
+| Stage | Role / spawn |
 | --- | --- |
-| ready, specify, clarify, plan, tasks, implement, change, job | Pi via `pi-harness` with resolved worker Pi flags |
-| route, analyze, converge, tester | Host Task with `model` = resolved reasoning model |
+| ready, specify, clarify, tasks, implement, change, job | **worker** — Pi via `pi-harness` with resolved worker Pi flags |
+| plan, route, analyze, converge | **reasoning** — host Task with `model` = resolved reasoning model (plan-reviewer, when used, pinned to the same model as plan) |
+| critic, tester | **validation** — host Task with `model` = resolved validation model, fresh session |
 
 Pass the resolved values exactly as resolved. If the resolved value for that
 role cannot be used, use the runtime's distinct fallback for that role if one
@@ -511,9 +534,10 @@ exists; otherwise stop. If both the resolved value and the runtime fallback
 fail, stop. Never substitute an invented slug or Pi model outside the
 resolution order above.
 
-Reasoning-stage workers must be a foreground `generalPurpose` Task with
+Reasoning- and validation-stage workers must be a foreground `generalPurpose` Task with
 `run_in_background: false` (or the host equivalent: OpenCode subagent /
-Hermes worker session with the resolved reasoning model). Worker stages must run as Pi via `pi-harness`.
+Hermes worker session with the resolved reasoning or validation model;
+validation always in a fresh session). Worker stages must run as Pi via `pi-harness`.
 Do not create or retain per-command agents.
 Each worker starts with empty context, so include all of the following in its
 prompt:
@@ -630,7 +654,7 @@ Do not retry these cases:
   or job worker that returned `STATUS: blocked` with a question queue — the
   parent relays those questions to the user, then resumes the worker with the
   answers; that is not stuck)
-- a reasoning-stage resolved model and its runtime fallback both remain unavailable,
+- a reasoning- or validation-stage resolved model and its runtime fallback both remain unavailable,
   inaccessible, or could not be opened (see **Model access and fallback**)
 - a worker-stage resolved Pi flags and runtime fallback both failed (Pi missing, provider
   or auth failure, job hung, or unusable report)

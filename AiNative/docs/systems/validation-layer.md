@@ -38,15 +38,15 @@ The [critic](../agents/critic/) agent is the independent validation layer. It re
 
 ### Model selection
 
-Model tiers (reasoning, implementation, execution): [agentic-system.md](./agentic-system.md#2-model).
+Three model roles (reasoning, worker, validation): [agentic-system.md](./agentic-system.md#2-model).
 
-Use a **different LLM model** for Validation (critic and tester) than for Plan and Implementation. Same-model review inherits the same blind spots and reasoning patterns that produced the plan or code.
+Critic and tester are the **validation role**. Use a **different LLM model** for the validation role than for Plan (reasoning) or Implementation (worker). Same-model review inherits the same blind spots and reasoning patterns that produced the plan or code.
 
 - Start critic and tester in a **new chat** — do not continue the Plan or Implementation session
-- Select a model distinct from the one used in Plan or Implementation
-- Keep critic and tester on the Validation model; loop back to Plan or Implementation only after switching back to the planning/implementation model
+- Select the validation-role model, distinct from the reasoning and worker models
+- Keep critic and tester on the validation model; loop back to Plan or Implementation only after switching back to the reasoning/worker model
 
-**Exception — the [plan-reviewer](../agents/plan-reviewer/) gate:** this runs at the end of the Plan phase, before Validation, and deliberately uses the **same** model as the planner. It is a structured second pass that catches omissions and checklist misses (missing sections, untestable criteria, skipped discovery answers), not an independent adversarial review. Cross-model independence is still provided later by critic. Do not replace critic with plan-reviewer.
+**Exception — the [plan-reviewer](../agents/plan-reviewer/) gate:** this runs at the end of the Plan phase, before Validation, and deliberately uses the **same** model as the planner — the reasoning role. It is a structured second pass that catches omissions and checklist misses (missing sections, untestable criteria, skipped discovery answers), not an independent adversarial review. Cross-model independence is still provided later by critic. Do not replace critic with plan-reviewer.
 
 ---
 

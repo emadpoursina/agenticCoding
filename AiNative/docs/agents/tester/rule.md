@@ -4,7 +4,7 @@ Constraints for the PIV Validation executor. Architecture: [validation-layer.md]
 
 ## Must
 
-- Use a different LLM model (and a new chat) than Plan or Implementation — [model selection](../../systems/validation-layer.md#model-selection)
+- Use the **validation role** model — a different LLM (and a new chat) than Plan or Implementation — [model selection](../../systems/validation-layer.md#model-selection)
 - Run only after the [critic](../critic/) implementation review PASSes
 - Run unit tester and system tester in separate chats — reset context between sub-roles
 - Execute every test flow from the Plan artifact — do not skip

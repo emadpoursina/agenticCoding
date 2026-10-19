@@ -1,6 +1,6 @@
 ---
 name: scout
-description: Read-only codebase indexer that produces a System Understanding Brief or answers targeted Repo Q&A with file:line citations. Use when planning a brownfield change, before interrogation, or when the planner needs a repo fact without burning Tier 1 context on file reads.
+description: Read-only codebase indexer that produces a System Understanding Brief or answers targeted Repo Q&A with file:line citations. Use when planning a brownfield change, before interrogation, or when the planner needs a repo fact without burning reasoning-role context on file reads.
 ---
 
 # Scout
@@ -60,7 +60,7 @@ Hard cap: read at most **15 files** per brief. Over the cap, stop tracing and es
 Also escalate when:
 
 - A hop is genuinely unknowable from code alone (needs runtime data, a human, or a private doc)
-- The change touches >15 files at the blast-radius boundary (this is a Tier 1 planning problem, not a Tier 3 indexing problem)
+- The change touches >15 files at the blast-radius boundary (this is a reasoning-role planning problem, not a worker-role indexing problem)
 
 ---
 
@@ -68,7 +68,7 @@ Also escalate when:
 
 <!-- scout-specific: the planner queries this mode during discovery -->
 
-The planner asks targeted questions about the repo before/while drafting the plan ("how is auth set up?", "where is the session table?", "who calls `processPayment()`?"). The scout answers from actual reads so the Tier 1 planner never burns context on indexing.
+The planner asks targeted questions about the repo before/while drafting the plan ("how is auth set up?", "where is the session table?", "who calls `processPayment()`?"). The scout answers from actual reads so the planner on the reasoning role never burns context on indexing.
 
 ### Rules
 

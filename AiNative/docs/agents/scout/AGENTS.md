@@ -5,7 +5,7 @@ On-hand read-only codebase tool Hermes may call any time it needs repo facts —
 1. **System Understanding Brief** — traces the current system in the blast-radius area of a proposed change and produces a brief with `file:line` citations, unknowns marked ❓, no design opinions.
 2. **Repo Q&A (on-demand)** — during discovery/interrogation, the planner asks it targeted questions about the repo ("how is auth set up?", "where is the session table?", "who calls this entry point?") and it answers from actual file reads.
 
-Runs on a **Tier 3 (Execution)** model — cheap and fast — see [agentic-system.md § Model](../../systems/agentic-system.md#2-model).
+Runs on the **worker** role model — cheap and fast — see [agentic-system.md § Model](../../systems/agentic-system.md#2-model).
 
 Hermes use: on-hand tool, not a `feature-loop.md` state. Call it whenever a worker or the parent needs cited repo facts (blast-radius brief before planning, targeted answers mid-loop). It never scaffolds, plans, or edits.
 
@@ -13,9 +13,9 @@ Hermes use: on-hand tool, not a `feature-loop.md` state. Call it whenever a work
 
 - A brownfield feature modifies existing behavior (not pure additive / greenfield)
 - The planner is about to run interrogation on a change touching existing code
-- The planner needs a repo fact mid-interrogation (route the question here instead of reading files on the Tier 1 model)
+- The planner needs a repo fact mid-interrogation (route the question here instead of reading files on the reasoning model)
 - You want the planner's context reserved for reasoning, not file reads
-- A worker needs a cited repo fact and should not burn a reasoning-tier read to get it
+- A worker needs a cited repo fact and should not burn a reasoning-role read to get it
 
 Skip for: single-file fixes, typo/config fixes, and pure additive features with zero touchpoints in existing code.
 
@@ -35,4 +35,4 @@ Skip for: single-file fixes, typo/config fixes, and pure additive features with 
 | File | Purpose |
 |------|---------|
 | [SKILL.md](./SKILL.md) | Brief template, Repo Q&A rules, read-only retrieval rules, stop condition |
-| [rule.md](./rule.md) | Tier 3 enforcement, read-only constraints, escalation |
+| [rule.md](./rule.md) | worker-role enforcement, read-only constraints, escalation |

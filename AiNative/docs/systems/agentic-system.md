@@ -48,23 +48,31 @@ writes its own context.
 
 ## 2. Model
 
-Model choice is a system decision, not a default. Use different tiers for different work — and a **different model** for Validation than for Plan or Implementation ([validation-layer.md](./validation-layer.md#model-selection)).
+Model choice is a system decision, not a default. Work runs on three model
+**roles** — and a **different model** for validation than for reasoning or
+worker work ([validation-layer.md](./validation-layer.md#model-selection)).
 
-Model names change as providers ship newer versions, so no specific model is pinned here. The tier **roles** stay stable; the concrete model is configured in Hermes (`config.yaml`) and may be overridden per task with `hermes kanban set-model` once dispatch is wired. A **default** model backs the personalAgent whenever it is not sure which tier fits.
+Model names change as providers ship newer versions, so no specific model is
+pinned here — not even a slug. The three **roles** stay stable; the concrete
+model is resolved per role at runtime (Hermes `config.yaml` / `hermes kanban
+set-model`, or host keywords + env) and may be overridden per task once
+dispatch is wired.
 
-| Tier | Role | Use for |
-|------|------|---------|
-| **0 — Default** | Fallback when unsure | Unclassified or ambiguous tasks — cheap, low-tier catch-all |
-| **1 — Reasoning** | Planning, complex reasoning, interrogation | PIV Plan, ambiguous multi-file work, architecture decisions |
-| **2 — Implementation** | Solid coding without full planning overhead | PIV Implementation, medium/small features, bounded changes |
-| **3 — Execution** | Fast, cheap passes | Repetitive execution, small edits, high-volume loops |
+| Role | Job | Typical stages / agents |
+|------|-----|--------------------------|
+| **reasoning** | Plan, decide, route, structure | plan, route, analyze, converge, plan-reviewer (same model as planner) |
+| **worker** | Execute / fill / code / index | ready, specify, clarify, tasks, implement, change, job, scout |
+| **validation** | Independent review — different model + fresh session from plan/implement | critic, tester |
 
 **Rules:**
 
-- Hermes configuration owns provider and model selection; card profiles name
-  execution roles, not providers.
-- Use distinct review models where the configured validation policy requires
-  independent critic/tester review.
+- One model per role for now — no cheap-vs-solid split inside worker.
+- Runtimes own concrete values; never invent slugs, never cross-apply another
+  role's model, never inherit one role's model into another.
+- plan-reviewer uses the reasoning (planner) model deliberately; critic and
+  tester use validation.
+- Fallback when unsure: the worker role (cheap catch-all) — not a fourth tier.
+- Card profiles name execution roles, not providers.
 - Do not put provider names or credentials in project cards or AiNative
   agent definitions.
 
