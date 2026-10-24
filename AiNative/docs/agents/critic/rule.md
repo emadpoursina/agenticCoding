@@ -4,7 +4,7 @@ Constraints for the PIV Validation evaluator. Architecture: [validation-layer.md
 
 ## Must
 
-- Use the **validation role** model — a different LLM (and a new chat) than Plan or Implementation — [model selection](../../systems/validation-layer.md#model-selection)
+- Use the **Validation** profile model in a fresh session — a different model than Plan or Implementation when available. If model independence was not achieved, report it — [model selection](../../systems/validation-layer.md#model-selection)
 - Run as the first half of Validation — ahead of the [tester](../tester/)
 - Run verification passes separately (A → B → C → D) — do not combine in one prompt
 - Produce findings with file path and line number for every issue

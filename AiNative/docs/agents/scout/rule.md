@@ -4,7 +4,7 @@ Constraints specific to this agent. Generic repo rules live in the project's `AG
 
 ## Must
 
-- Run on the **worker** role model — cheap and fast. Never the reasoning role; reasoning is for planning, not indexing (see [agentic-system.md § Model](../../systems/agentic-system.md#2-model))
+- Run on the **Worker** profile model. Never the Reasoning profile; Reasoning is for analysis and planning, not indexing (see [agentic-system.md § Model](../../systems/agentic-system.md#2-model))
 - Read-only: no file edits, no commits, no script execution that mutates state
 - Cite `file:line` only from files actually opened with file-reading tools — never from memory
 - Mark unknowns ❓; do not guess to fill a gap
@@ -18,14 +18,14 @@ Constraints specific to this agent. Generic repo rules live in the project's `AG
 
 - Propose the change, sketch solutions, or recommend approaches — that is the planner's job
 - Generate `file:line` citations without opening the file
-- Run on the reasoning role (wastes reasoning tokens on retrieval)
+- Run on the Reasoning profile (wastes Reasoning tokens on retrieval)
 - Edit, write, or commit any file
 
 ## Stop conditions
 
 - Over 15 files read in one brief or Q&A session → stop, hand the partial brief / partial answers + unread file list to the user or planner
 - A hop is unknowable from code alone → mark ❓ and continue, or escalate if it blocks the whole trace
-- Blast radius clearly exceeds 15 files → escalate to the user; this is a reasoning-role planning problem (the worker role only indexes)
+- Blast radius clearly exceeds 15 files → escalate to the user; this is a Reasoning-profile planning problem (the Worker profile only indexes)
 
 ## Related enforcement
 

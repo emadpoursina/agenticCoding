@@ -47,21 +47,22 @@ arguments or in a later reply during specify or clarify. Match case-insensitivel
   as `REQUESTED_PATH`; route-work must honor it.
 - **skill: <name>** — the skill a job must use. Pass it to route-work as
   `REQUESTED_SKILL`.
-- **worker: <pi-model>** — per-role override for the worker role only
-  (`ready`, `specify`, `clarify`, `tasks`, `implement`, `change`, `job` — the
-  Pi stages). Accepts `provider/model`, `provider/model:thinking`, or
-  full Pi flags (`--provider <p> --model <m> [--thinking <t>]`). Example:
-  `worker: my-provider/my-exec-model`. Validated by launching Pi; never
-  applied to reasoning or validation stages.
-- **reasoning: <task-slug>** — per-role override for the reasoning role only
-  (`plan`, `route`, `analyze`, `converge`; plan-reviewer when used = reasoning,
-  same model as plan). Must be a slug from the
-  runtime's allowed Task model list. Example: `reasoning: my-reviewer-slug`.
-  Never applied to worker or validation stages.
-- **validation: <task-slug>** — per-role override for the validation role only
-  (`critic`, `tester`). Must be a slug from the runtime's allowed Task model
-  list. Example: `validation: my-validator-slug`. Never applied to worker or
-  reasoning stages.
+- **worker: <pi-model>** — per-profile override for the Worker profile only
+  (`implement`, `converge`, `change`, `job`). Accepts `provider/model`,
+  `provider/model:thinking`, or full Pi flags (`--provider <p> --model <m>
+  [--thinking <t>]`). Example: `worker: my-provider/my-exec-model`.
+  Validated by launching Pi; never applied to Reasoning or Validation
+  stages.
+- **reasoning: <task-slug>** — per-profile override for the Reasoning profile
+  only (`ready`, `route`, `specify`, `clarify`, `plan`, `tasks`, `analyze`;
+  plan-reviewer when used = Reasoning, same model as plan). Must be a slug
+  from the runtime's allowed Task model list. Example:
+  `reasoning: my-reviewer-slug`. Never applied to Worker or Validation
+  stages.
+- **validation: <task-slug>** — per-profile override for the Validation profile
+  only (`critic`, `tester`). Must be a slug from the runtime's allowed Task
+  model list. Example: `validation: my-validator-slug`. Never applied to
+  Worker or Reasoning stages.
 
 ## Parent vs worker (hard)
 
@@ -124,37 +125,37 @@ project prompts are different: they live in the target repo at
 
 This skill pins no provider, model, or thinking flag. Concrete values are
 resolved per run from the runtime, per
-`docs/systems/agentic-system.md` §2 Model: Hermes configuration owns provider
-and model selection; card profiles name execution roles, not providers. Do
+`docs/systems/agentic-system.md` §2 Model: the active harness's Model Selection Config owns provider
+and model selection; card profiles name execution profiles, not providers. Do
 not put provider names or credentials in cards or in this skill.
 
-Roles (stage kinds, not model IDs):
+Profiles (stage kinds, not model IDs):
 
-| Role | Stages |
+| Profile | Stages |
 | --- | --- |
-| worker | `ready`, `specify`, `clarify`, `tasks`, `implement`, `change`, `job` (Pi via `pi-harness` or Antigravity SDK via `antigravity-harness`) |
-| reasoning | `plan`, `route`, `analyze`, `converge` (host Task: Cursor `generalPurpose` Task, OpenCode subagent equivalent, or Hermes worker session). plan-reviewer when used = reasoning, same model as plan. |
-| validation | `critic`, `tester` (host Task or equivalent, fresh session, validation model — distinct from plan/implement) |
+| Reasoning | `ready`, `route`, `specify`, `clarify`, `plan`, `tasks`, `analyze` (host Task: Cursor `generalPurpose` Task, OpenCode subagent equivalent, or Hermes worker session). plan-reviewer when used = Reasoning, same model as plan. |
+| Worker | `implement`, `converge`, `change`, `job` (Pi via `pi-harness` or Antigravity SDK via `antigravity-harness`) |
+| Validation | `critic`, `tester` (host Task or equivalent, fresh session, validation model — distinct from plan/implement) |
 
-Which role fits which job is the authority of `docs/systems/agentic-system.md`
-§2 Model; this skill only resolves concrete values per role.
+Which profile fits which job is the authority of `docs/systems/agentic-system.md`
+§2 Model; this skill only resolves concrete values per profile.
 
-Resolution order for each role, per run (each keyword/env affects only its own
-role — `worker:` never affects reasoning or validation stages, `reasoning:`
-and `validation:` never affect worker stages):
+Resolution order for each profile, per run (each keyword/env affects only its own
+profile — `worker:` never affects Reasoning or Validation stages, `reasoning:`
+and `validation:` never affect Worker stages):
 
-1. **Invocation keywords** — `worker: <pi-model>` sets the worker role
-   only; `reasoning: <task-slug>` sets the reasoning role only;
-   `validation: <task-slug>` sets the validation role only. Validate before
+1. **Invocation keywords** — `worker: <pi-model>` sets the Worker profile
+   only; `reasoning: <task-slug>` sets the Reasoning profile only;
+   `validation: <task-slug>` sets the Validation profile only. Validate before
    use (Pi must launch; Task slug must be in the runtime's allowed list).
-   Invalid value for that role → STOP for that role, say what was rejected
+   Invalid value for that profile → STOP for that profile, say what was rejected
    and list what the runtime allows. Do not guess, do not cross-apply.
 2. **Env override** — `SPECKIT_WORKER_MODEL` (Pi flags or `provider/model[:thinking]`,
    worker only), `SPECKIT_REASONING_MODEL` (Task slug, reasoning only),
    `SPECKIT_VALIDATION_MODEL` (Task slug, validation only). Same validation
    as keywords. Env beats runtime defaults but loses to invocation keywords.
-3. **Runtime default** — otherwise use the runtime's configured default **per role**:
-   - Hermes: per-role `config.yaml` model + card profile (`hermes kanban set-model`,
+3. **Runtime default** — otherwise use the runtime's configured default **per profile**:
+   - Hermes: per-profile `config.yaml` model + card profile (`hermes kanban set-model`,
      `default` profile fallback). Keys live in Hermes
      (`$HERMES_DATA_ROOT/state/config.yaml`); this skill never invents them —
      read what `hermes config get model.*` / `hermes profile list` reports.
@@ -166,11 +167,11 @@ and `validation:` never affect worker stages):
      session (validation distinct from reasoning);
      worker = same Pi provider/model mechanism as Cursor (Pi is external to
      both editors).
-   Pass `--thinking` only when that role's resolved source specifies it;
+   Pass `--thinking` only when that profile's resolved source specifies it;
    never invent it.
-4. **Unresolved** — if a role has no usable value from 1–3, STOP before
-   launching that role and ask the operator for that role's value only. Never
-   invent a nearby slug, never reuse another role's model.
+4. **Unresolved** — if a profile has no usable value from 1–3, STOP before
+   launching that profile and ask the operator for that profile's value only. Never
+   invent a nearby slug, never reuse another profile's model.
 
 ## Worker backend (Pi or Antigravity SDK)
 
@@ -197,9 +198,8 @@ the model: retry once only if the runtime defines a distinct fallback.
 
 The resolved value is always the first choice. Never invent nearby slugs.
 
-**Worker stages** (`ready`, `specify`, `clarify`, `tasks`, `implement`,
-`change`, `job`): spawn via the resolved **Worker backend** (`pi-harness` or
-`antigravity-harness`). You stay in control; that agent is the worker. Give
+**Worker stages** (`implement`, `converge`, `change`, `job`): spawn via the
+resolved **Worker backend** (`pi-harness` or `antigravity-harness`). You stay in control; that agent is the worker. Give
 it the same worker prompt this skill
 would have given a Task (repo root, skill path, skip, report format,
 `FLOW_ID`, `BRANCH` and `WORKTREE` when known); for any stage after ready, run
@@ -210,12 +210,15 @@ the worker's compact report.
 If the resolved worker launch cannot be used — binary/SDK missing, provider/auth
 failure, spawn reject, or the launch fails because of the model — do not swap
 to a Task or the other backend. Retry once only if the runtime defines a
-distinct fallback value for that role. If there is no runtime fallback, or
+distinct fallback value for that profile. If the primary partially executed the
+stage before becoming unavailable, do not blindly rerun through the fallback:
+inspect artifacts and side effects first and retry only when safe; otherwise stop
+and report execution status and remaining work. If there is no runtime fallback, or
 that fallback also fails, STOP (this is not a stuck retry of the primary).
 Wait for the user to fix it.
 
-**Reasoning stages** (`plan`, `route`, `analyze`, `converge`): launch a Task
-with the resolved reasoning model. Check the session's allowed Task model list
+**Reasoning stages** (`ready`, `route`, `specify`, `clarify`, `plan`, `tasks`,
+`analyze`): launch a Task with the resolved Reasoning-profile model. Check the session's allowed Task model list
 before launch. If the resolved value is missing from the list, Task rejects it, or the
 launch fails because of the model, do not invent another slug: launch once
 more only if the runtime defines a distinct fallback model. If there is no
@@ -227,7 +230,7 @@ stuck retry. Wait for the user to fix it.
 Task with the resolved validation model — never continue a plan or implement
 session. Same rules as reasoning stages: check the allowed Task model list,
 never invent a slug, retry only a runtime-defined distinct fallback, and STOP
-(that role, not a stuck retry) if both the resolved value and the fallback
+(that profile, not a stuck retry) if both the resolved value and the fallback
 fail. Wait for the user to fix it.
 
 Then tell the user, in plain language:
@@ -333,8 +336,8 @@ flowchart TD
 
 ### Shared start
 
-1. **Ready** — spawn the resolved worker backend (`pi-harness` or `antigravity-harness`) with the resolved worker
-   flags. Tell it to follow the AiNative
+1. **Ready** — launch a `generalPurpose` worker with the resolved Reasoning-profile
+   model. Tell it to follow the AiNative
    `<AINATIVE>/docs/agents/speckit-ready/SKILL.md` (not a project copy). Pass
    `REPO_ROOT`, `FLOW_ID`, and `FEATURE_DESCRIPTION` (user args verbatim).
    Ready runs against the original `REPO_ROOT` and never checks out the
@@ -364,8 +367,8 @@ flowchart TD
 
 ### Feature path
 
-3. **Specify** — spawn the resolved worker backend (`pi-harness` or `antigravity-harness`) with the resolved worker
-   flags. Tell it to follow the project's
+3. **Specify** — launch a `generalPurpose` worker with the resolved Reasoning-profile
+   model. Tell it to follow the project's
    `REPO_ROOT/.pi/prompts/speckit.specify.md` exactly (legacy fallback:
    `REPO_ROOT/.cursor/skills/speckit-specify/SKILL.md`). Include `FLOW_ID`,
    `BRANCH`, and `WORKTREE` from ready, and pass `WORKTREE` as the
@@ -383,8 +386,8 @@ flowchart TD
    If the specify worker still presents questions, the parent MUST NOT wait on
    the user for those: answer them as assumptions and tell the worker to
    finish. The parent MUST NOT write `spec.md`.
-4. **Clarify** — spawn the resolved worker backend (`pi-harness` or `antigravity-harness`) with the resolved worker
-   flags, same rules as specify. Tell it to follow the
+4. **Clarify** — launch a `generalPurpose` worker with the resolved Reasoning-profile
+   model, same rules as specify. Tell it to follow the
    project's `REPO_ROOT/.pi/prompts/speckit.clarify.md` exactly (legacy fallback:
    `REPO_ROOT/.cursor/skills/speckit-clarify/SKILL.md`). The parent
    MUST NOT write `spec.md`.
@@ -414,16 +417,16 @@ flowchart TD
    **When clarify completes, go straight to plan.** Do not ask the user to
    confirm, do not wait for "continue", and do not pause after the choice
    report. There is no continuation gate in this run.
-5. **Plan** — launch a `generalPurpose` worker with the resolved reasoning
-   model (spawn like route; plan is a reasoning stage, not a Pi worker stage).
+5. **Plan** — launch a `generalPurpose` worker with the resolved Reasoning-profile
+   model (spawn like route; plan is a Reasoning-profile stage, not a Pi worker stage).
    It follows `REPO_ROOT/.pi/prompts/speckit.plan.md`
    (legacy fallback: `REPO_ROOT/.cursor/skills/speckit-plan/SKILL.md`)
    and returns the plan artifacts plus `ANALYZE: yes|no` and a one-line
    reason. Use `yes` for cross-cutting contracts, constitution tension, or
    many unknowns; use `no` for a small, local change. The parent MUST NOT
    write plan artifacts.
-6. **Tasks** — spawn the resolved worker backend (`pi-harness` or `antigravity-harness`) with the resolved worker
-   flags to follow `REPO_ROOT/.pi/prompts/speckit.tasks.md`
+6. **Tasks** — launch a `generalPurpose` worker with the resolved Reasoning-profile
+   model to follow `REPO_ROOT/.pi/prompts/speckit.tasks.md`
    (legacy fallback: `REPO_ROOT/.cursor/skills/speckit-tasks/SKILL.md`).
    The parent MUST NOT write `tasks.md`.
 7. **Analyze** — only when plan returned `ANALYZE: yes`, launch a
@@ -432,9 +435,8 @@ flowchart TD
    `REPO_ROOT/.cursor/skills/speckit-analyze/SKILL.md`). This is read-only. Treat a
    critical finding as stuck and stop to ask the user; do not edit artifacts
    automatically. The parent MUST NOT perform the analysis.
-8. **Implement ↔ converge** — start the loop with the resolved worker backend (`pi-harness` or `antigravity-harness`, resolved worker
-   Pi flags) for implement and a `generalPurpose` Task with the resolved reasoning
-   model for converge. Never launch these two workers in
+8. **Implement ↔ converge** — start the loop with the resolved worker backend (`pi-harness` or `antigravity-harness`, resolved Worker-profile
+   flags) for both implement and converge. Never launch these two workers in
    parallel. Continue until converge returns `CONVERGE_OUTCOME: converged`.
    `tasks_appended` with genuinely new tasks starts another implementation
    pass. Do not request user confirmation. The parent MUST NOT implement
@@ -547,14 +549,14 @@ Required `model` on every worker (always pass the resolved value; never omit
 it; never pass `inherit` on Tasks). Resolve the value per run from **Model
 resolution (runtime-owned, no pinned values)** above:
 
-| Stage | Role / spawn |
+| Stage | Profile / spawn |
 | --- | --- |
-| ready, specify, clarify, tasks, implement, change, job | **worker** — resolved backend (`pi-harness` or `antigravity-harness`) with resolved `--model` |
-| plan, route, analyze, converge | **reasoning** — host Task with `model` = resolved reasoning model (plan-reviewer, when used, pinned to the same model as plan) |
-| critic, tester | **validation** — host Task with `model` = resolved validation model, fresh session |
+| ready, route, specify, clarify, plan, tasks, analyze | **Reasoning** — host Task with `model` = resolved Reasoning-profile model (plan-reviewer, when used, pinned to the same model as plan) |
+| implement, converge, change, job | **Worker** — resolved backend (`pi-harness` or `antigravity-harness`) with resolved `--model` |
+| critic, tester | **Validation** — host Task with `model` = resolved Validation-profile model, fresh session (distinct from Reasoning/Worker when available) |
 
 Pass the resolved values exactly as resolved. If the resolved value for that
-role cannot be used, use the runtime's distinct fallback for that role if one
+profile cannot be used, use the runtime's distinct fallback for that profile if one
 exists; otherwise stop. If both the resolved value and the runtime fallback
 fail, stop. Never substitute an invented slug or Pi model outside the
 resolution order above.
@@ -679,9 +681,9 @@ Do not retry these cases:
   or job worker that returned `STATUS: blocked` with a question queue — the
   parent relays those questions to the user, then resumes the worker with the
   answers; that is not stuck)
-- a reasoning- or validation-stage resolved model and its runtime fallback both remain unavailable,
+- a Reasoning- or Validation-profile stage resolved model and its runtime fallback both remain unavailable,
   inaccessible, or could not be opened (see **Model access and fallback**)
-- a worker-stage resolved Pi flags and runtime fallback both failed (Pi missing, provider
+- a Worker-profile stage resolved Pi flags and runtime fallback both failed (Pi missing, provider
   or auth failure, job hung, or unusable report)
 
 For these cases, stop immediately and tell the user the prerequisite,

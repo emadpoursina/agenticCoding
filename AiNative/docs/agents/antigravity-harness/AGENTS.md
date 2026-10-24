@@ -14,7 +14,7 @@ the compiled `localharness` binary).
 ## When to use
 
 - Hermes dispatches a worker state executed by Antigravity.
-- Cursor needs an Antigravity sub-agent (worker-role stages or explicit SDK offload).
+- Cursor needs an Antigravity sub-agent (Worker-profile stages or explicit SDK offload).
 - `SPECKIT_WORKER=antigravity` (or `git config speckit.worker antigravity`).
 
 ## Inputs

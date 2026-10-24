@@ -32,7 +32,7 @@ This doc covers **Context** (AI layer below) and historical **PIV** agents. Harn
    2. A good measure is number of files touched.
       1. Based on complexity, configure how autonomous the AI should be.
       2. Based on complexity, configure how much the AI should plan and ask.
-3. **Interrogate before writing the plan.** Run the [scout](../agents/scout/) agent first to produce a System Understanding Brief of the current system in the blast-radius area; the planner takes the brief as input so its reasoning budget goes on the questions, not on indexing. During interrogation, route any further repo questions to scout's **Repo Q&A** mode (worker role — cheap) instead of reading files on the planner's reasoning-role model. Then, based on task complexity, ask multiple-choice questions — **exactly 4 options each** — and **recommend one answer** per question with a brief rationale. Wait for confirmation or corrections before drafting the written plan.
+3. **Interrogate before writing the plan.** Run the [scout](../agents/scout/) agent first to produce a System Understanding Brief of the current system in the blast-radius area; the planner takes the brief as input so its reasoning budget goes on the questions, not on indexing. During interrogation, route any further repo questions to scout's **Repo Q&A** mode (Worker profile) instead of reading files on the planner's Reasoning-profile model. Then, based on task complexity, ask multiple-choice questions — **exactly 4 options each** — and **recommend one answer** per question with a brief rationale. Wait for confirmation or corrections before drafting the written plan.
 
    | Complexity | Questions | Typical signal |
    |------------|-----------|----------------|

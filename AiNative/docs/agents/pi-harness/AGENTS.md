@@ -11,7 +11,7 @@ since 1.0 (Codemode); `pi-mcp-adapter` is opt-in, not required.
 ## When to use
 
 - Hermes dispatches a worker state executed by Pi.
-- Cursor needs a Pi sub-agent (worker-role stages or explicit Pi offload).
+- Cursor needs a Pi sub-agent (Worker-profile stages or explicit Pi offload).
 
 ## Inputs
 
