@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.2.1] - 2026-10-24
+
+### Changed
+- Worker backend default is `antigravity` (was `pi`). Override with `SPECKIT_WORKER=pi` or `git config speckit.worker pi`.
+
 ## [0.2.0] - 2026-10-24
 
 ### Added

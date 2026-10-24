@@ -179,7 +179,7 @@ Worker stages run in an external coding agent. Resolve **one** backend per run
 
 1. `SPECKIT_WORKER` (`pi` or `antigravity`; aliases `agy`, `google-antigravity`).
 2. `git config speckit.worker` in the target repo.
-3. Default `pi`.
+3. Default `antigravity`.
 
 Ready already reports `WORKER:` and `worker-runtime`. Honor that value for
 every later worker stage in the same run.

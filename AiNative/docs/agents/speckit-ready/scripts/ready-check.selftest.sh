@@ -14,7 +14,9 @@ fi
 
 TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT
-unset SPECKIT_WORKER || true
+# Pin Pi for the suite so fixtures stay READY-ok without the Antigravity SDK.
+# Default-backend coverage is a separate case below.
+export SPECKIT_WORKER=pi
 STUB_BIN="$TMP/bin"
 mkdir -p "$STUB_BIN"
 printf '#!/bin/sh\necho pi-stub 0.0.0\n' > "$STUB_BIN/pi"
@@ -366,6 +368,13 @@ OUT="$(SPECKIT_WORKER=not-a-backend "$CHECK" "$REPO16" flow_selftest_18 worker-u
 expect_rc 1 "case18 (unknown worker)"
 expect_contains "READY: blocked" "case18"
 expect_contains "unknown worker backend" "case18"
+
+# --- Case 19: unset SPECKIT_WORKER -> default antigravity --------------------
+REPO17="$TMP/repo17"
+make_fixture "$REPO17"
+OUT="$(env -u SPECKIT_WORKER -u GEMINI_API_KEY -u GOOGLE_API_KEY -u GOOGLE_GENAI_USE_VERTEXAI -u GOOGLE_GENAI_USE_ENTERPRISE -u GOOGLE_CLOUD_PROJECT -u GOOGLE_APPLICATION_CREDENTIALS "$CHECK" "$REPO17" flow_selftest_19 worker-default 2>&1)" && RC=0 || RC=$?
+expect_contains "WORKER: antigravity" "case19 (default antigravity)"
+expect_contains "worker-runtime:" "case19"
 
 echo "SELFTEST: ok"
 exit 0

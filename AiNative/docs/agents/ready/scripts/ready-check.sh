@@ -651,7 +651,7 @@ fi
 
 # ---------------------------------------------------------------------------
 # Worker runtime (required for the backend this run will use)
-# Resolution: SPECKIT_WORKER, else git config speckit.worker, else pi.
+# Resolution: SPECKIT_WORKER, else git config speckit.worker, else antigravity.
 # ---------------------------------------------------------------------------
 
 worker_fail=0
@@ -664,7 +664,7 @@ if [ -z "$worker_raw" ]; then
   if [ -n "$worker_raw" ]; then
     worker_source="git config speckit.worker"
   else
-    worker_raw="pi"
+    worker_raw="antigravity"
     worker_source="default"
   fi
 fi
@@ -679,7 +679,7 @@ case "$worker_lc" in
     else
       worker_fail=1
       worker_note="pi not on PATH (${worker_source})"
-      worker_fix="install Pi and put 'pi' on PATH, or set SPECKIT_WORKER=antigravity if this run should use the Antigravity SDK, then re-run."
+      worker_fix="install Pi and put 'pi' on PATH, or unset SPECKIT_WORKER / set SPECKIT_WORKER=antigravity to use the default Antigravity SDK backend, then re-run."
     fi
     ;;
   antigravity|agy|google-antigravity)

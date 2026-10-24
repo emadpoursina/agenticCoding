@@ -92,7 +92,7 @@ Check only the backend this run will use (do not require both):
 1. `SPECKIT_WORKER` for a one-run override.
 2. This repository's local Git setting `speckit.worker`
    (`git -C <repo> config speckit.worker pi|antigravity`).
-3. Default `pi`.
+3. Default `antigravity`.
 
 Aliases for Antigravity: `antigravity`, `agy`, `google-antigravity`.
 
