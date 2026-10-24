@@ -45,6 +45,7 @@ AiNative/
 │   │   ├── speckit-orchestrate/
 │   │   ├── speckit-ready/
 │   │   ├── pi-harness/
+│   │   ├── antigravity-harness/
 │   │   ├── change/
 │   │   ├── plan-reviewer/
 │   │   ├── critic/

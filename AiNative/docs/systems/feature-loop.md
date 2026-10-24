@@ -44,8 +44,10 @@ To Hermes, each agent state is a named skill, artifacts, and a compact
 report.
 
 1. **AiNative agents** — folders under `docs/agents/`. Target required states: Ready,
-   route-work, critic, and tester. `pi-harness` is the Pi worker backend every
-   Pi-executed state uses (required `--model`, no harness default). `scout` (read-only brief / Repo Q&A),
+   route-work, critic, and tester.    `pi-harness` is the Pi worker backend; `antigravity-harness` is the
+   Google Antigravity SDK worker backend. Ready selects one via
+   `SPECKIT_WORKER` / `speckit.worker` (default `pi`) and checks that
+   runtime only. Both require `--model` (no harness default). `scout` (read-only brief / Repo Q&A),
    `pr-reviewer` (on-demand PR review after Ship), and
    `legacy-system-assessment-agent` (standalone assessment) are on-hand tools
    Hermes may call whenever it needs them — not loop states, not tied to one

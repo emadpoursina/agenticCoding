@@ -1,0 +1,9 @@
+- Cursor (or Hermes) is the orchestrator. Antigravity is the worker. Never invert that.
+- Spawn through `agy-spawn.py` using the Python SDK (`google.antigravity.Agent`). Never launch the `agy` TUI.
+- Always pass `--model`. There is no harness default.
+- Do not use `ask_user` / interactive policies. Unattended jobs hang if a tool waits for a human.
+- Default SDK agents are read-only. Edit jobs must enable write tools (`CapabilitiesConfig()` + `policy.allow_all()`). Scout jobs use `BuiltinTools.read_only()`.
+- Scope file ops with `workspaces=[cwd]`. Do not add MCP servers or subagents unless the prompt asked for them.
+- Do not copy Cursor user rules into the prompt. The wrapper appends `worker-contract.md` as `system_instructions`.
+- After exit, read `report.json`. Process `lifecycle=completed` is not worker success; require `reportValid` and `workerStatus`.
+- Do not install `google-antigravity`, paste API keys, or change auth. If the SDK or credentials are missing, stop.

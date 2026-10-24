@@ -85,6 +85,27 @@ Legacy fallbacks (honored, not canonical): `.cursor/skills/speckit-*/SKILL.md`
 (Cursor enrollment) or `.opencode/commands/speckit.*.md` (retired Opencode
 enrollment). The `ready-check.sh` script accepts any of the three layouts.
 
+### Worker runtime (required)
+
+Check only the backend this run will use (do not require both):
+
+1. `SPECKIT_WORKER` for a one-run override.
+2. This repository's local Git setting `speckit.worker`
+   (`git -C <repo> config speckit.worker pi|antigravity`).
+3. Default `pi`.
+
+Aliases for Antigravity: `antigravity`, `agy`, `google-antigravity`.
+
+- **pi** — `pi` is on PATH (`SPECKIT_PI_BIN` overrides the binary name).
+- **antigravity** — `python3` can `from google.antigravity import Agent, LocalAgentConfig`,
+  and auth is present (`GEMINI_API_KEY` / `GOOGLE_API_KEY`, or Vertex
+  `GOOGLE_GENAI_USE_VERTEXAI` + `GOOGLE_CLOUD_PROJECT` / ADC). Do not
+  require the `agy` TUI. The install is `pip install google-antigravity`
+  (PyPI wheel includes `localharness`).
+
+The compact report includes `WORKER: pi|antigravity` and a
+`worker-runtime` check line.
+
 ### Project checks (optional file)
 
 If `.specify/ready.yml` is absent, skip (not a failure). If present, only:
@@ -111,10 +132,12 @@ unresolved base branch). `tcp` /
 READY: ok | blocked
 FLOW_ID: <flow_id>
 BRANCH: <branch-name-created-or-reused>
+WORKER: pi | antigravity
 WORKTREE: <absolute feature worktree path>
 CHECKS:
 - [required] git-branch-state: pass|fail — <note>
 - [required] speckit-layout: pass|fail — <note>
+- [required] worker-runtime: pass|fail — <note>
 FIXES:
 - <only when blocked>
 ```

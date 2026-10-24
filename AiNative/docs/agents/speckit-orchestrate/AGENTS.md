@@ -10,7 +10,8 @@ Cursor `speckit-orchestrate` 2026-10-13). Symlinked into Cursor
 (`~/.config/opencode/skill/speckit-orchestrate/`); the Hermes parent
 references the same graph via `personalAgent` dispatch rather than copying
 it — all link `feature-loop.md`. Workers are stage-dumb in every runtime
-(host Task or Pi via `pi-harness` here; Pi workers under Hermes there).
+(host Task, Pi via `pi-harness`, or Antigravity SDK via `antigravity-harness`
+here; the same worker backends under Hermes there).
 Model values are never pinned here; each runtime resolves them per run (see
 SKILL.md Model resolution).
 

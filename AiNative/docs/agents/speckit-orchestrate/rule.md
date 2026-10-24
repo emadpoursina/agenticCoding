@@ -1,9 +1,10 @@
 - The parent is a dispatcher. It never executes a stage itself, writes stage
   artifacts, runs `ready-check.sh`, or edits code because context is loaded.
-- Every stage runs in a worker (Pi via `pi-harness` for worker stages; host
-  Task for reasoning and validation stages — Cursor `generalPurpose` Task,
-  OpenCode subagent equivalent, or Hermes worker session). Never omit
-  `model`. Never pass `inherit` on Tasks.
+- Every stage runs in a worker (Pi via `pi-harness` or Antigravity SDK via
+  `antigravity-harness` for worker stages, per `SPECKIT_WORKER` /
+  `speckit.worker`; host Task for reasoning and validation stages — Cursor
+  `generalPurpose` Task, OpenCode subagent equivalent, or Hermes worker
+  session). Never omit `model`. Never pass `inherit` on Tasks.
 - Ship and UAT are parent-only; workers stay ship-dumb on every path.
 - No model slugs are pinned in this skill; resolve each of the three roles
   (reasoning, worker, validation) per run from the runtime (user override

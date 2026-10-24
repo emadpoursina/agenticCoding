@@ -19,7 +19,7 @@ skill body and script; see [`../ready/`](../ready/).
 
 ## Outputs
 
-- `READY: ok|blocked`, `FLOW_ID`, `BRANCH`, `WORKTREE`, `CHECKS`, `FIXES`
+- `READY: ok|blocked`, `FLOW_ID`, `BRANCH`, `WORKER` (`pi` or `antigravity`), `WORKTREE`, `CHECKS` (includes `worker-runtime`), `FIXES`
 
 ## Supporting files
 

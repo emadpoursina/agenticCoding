@@ -14,6 +14,12 @@ fi
 
 TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT
+unset SPECKIT_WORKER || true
+STUB_BIN="$TMP/bin"
+mkdir -p "$STUB_BIN"
+printf '#!/bin/sh\necho pi-stub 0.0.0\n' > "$STUB_BIN/pi"
+chmod +x "$STUB_BIN/pi"
+export PATH="$STUB_BIN:$PATH"
 
 fail() {
   echo "SELFTEST FAIL: $1"
@@ -110,6 +116,8 @@ expect_contains "BRANCH: user-auth" "case1"
 expect_contains "WORKTREE: " "case1"
 expect_contains "git-branch-state: pass" "case1"
 expect_contains "speckit-layout: pass" "case1"
+expect_contains "WORKER: pi" "case1"
+expect_contains "worker-runtime: pass" "case1"
 branch1="$(git -C "$REPO1" rev-parse --abbrev-ref HEAD)"
 [ "$branch1" = "main" ] || fail "case1: original checkout is '$branch1', expected main (no feature checkout)"
 assert_worktree_ok "$REPO1" user-auth "case1"
@@ -331,6 +339,33 @@ expect_rc 1 "case15 (invalid slug)"
 expect_contains "READY: blocked" "case15"
 expect_contains "invalid feature branch slug" "case15"
 expect_not_contains "WORKTREE: " "case15"
+
+# --- Case 16: missing pi on PATH -> worker-runtime fail ----------------------
+REPO14="$TMP/repo14"
+make_fixture "$REPO14"
+OUT="$(SPECKIT_WORKER=pi SPECKIT_PI_BIN=/no-such-pi-binary "$CHECK" "$REPO14" flow_selftest_16 worker-pi-missing 2>&1)" && RC=0 || RC=$?
+expect_rc 1 "case16 (pi missing)"
+expect_contains "READY: blocked" "case16"
+expect_contains "WORKER: pi" "case16"
+expect_contains "worker-runtime: fail" "case16"
+expect_contains "pi not on PATH" "case16"
+
+# --- Case 17: antigravity without SDK package -> worker-runtime fail ---------
+REPO15="$TMP/repo15"
+make_fixture "$REPO15"
+OUT="$(env -u GEMINI_API_KEY -u GOOGLE_API_KEY -u GOOGLE_GENAI_USE_VERTEXAI -u GOOGLE_GENAI_USE_ENTERPRISE -u GOOGLE_CLOUD_PROJECT -u GOOGLE_APPLICATION_CREDENTIALS SPECKIT_WORKER=antigravity "$CHECK" "$REPO15" flow_selftest_17 worker-agy-missing 2>&1)" && RC=0 || RC=$?
+expect_rc 1 "case17 (antigravity sdk missing or unauthenticated)"
+expect_contains "READY: blocked" "case17"
+expect_contains "WORKER: antigravity" "case17"
+expect_contains "worker-runtime: fail" "case17"
+
+# --- Case 18: unknown worker backend -> blocked ------------------------------
+REPO16="$TMP/repo16"
+make_fixture "$REPO16"
+OUT="$(SPECKIT_WORKER=not-a-backend "$CHECK" "$REPO16" flow_selftest_18 worker-unknown 2>&1)" && RC=0 || RC=$?
+expect_rc 1 "case18 (unknown worker)"
+expect_contains "READY: blocked" "case18"
+expect_contains "unknown worker backend" "case18"
 
 echo "SELFTEST: ok"
 exit 0

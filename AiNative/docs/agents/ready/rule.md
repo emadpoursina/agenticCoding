@@ -4,3 +4,5 @@
   work branch required by the Hermes preflight.
 - A stable `READY: blocked` is never retried by the orchestrator; report the
   fix in `FIXES` and stop.
+- Check only the selected worker backend (`pi` or `antigravity`). Do not
+  require both runtimes.

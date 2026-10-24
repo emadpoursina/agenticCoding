@@ -87,8 +87,9 @@ For reasoning stages the parent MUST launch a foreground `generalPurpose` Task
 skill-pinned slug, never `inherit`). Validation stages use the same host Task
 launch with the **resolved** validation model, in a fresh session. For worker
 stages the
-parent MUST spawn Pi via `pi-harness` with the resolved worker Pi flags; do
-not launch a Task for those stages.
+parent MUST spawn the resolved worker backend (`pi-harness` or
+`antigravity-harness`) with the resolved worker model flags; do not launch a
+Task for those stages.
 
 ## flow_id
 
@@ -131,7 +132,7 @@ Roles (stage kinds, not model IDs):
 
 | Role | Stages |
 | --- | --- |
-| worker | `ready`, `specify`, `clarify`, `tasks`, `implement`, `change`, `job` (Pi via `pi-harness`) |
+| worker | `ready`, `specify`, `clarify`, `tasks`, `implement`, `change`, `job` (Pi via `pi-harness` or Antigravity SDK via `antigravity-harness`) |
 | reasoning | `plan`, `route`, `analyze`, `converge` (host Task: Cursor `generalPurpose` Task, OpenCode subagent equivalent, or Hermes worker session). plan-reviewer when used = reasoning, same model as plan. |
 | validation | `critic`, `tester` (host Task or equivalent, fresh session, validation model — distinct from plan/implement) |
 
@@ -171,25 +172,47 @@ and `validation:` never affect worker stages):
    launching that role and ask the operator for that role's value only. Never
    invent a nearby slug, never reuse another role's model.
 
+## Worker backend (Pi or Antigravity SDK)
+
+Worker stages run in an external coding agent. Resolve **one** backend per run
+(do not require both to be installed):
+
+1. `SPECKIT_WORKER` (`pi` or `antigravity`; aliases `agy`, `google-antigravity`).
+2. `git config speckit.worker` in the target repo.
+3. Default `pi`.
+
+Ready already reports `WORKER:` and `worker-runtime`. Honor that value for
+every later worker stage in the same run.
+
+- **pi** — follow `pi-harness`. Pass resolved `--provider` / `--model` /
+  `--thinking`. `--cwd` is `WORKTREE` after ready.
+- **antigravity** — follow `antigravity-harness` (`agy-spawn.py`, Google
+  Antigravity Python SDK). Pass `--model` (required). Do not launch `agy`
+  TUI, do not use npm `antigravity-sdk`. `--cwd` is `WORKTREE` after ready.
+
+Do not swap backends mid-run because spawn failed. Same fallback rules as
+the model: retry once only if the runtime defines a distinct fallback.
+
 ## Model access and fallback
 
 The resolved value is always the first choice. Never invent nearby slugs.
 
 **Worker stages** (`ready`, `specify`, `clarify`, `tasks`, `implement`,
-`change`, `job`): spawn as a Pi sub-agent. Follow the `pi-harness` skill. You
-stay in control; Pi is the worker. Give Pi the same worker prompt this skill
+`change`, `job`): spawn via the resolved **Worker backend** (`pi-harness` or
+`antigravity-harness`). You stay in control; that agent is the worker. Give
+it the same worker prompt this skill
 would have given a Task (repo root, skill path, skip, report format,
 `FLOW_ID`, `BRANCH` and `WORKTREE` when known); for any stage after ready, run
-Pi with `--cwd` set to `WORKTREE` so it lands in the feature worktree. Pass
-the resolved worker Pi flags on the Pi command line. Then continue the pipeline from Pi's compact report.
+the worker with `--cwd` set to `WORKTREE`. Pass the resolved `--model` (and
+Pi `--provider` / `--thinking` when the backend is Pi). Then continue from
+the worker's compact report.
 
-If the resolved Pi launch cannot be used — Pi missing, provider/auth failure,
-spawn reject, or the launch fails because of the model — do not swap to a
-Task. Retry once only if the runtime defines a distinct fallback value for
-that role (e.g. Hermes fallback profile, second operator-confirmed Pi
-model). If there is no runtime fallback, or that fallback
-also fails, STOP (this is not a stuck retry of the primary). Wait for the
-user to fix it.
+If the resolved worker launch cannot be used — binary/SDK missing, provider/auth
+failure, spawn reject, or the launch fails because of the model — do not swap
+to a Task or the other backend. Retry once only if the runtime defines a
+distinct fallback value for that role. If there is no runtime fallback, or
+that fallback also fails, STOP (this is not a stuck retry of the primary).
+Wait for the user to fix it.
 
 **Reasoning stages** (`plan`, `route`, `analyze`, `converge`): launch a Task
 with the resolved reasoning model. Check the session's allowed Task model list
@@ -218,7 +241,8 @@ Do **not**: run any stage in the parent; pass or omit `inherit` on Tasks;
 switch to Auto, Composer, Fast, or any nearby slug; retry the same
 exact-slug or same Pi flags after a model-access failure; or keep a
 reasoning- or validation-stage pipeline going so the user never sees the problem. Pi is the
-only worker runtime for worker stages. Reasoning and validation stages
+worker runtime for worker stages is the resolved backend (Pi or Antigravity
+SDK). Reasoning and validation stages
 stay on the host Task mechanism (never Pi, never in-parent).
 
 The parent MAY only: mint `FLOW_ID`, check prerequisites, dispatch workers,
@@ -245,6 +269,7 @@ Before launching a worker, verify (AiNative-first; hosts resolve via symlink/mou
   - `<AINATIVE>/docs/agents/route-work/SKILL.md`
   - `<AINATIVE>/docs/agents/change/SKILL.md` (covers `STEP: change` and `STEP: tester`)
   - `<AINATIVE>/docs/agents/pi-harness/SKILL.md` (Pi worker backend)
+  - `<AINATIVE>/docs/agents/antigravity-harness/SKILL.md` (Antigravity SDK worker backend; required when `WORKER: antigravity`)
 - The target repository contains `.specify/`
 - `REPO_ROOT/.pi/prompts/speckit.specify.md` (Pi enrollment, canonical)
 - the sibling project prompts needed for clarify, plan, tasks, analyze, implement, and
@@ -308,7 +333,7 @@ flowchart TD
 
 ### Shared start
 
-1. **Ready** — spawn Pi via `pi-harness` with the resolved worker Pi
+1. **Ready** — spawn the resolved worker backend (`pi-harness` or `antigravity-harness`) with the resolved worker
    flags. Tell it to follow the AiNative
    `<AINATIVE>/docs/agents/speckit-ready/SKILL.md` (not a project copy). Pass
    `REPO_ROOT`, `FLOW_ID`, and `FEATURE_DESCRIPTION` (user args verbatim).
@@ -339,7 +364,7 @@ flowchart TD
 
 ### Feature path
 
-3. **Specify** — spawn Pi via `pi-harness` with the resolved worker Pi
+3. **Specify** — spawn the resolved worker backend (`pi-harness` or `antigravity-harness`) with the resolved worker
    flags. Tell it to follow the project's
    `REPO_ROOT/.pi/prompts/speckit.specify.md` exactly (legacy fallback:
    `REPO_ROOT/.cursor/skills/speckit-specify/SKILL.md`). Include `FLOW_ID`,
@@ -358,7 +383,7 @@ flowchart TD
    If the specify worker still presents questions, the parent MUST NOT wait on
    the user for those: answer them as assumptions and tell the worker to
    finish. The parent MUST NOT write `spec.md`.
-4. **Clarify** — spawn Pi via `pi-harness` with the resolved worker Pi
+4. **Clarify** — spawn the resolved worker backend (`pi-harness` or `antigravity-harness`) with the resolved worker
    flags, same rules as specify. Tell it to follow the
    project's `REPO_ROOT/.pi/prompts/speckit.clarify.md` exactly (legacy fallback:
    `REPO_ROOT/.cursor/skills/speckit-clarify/SKILL.md`). The parent
@@ -397,7 +422,7 @@ flowchart TD
    reason. Use `yes` for cross-cutting contracts, constitution tension, or
    many unknowns; use `no` for a small, local change. The parent MUST NOT
    write plan artifacts.
-6. **Tasks** — spawn Pi via `pi-harness` with the resolved worker Pi
+6. **Tasks** — spawn the resolved worker backend (`pi-harness` or `antigravity-harness`) with the resolved worker
    flags to follow `REPO_ROOT/.pi/prompts/speckit.tasks.md`
    (legacy fallback: `REPO_ROOT/.cursor/skills/speckit-tasks/SKILL.md`).
    The parent MUST NOT write `tasks.md`.
@@ -407,7 +432,7 @@ flowchart TD
    `REPO_ROOT/.cursor/skills/speckit-analyze/SKILL.md`). This is read-only. Treat a
    critical finding as stuck and stop to ask the user; do not edit artifacts
    automatically. The parent MUST NOT perform the analysis.
-8. **Implement ↔ converge** — start the loop with Pi (`pi-harness`, resolved worker
+8. **Implement ↔ converge** — start the loop with the resolved worker backend (`pi-harness` or `antigravity-harness`, resolved worker
    Pi flags) for implement and a `generalPurpose` Task with the resolved reasoning
    model for converge. Never launch these two workers in
    parallel. Continue until converge returns `CONVERGE_OUTCOME: converged`.
@@ -423,7 +448,7 @@ flowchart TD
 
 ### Change path
 
-3. **Change** — spawn Pi via `pi-harness` with the resolved worker Pi
+3. **Change** — spawn the resolved worker backend (`pi-harness` or `antigravity-harness`) with the resolved worker
    flags. Tell it to follow `<AINATIVE>/docs/agents/change/SKILL.md`
    with `STEP: change`. Pass `REPO_ROOT` (the feature `WORKTREE` from
    ready), `FLOW_ID`, `BRANCH`, `TASK_DESCRIPTION`, and `ATTEMPT`. On
@@ -442,7 +467,7 @@ flowchart TD
 
 ### Job path
 
-3. **Job** — spawn Pi via `pi-harness` with the resolved worker Pi
+3. **Job** — spawn the resolved worker backend (`pi-harness` or `antigravity-harness`) with the resolved worker
    flags. Tell it to read `SKILL_PATH` from route-work and
    follow it exactly, with the user args verbatim as the task input, and
    pass `REPO_ROOT` (the feature `WORKTREE` from ready). Tell it to write
@@ -524,7 +549,7 @@ resolution (runtime-owned, no pinned values)** above:
 
 | Stage | Role / spawn |
 | --- | --- |
-| ready, specify, clarify, tasks, implement, change, job | **worker** — Pi via `pi-harness` with resolved worker Pi flags |
+| ready, specify, clarify, tasks, implement, change, job | **worker** — resolved backend (`pi-harness` or `antigravity-harness`) with resolved `--model` |
 | plan, route, analyze, converge | **reasoning** — host Task with `model` = resolved reasoning model (plan-reviewer, when used, pinned to the same model as plan) |
 | critic, tester | **validation** — host Task with `model` = resolved validation model, fresh session |
 
@@ -537,7 +562,7 @@ resolution order above.
 Reasoning- and validation-stage workers must be a foreground `generalPurpose` Task with
 `run_in_background: false` (or the host equivalent: OpenCode subagent /
 Hermes worker session with the resolved reasoning or validation model;
-validation always in a fresh session). Worker stages must run as Pi via `pi-harness`.
+validation always in a fresh session). Worker stages must run as the resolved backend via `pi-harness` or `antigravity-harness`.
 Do not create or retain per-command agents.
 Each worker starts with empty context, so include all of the following in its
 prompt:

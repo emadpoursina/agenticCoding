@@ -43,7 +43,8 @@ Platform aliases (Cursor name ≠ skill folder):
 
 Skills with `disable-model-invocation: true` will not auto-load; use the slash
 command (or attach the skill) — `/speckit-orchestrate`, `/change`, `/critic`,
-`/tester`, `/pr-reviewer`, `/route-work`, `/pi-harness`, `/speckit-ready`.
+`/tester`, `/pr-reviewer`, `/route-work`, `/pi-harness`, `/antigravity-harness`,
+`/speckit-ready`.
 
 ## After adding an agent
 

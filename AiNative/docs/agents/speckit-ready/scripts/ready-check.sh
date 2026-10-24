@@ -650,6 +650,82 @@ if [ -f ".specify/ready.yml" ]; then
 fi
 
 # ---------------------------------------------------------------------------
+# Worker runtime (required for the backend this run will use)
+# Resolution: SPECKIT_WORKER, else git config speckit.worker, else pi.
+# ---------------------------------------------------------------------------
+
+worker_fail=0
+worker_note=""
+worker_fix=""
+worker_raw="${SPECKIT_WORKER:-}"
+worker_source="SPECKIT_WORKER"
+if [ -z "$worker_raw" ]; then
+  worker_raw="$(git config --local --get speckit.worker 2>/dev/null || true)"
+  if [ -n "$worker_raw" ]; then
+    worker_source="git config speckit.worker"
+  else
+    worker_raw="pi"
+    worker_source="default"
+  fi
+fi
+worker_lc="$(printf '%s' "$worker_raw" | tr '[:upper:]' '[:lower:]')"
+case "$worker_lc" in
+  pi)
+    worker="pi"
+    pi_bin="${SPECKIT_PI_BIN:-pi}"
+    if command -v "$pi_bin" >/dev/null 2>&1; then
+      pi_ver="$("$pi_bin" --version 2>/dev/null | head -n 1 | tr '\n' ' ')"
+      worker_note="pi on PATH (${worker_source}${pi_ver:+; $pi_ver})"
+    else
+      worker_fail=1
+      worker_note="pi not on PATH (${worker_source})"
+      worker_fix="install Pi and put 'pi' on PATH, or set SPECKIT_WORKER=antigravity if this run should use the Antigravity SDK, then re-run."
+    fi
+    ;;
+  antigravity|agy|google-antigravity)
+    worker="antigravity"
+    if ! command -v python3 >/dev/null 2>&1; then
+      worker_fail=1
+      worker_note="python3 not on PATH (${worker_source})"
+      worker_fix="install Python 3, then 'pip install google-antigravity', then re-run."
+    elif ! python3 -c "from google.antigravity import Agent, LocalAgentConfig" >/dev/null 2>&1; then
+      worker_fail=1
+      worker_note="google.antigravity is not importable (${worker_source})"
+      worker_fix="pip install google-antigravity (PyPI wheel; a git clone has no localharness binary), then re-run."
+    else
+      auth_ok=0
+      auth_note=""
+      if [ -n "${GEMINI_API_KEY:-}" ] || [ -n "${GOOGLE_API_KEY:-}" ]; then
+        auth_ok=1
+        auth_note="Gemini API key env is set"
+      elif [ "${GOOGLE_GENAI_USE_VERTEXAI:-}" = "True" ] || [ "${GOOGLE_GENAI_USE_VERTEXAI:-}" = "true" ] || [ "${GOOGLE_GENAI_USE_VERTEXAI:-}" = "1" ] || [ "${GOOGLE_GENAI_USE_ENTERPRISE:-}" = "True" ] || [ "${GOOGLE_GENAI_USE_ENTERPRISE:-}" = "true" ]; then
+        if [ -n "${GOOGLE_CLOUD_PROJECT:-}" ] || [ -n "${GOOGLE_APPLICATION_CREDENTIALS:-}" ]; then
+          auth_ok=1
+          auth_note="Vertex/Enterprise env is set"
+        else
+          worker_fail=1
+          worker_note="Vertex enabled but GOOGLE_CLOUD_PROJECT / ADC missing (${worker_source})"
+          worker_fix="set GOOGLE_CLOUD_PROJECT (and ADC via gcloud auth application-default login) or GEMINI_API_KEY, then re-run."
+        fi
+      else
+        worker_fail=1
+        worker_note="no Gemini API key or Vertex env (${worker_source})"
+        worker_fix="set GEMINI_API_KEY (or GOOGLE_API_KEY), or Vertex GOOGLE_GENAI_USE_VERTEXAI + GOOGLE_CLOUD_PROJECT, then re-run. Do not paste keys into chat."
+      fi
+      if [ "$worker_fail" -eq 0 ] && [ "$auth_ok" -eq 1 ]; then
+        worker_note="google.antigravity importable; ${auth_note} (${worker_source})"
+      fi
+    fi
+    ;;
+  *)
+    worker="$worker_lc"
+    worker_fail=1
+    worker_note="unknown worker backend '$worker_raw' (${worker_source})"
+    worker_fix="set SPECKIT_WORKER or git config speckit.worker to 'pi' or 'antigravity', then re-run."
+    ;;
+esac
+
+# ---------------------------------------------------------------------------
 # Report
 # ---------------------------------------------------------------------------
 
@@ -664,20 +740,28 @@ else
   lstat="fail"
 fi
 
+if [ "$worker_fail" -eq 0 ]; then
+  wstat="pass"
+else
+  wstat="fail"
+fi
+
 ready="ok"
-if [ "$branch_fail" -ne 0 ] || [ "$layout_fail" -ne 0 ] || [ "$project_required_fail" -ne 0 ]; then
+if [ "$branch_fail" -ne 0 ] || [ "$layout_fail" -ne 0 ] || [ "$project_required_fail" -ne 0 ] || [ "$worker_fail" -ne 0 ]; then
   ready="blocked"
 fi
 
 printf 'READY: %s\n' "$ready"
 printf 'FLOW_ID: %s\n' "$FLOW_ID"
 printf 'BRANCH: %s\n' "$current_branch"
+printf 'WORKER: %s\n' "$worker"
 if [ "$ready" = "ok" ]; then
   printf 'WORKTREE: %s\n' "$worktree_path"
 fi
 printf 'CHECKS:\n'
 printf -- '- [required] git-branch-state: %s — %s\n' "$bstat" "$branch_note"
 printf -- '- [required] speckit-layout: %s — %s\n' "$lstat" "$layout_note"
+printf -- '- [required] worker-runtime: %s — %s\n' "$wstat" "$worker_note"
 if [ -n "$project_check_lines" ]; then
   printf '%s' "$project_check_lines"
 fi
@@ -689,6 +773,9 @@ if [ "$ready" = "blocked" ]; then
   fi
   if [ "$layout_fail" -ne 0 ]; then
     printf -- '- restore the missing Spec Kit files under %s (%s), then re-run.\n' "$REPO_ROOT" "$layout_missing"
+  fi
+  if [ "$worker_fail" -ne 0 ] && [ -n "$worker_fix" ]; then
+    printf -- '- %s\n' "$worker_fix"
   fi
   if [ -n "$project_fix_lines" ]; then
     printf '%s' "$project_fix_lines"
