@@ -173,17 +173,20 @@ and `validation:` never affect Worker stages):
    launching that profile and ask the operator for that profile's value only. Never
    invent a nearby slug, never reuse another profile's model.
 
-## Worker backend (Pi or Antigravity SDK)
+## Worker SDK (Pi or Antigravity SDK)
 
-Worker stages run in an external coding agent. Resolve **one** backend per run
-(do not require both to be installed):
+Worker stages run in an external coding agent. The backend is the Worker
+execution's `provider` (`SDK pi` vs `SDK antigravity`) — not a separate
+decision. Resolve **one** provider per run (do not require both to be
+installed). For Cursor/OpenCode that provider value lives in:
 
 1. `SPECKIT_WORKER` (`pi` or `antigravity`; aliases `agy`, `google-antigravity`).
 2. `git config speckit.worker` in the target repo.
 3. Default `antigravity`.
 
-Ready already reports `WORKER:` and `worker-runtime`. Honor that value for
-every later worker stage in the same run.
+Ready already reports `WORKER:` and `worker-runtime` as the echo of the
+resolved provider. Honor that value for every later Worker-profile stage in
+the same run.
 
 - **pi** — follow `pi-harness`. Pass resolved `--provider` / `--model` /
   `--thinking`. `--cwd` is `WORKTREE` after ready.
