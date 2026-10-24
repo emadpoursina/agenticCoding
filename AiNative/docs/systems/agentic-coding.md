@@ -7,7 +7,7 @@ that loop — see the [PIVS mapping](./feature-loop.md#pivs-mapping).
 
 Canonical five-part model (Harness, Model, Context, Tools, Agents): [agentic-system.md](./agentic-system.md).
 
-This doc covers **Context** (AI layer below) and historical **PIV** agents. Harness, model roles, and tools are defined in agentic-system.md.
+This doc covers **Context** (AI layer below) and historical **PIV** agents. Harness, model profiles, and tools are defined in agentic-system.md.
 
 ## AI layer
 
