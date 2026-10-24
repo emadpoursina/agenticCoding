@@ -1,6 +1,8 @@
 ---
 name: task-groomer
-description: Turn a rough request into a confirmed Hermes kanban task. Use when the operator says "new task: ..." or needs a task made dispatcher-ready.
+description: >-
+  Turn a rough request into a confirmed Hermes kanban task. Use when the
+  operator says "new task: ..." or needs a task made dispatcher-ready.
 version: 1.2.0
 platforms: [linux, macos, windows]
 metadata:

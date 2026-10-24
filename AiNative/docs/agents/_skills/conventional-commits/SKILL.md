@@ -1,6 +1,8 @@
 ---
 name: conventional-commits
-description: Writes Conventional Commits messages (type(scope): subject). Use when drafting a commit message or when the user asks to commit.
+description: >-
+  Writes Conventional Commits messages (type(scope): subject). Use when drafting
+  a commit message or when the user asks to commit.
 ---
 
 # Conventional Commits
