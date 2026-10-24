@@ -211,9 +211,12 @@ Pi `--provider` / `--thinking` when the backend is Pi). Then continue from
 the worker's compact report.
 
 If the resolved worker launch cannot be used — binary/SDK missing, provider/auth
-failure, spawn reject, or the launch fails because of the model — do not swap
-to a Task or the other backend. Retry once only if the runtime defines a
-distinct fallback value for that profile. If the primary partially executed the
+failure, spawn reject, or the launch fails because of the model — do not
+improvise another backend or model. Retry once only if the runtime defines a
+distinct fallback value for that profile. The fallback may use a different
+executionMode: if it specifies HOST, run the stage as a host Task (or host
+equivalent) with the fallback model, using the same worker prompt and report
+contract. If the primary partially executed the
 stage before becoming unavailable, do not blindly rerun through the fallback:
 inspect artifacts and side effects first and retry only when safe; otherwise stop
 and report execution status and remaining work. If there is no runtime fallback, or
@@ -555,7 +558,7 @@ resolution (runtime-owned, no pinned values)** above:
 | Stage | Profile / spawn |
 | --- | --- |
 | ready, route, specify, clarify, plan, tasks, analyze | **Reasoning** — host Task with `model` = resolved Reasoning-profile model (plan-reviewer, when used, pinned to the same model as plan) |
-| implement, converge, change, job | **Worker** — resolved backend (`pi-harness` or `antigravity-harness`) with resolved `--model` |
+| implement, converge, change, job | **Worker** — resolved backend (`pi-harness` or `antigravity-harness`) with resolved `--model` (fallback may specify HOST: host Task with fallback model) |
 | critic, tester | **Validation** — host Task with `model` = resolved Validation-profile model, fresh session (distinct from Reasoning/Worker when available) |
 
 Pass the resolved values exactly as resolved. If the resolved value for that
