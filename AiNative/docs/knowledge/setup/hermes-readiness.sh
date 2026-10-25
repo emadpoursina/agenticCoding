@@ -10,7 +10,7 @@
 #
 # [target-project] is the project probed for git sanity (repo + origin reachable;
 # Spec Kit layout belongs to the ready gate). Default: the first
-# workspace dir that has an .ainative/project.yaml, else `agenticCoding`.
+# workspace dir that has an .ainative/project.yaml, else `new-project`.
 # Accepts either a host path or a container path; each mode maps it itself.
 #
 # Read-only. The only writes are a writability probe (temp dir, removed) and an
@@ -394,12 +394,12 @@ first_with_scaffold() {
 
 if [ -d /opt/data/mnt/AiNative ]; then
   # ---- container mode
-  T=${1:-$(first_with_scaffold /opt/data/mnt/workspace || printf '%s' /opt/data/mnt/workspace/agenticCoding)}
+  T=${1:-$(first_with_scaffold /opt/data/mnt/workspace || printf '%s' /opt/data/mnt/workspace/new-project)}
   container_checks "$T"
 else
   # ---- host mode
   HRD=$(hermes_data_root)
-  HOST_T=${1:-$(first_with_scaffold "$HRD/workspace" || printf '%s' "$HRD/workspace/agenticCoding")}
+  HOST_T=${1:-$(first_with_scaffold "$HRD/workspace" || printf '%s' "$HRD/workspace/new-project")}
   host_checks
   if docker inspect -f '{{.State.Status}}' hermes-personal-coding 2>/dev/null | grep -q running; then
     C_T="/opt/data/mnt/workspace/$(basename "$HOST_T")"
