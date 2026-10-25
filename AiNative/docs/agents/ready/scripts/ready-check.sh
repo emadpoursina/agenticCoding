@@ -707,6 +707,9 @@ case "$worker_lc" in
           worker_note="Vertex enabled but GOOGLE_CLOUD_PROJECT / ADC missing (${worker_source})"
           worker_fix="set GOOGLE_CLOUD_PROJECT (and ADC via gcloud auth application-default login) or GEMINI_API_KEY, then re-run."
         fi
+      elif agy_bin="$(command -v agy || printf '%s' "$HOME/.local/bin/agy")" && [ -x "$agy_bin" ] && "$agy_bin" models >/dev/null 2>&1; then
+        auth_ok=1
+        auth_note="CLI authenticated (agy models)"
       else
         worker_fail=1
         worker_note="no Gemini API key or Vertex env (${worker_source})"

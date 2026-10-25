@@ -100,7 +100,7 @@ Aliases for Antigravity: `antigravity`, `agy`, `google-antigravity`.
 - **pi** — `pi` is on PATH (`SPECKIT_PI_BIN` overrides the binary name).
 - **antigravity** — `python3` can `from google.antigravity import Agent, LocalAgentConfig`,
   and auth is present (`GEMINI_API_KEY` / `GOOGLE_API_KEY`, or Vertex
-  `GOOGLE_GENAI_USE_VERTEXAI` + `GOOGLE_CLOUD_PROJECT` / ADC). Do not
+  `GOOGLE_GENAI_USE_VERTEXAI` + `GOOGLE_CLOUD_PROJECT` / ADC, or an authenticated Antigravity CLI (agy models returns a model list)). Do not
   require the `agy` TUI. The install is `pip install google-antigravity`
   (PyPI wheel includes `localharness`).
 

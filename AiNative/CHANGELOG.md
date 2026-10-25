@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.2.2] - 2026-10-25
+
+### Added
+- Ready `worker-runtime` antigravity auth accepts an authenticated Antigravity CLI (`agy models`) via PATH or `~/.local/bin`, in addition to Gemini API key and Vertex env.
+
 ## [0.2.1] - 2026-10-24
 
 ### Changed
