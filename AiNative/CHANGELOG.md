@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.4.0] - 2026-10-26
+## [0.5.0] - 2026-10-26
 
 ### Added
 - Agentic Validation loop: feature-path live graph and dispatcher sequence updated to `converge(converged) → critic → tester → ship → pr-review → uat`.
@@ -10,6 +10,21 @@
 - Converge fingerprint extended to include validator IDs alongside sorted source-refs; validator IDs appear in task descriptions only, preserving spec/plan/constitution source-refs.
 - Path isolation: change path remains tester-only (no critic, no LOOP_BACK, FINDINGS retry, no `tasks.md`); job path skips PR review and UAT.
 - `keep-local` (alias `no-ship`) support: runs path validation then emits `SHIP: declined` and skips ship, automatic PR review, and UAT.
+
+## [0.4.0] - 2026-10-26
+
+### Changed
+- Switch Antigravity worker runtime from Python SDK (`google.antigravity.Agent`) to official CLI headless `agy -p` invoked through `agy-spawn.py`.
+- Edit jobs pass `--mode accept-edits --dangerously-skip-permissions`; scout jobs pass `--mode plan`. Child stdin is ignored (`DEVNULL`) and `--prompt-interactive` is omitted.
+- Short jobs with wrapper `--print` use text stdout; long jobs use `--output-format stream-json` and persist raw CLI events to `events.jsonl`. Worker STATUS reconstructed from stream-json events or text stdout.
+- Dual timeout enforcement when wrapper `--timeout` is set: maps to `agy --print-timeout {n}s` and sets wrapper SIGTERM then SIGKILL kill timer.
+- Ready `worker-runtime` check for Antigravity now checks `agy` on PATH and successful `agy models`. The Python SDK is neither required nor checked.
+
+## [0.3.1] - 2026-10-26
+
+### Added
+- `/handoff-speckit` command now lives in `.cursor/commands/` (was a local-only file) and is symlinked like the others.
+- `/handoff-speckit` emits `keep-local` when the chat said not to ship, and lists unsettled questions under **Open decisions** for clarify to answer in its choice report. `skip` stays the default.
 
 ## [0.3.0] - 2026-10-26
 
