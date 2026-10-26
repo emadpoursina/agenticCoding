@@ -6,7 +6,19 @@
 - PIVS evidence bundle methodology: Plan test flows declare a proof type (UI = Playwright trace, video, and screenshots with Playwright commands only; API; CLI/job; logic); critic plan review **blocks** on orphan acceptance criteria, missing proof types, and UI proof without Playwright commands.
 - Tester persists command-produced captures under `specs/<flow>/evidence/` and a single-table manifest at `specs/<flow>/evidence.md` (replaced on each run, FAIL still records every executed flow, full 40-char `HEAD` per row, API captures redact credentials/`Authorization`); tester compact report adds `EVIDENCE: <path>` without dropping PASS/FAIL.
 - Validation layer: vendor-neutral PR CI re-run of `validation_commands` with Playwright capture and workflow-artifact uploads (GitHub Actions example only), recommended `specs/*/evidence/` and `specs/*/evidence.md` ignores, secrets guidance, and an optional fail-before/pass-after check.
-- Ship adds mandatory PR `## Evidence` beside `## Walkthrough` and `EVIDENCE: included|none` (walkthrough unchanged); pr-reviewer gains an on-demand evidence audit — completeness, stale SHA vs PR head, CI job-success agreement — with **stale** and **claimed but unproven** as blocking findings, re-runnable after every fix push.
+- Ship adds mandatory PR `## Evidence` beside `## Walkthrough` and `EVIDENCE: included|none` (walkthrough unchanged); pr-reviewer evidence audit maps **stale** and **claimed but unproven** onto the Critical merge gate (trouble ≥ 0.8, file:line, trigger) so they REQUEST CHANGES without a second blocker; re-review audits the new head.
+
+## [0.2.3] - 2026-10-26
+
+### Changed
+- pr-reviewer merge gate: only Critical blocks; Warning and Suggestion never change the verdict; APPROVE is allowed and zero findings is a valid result.
+- pr-reviewer scores: trouble sets severity (Critical at 0.8+); frequency only sorts.
+- pr-reviewer scope: only lines the PR changes; pre-existing code is never Critical.
+- pr-reviewer Phase 5: "try to break the change" with file:line, trigger, and observable effect; unsupported candidates are dropped.
+- pr-reviewer Phase 1.5: blocking only for a bypassed safety layer or a broken documented rule.
+- pr-reviewer Phase 2: adds a None rating; Phase 4 is skipped when nothing is Medium or High.
+- pr-reviewer re-review: review only new commits, no repeated findings, accepted risks, Criticals only from round 3.
+- pr-reviewer: merged `rules.md` into `rule.md`, the file name every agent folder uses.
 
 ## [0.2.2] - 2026-10-25
 

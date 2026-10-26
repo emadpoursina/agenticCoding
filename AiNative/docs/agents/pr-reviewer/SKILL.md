@@ -14,7 +14,7 @@ disable-model-invocation: true
 Staged workflow: understanding → architecture compliance → risk → one deep focus → adversarial. AI is a thinking partner, not an authority.
 
 Prompts: read `prompts.md` in this skill directory.  
-Rules: read `rules.md` in this skill directory.
+Rules: read `rule.md` in this skill directory.
 
 ## Parse input
 
@@ -53,7 +53,7 @@ Resolve relative paths against the workspace.
 
 ## Skip Phase 1.5
 
-Skip when the PR is clearly typo-only, dependency-only, or config-only with no logic — per `rules.md` and `skip_phase_1_5_when` in project config.
+Skip when the PR is clearly typo-only, dependency-only, or config-only with no logic — per `rule.md` and `skip_phase_1_5_when` in project config.
 
 ## Get diff
 
@@ -79,29 +79,41 @@ Read the matching prompt block from `prompts.md` each phase. Do not combine phas
 | 1.5 — Architecture compliance | **blocking** → stop entire review, request rework |
 | 2 — Risk classification | Continue |
 | 3 — Select focus | `--focus` if given; else the highest Phase 2 risk rating; `default_focus` only on a tie |
-| 4 — Deep focus | Exactly one of security / reliability / maintainability / performance |
+| 4 — Deep focus | Exactly one of security / reliability / maintainability / performance; skipped if every Phase 2 rating is Low or None |
 | 5 — Adversarial | Final AI pass |
-| Audit — evidence (on demand, after Ship) | See below |
+| Audit — evidence | After Phase 5 when the PR carries (or should carry) a feature-loop evidence bundle; skip otherwise |
 
 If the project has extra review rules (e.g. `.cursor/rules/*pr-review*`), apply those in addition to the one Phase 4 focus when the PR touches API or multi-client behavior.
 
 ## Evidence audit (on demand, after Ship)
 
-Run the **Evidence audit** prompt from `prompts.md` after Phase 5 whenever the caller asks, or when the PR carries (or should carry) a feature-loop evidence bundle. It is an extra step in the staged review — not a loop gate.
+Run the **Evidence audit** prompt from `prompts.md` after Phase 5 whenever the caller asks, or when the PR carries (or should carry) a feature-loop evidence bundle. Skip it for typo/dependency/config-only PRs and for docs with no Plan acceptance criteria. It is not a loop gate.
 
-- **Completeness (verdict-aware):** tester PASS ⇒ every acceptance criterion has a manifest row and the artifact shape its proof type requires. Tester FAIL ⇒ rows are required for every flow that was executed; unexecuted criteria are not "claimed proven" and are not flagged as claimed but unproven.
-- **SHA freshness:** each row's `Commit SHA` vs the current PR head; mismatch ⇒ **stale** (blocking until the tester re-runs at head).
+Findings use the same **Scores** and **Merge gate** as every other phase. Do not invent a second "blocking" channel.
+
+- **Completeness (verdict-aware):** tester PASS ⇒ every acceptance criterion has a manifest row and the artifact shape its proof type requires. Tester FAIL ⇒ rows are required for every executed flow; unexecuted criteria are not claimed proven.
+- **SHA freshness:** each row's `Commit SHA` vs the current PR head; mismatch ⇒ **stale**.
 - **CI agreement:** the PR-head CI re-run of `validation_commands` (or documented equivalent) **succeeded** — job success on this head, not byte-identical artifacts.
-- **Blocking findings:** **stale** and **claimed but unproven** (tester PASS with missing manifest, missing required artifact, stale SHA, or CI failed / skipped / unfinished).
-- Re-run the audit on every pr-review pass after a fix push; prior-pass PASS does not waive a newly stale bundle.
+- **stale** and **claimed but unproven** (tester PASS with missing manifest, missing required artifact, stale SHA, or CI failed / skipped / unfinished) are **Critical**: trouble ≥ 0.8, `file:line` on the manifest row or PR `## Evidence` table, and a trigger (SHA pair, missing path, or CI job conclusion). The bundle is gitignored — audit the working tree or attached CI artifacts, not `git show`.
+- Re-run on every pr-review pass after a fix push (see Re-review). A newly stale head is a new Critical, not a repeated Warning.
 
-## Problem scores (required)
+## Scores
 
-For each problem give 2 score between 0.0 - 1.0:
+Keep the two 0.0–1.0 scores (one decimal) on every finding:
   - how often it could happen
   - if it happended, how much trouble it makes
 
-Use one decimal (e.g. `0.3`, `0.8`). Score every concrete problem in Phases 1.5, 2, 4, and 5 — not the Phase 1 summary.
+Trouble sets severity. Frequency only sorts.
+
+- Critical: trouble ≥ 0.8
+- Warning: trouble 0.5–0.7
+- Suggestion: trouble below 0.5
+
+Anchors: 0.9 = data loss, security hole, wrong money, outage. 0.5 = wrong result on a rare path with a workaround. 0.2 = naming, docs, missing tests.
+
+Never multiply the two to gate. A rare data-loss bug would then rank below a common cosmetic one.
+
+Score every concrete problem in Phases 1.5, 2, 4, 5, and the evidence audit — not the Phase 1 summary.
 
 ```markdown
 ### <problem title>
@@ -109,6 +121,23 @@ Use one decimal (e.g. `0.3`, `0.8`). Score every concrete problem in Phases 1.5,
 - if it happended, how much trouble it makes: 0.Y
 - why: <one short reason>
 ```
+
+## Merge gate
+
+Same labels as `critic` and `verification`:
+
+- **Critical**: merge blocker. Trouble ≥ 0.8 (see Scores) and a named trigger: file:line plus the input that hits it. No trigger, no finding.
+- **Warning**: should fix. Never blocks.
+- **Suggestion**: optional. Never blocks. Tests, naming, docs, duplication, "could be cleaner".
+
+Scope: only lines this PR adds or changes. Older code gets at most a Pre-existing note, never Critical. Evidence-audit Criticals are in scope against the current head's bundle and CI even though those files are gitignored.
+
+Verdict:
+- **BLOCKED**: Phase 1.5 is blocking.
+- **REQUEST CHANGES**: at least one Critical.
+- **APPROVE**: no Critical. Warnings and Suggestions don't change this. Zero findings is a valid result.
+
+Show at most 5 Warnings and 5 Suggestions, highest trouble score first.
 
 ## Output format
 
@@ -124,14 +153,28 @@ One consolidated report:
 ## Phase 3 — Focus chosen
 ## Phase 4 — Deep review
 ## Phase 5 — Adversarial
-## Evidence audit — findings (when run)
+## Evidence audit (or SKIPPED — reason)
+## Follow-ups (Warning and Suggestion, non-blocking)
+## Accepted risks (author-marked)
 ## Verdict — APPROVE / REQUEST CHANGES / BLOCKED (Phase 1.5)
 ## Human checklist (Phase 6)
 ```
 
 Every listed problem must include both scores.
 
-Phase 6 is for the human — do not auto-approve.
+Phase 6 stays with the human. APPROVE means "merge recommended," not auto-merge.
+
+## Re-review (second run or later on the same PR)
+
+Pass the previous report with `--extra @<previous-review>.md`.
+
+1. Check each previous Critical: fixed or not, with file:line.
+2. Review only commits since the last reviewed commit.
+3. Raise no new Warning or Suggestion in code this round didn't change.
+4. Don't re-raise a listed finding unless its code changed. An author note "accepted: <reason>" moves it to Accepted risks.
+5. If the author disputes a finding with file:line evidence, re-read that code once. Drop it if the evidence holds. Otherwise keep it and state the trigger.
+6. From round 3 on, report Criticals only.
+7. Re-run the evidence audit against the **new** PR head. A SHA that no longer matches, or CI that has not succeeded on this head, is a new Critical (the head changed). A prior-pass PASS does not waive it. An author "accepted: unproven" note is not valid for stale or claimed-but-unproven.
 
 ## Errors
 

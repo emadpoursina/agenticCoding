@@ -96,7 +96,7 @@ On demand after Ship, pr-reviewer gains an evidence audit step: every acceptance
 **Acceptance Scenarios**:
 
 1. **Given** a PR whose `evidence.md` records SHA `S_old` while PR head is `S_new`, **When** pr-reviewer runs the evidence audit, **Then** those rows are marked stale relative to PR head until the tester re-runs at `S_new`.
-2. **Given** the tester claimed PASS for a criterion but CI failed, skipped, or has not finished the re-run of `validation_commands` on this head, or the required artifact is missing, **When** pr-reviewer audits, **Then** it reports a blocking finding that the criterion is claimed but unproven. CI agreement is job success on this head, not byte-identical artifacts.
+2. **Given** the tester claimed PASS for a criterion but CI failed, skipped, or has not finished the re-run of `validation_commands` on this head, or the required artifact is missing, **When** pr-reviewer audits, **Then** it reports a **Critical** finding (merge gate: REQUEST CHANGES) that the criterion is claimed but unproven. CI agreement is job success on this head, not byte-identical artifacts.
 3. **Given** evidence and CI agree for all criteria at PR head, **When** pr-reviewer completes, **Then** no blocking evidence findings remain.
 4. **Given** a second pr-review after a fix push, **When** CI has re-run on the new head, **Then** the same audit rules apply to the new head (fresh SHA match, or stale if the tester did not re-run).
 
@@ -137,7 +137,7 @@ Documentation describes an optional check: new tests should fail on the base com
 - Change path (thinner Plan artifacts) → every acceptance criterion listed on that Plan still needs a proof-typed test flow (same critic fail as the feature path); tester still writes file-based proof for flows it actually runs.
 - Plan assigns UI proof without Playwright commands → critic fails; the project must use CLI/job or logic instead. This feature does not introduce other UI recorders.
 - Re-validation after Implement loop-back → tester **replaces** `specs/<flow>/evidence.md` and refreshes artifacts for the **full** validation run (not a row patch, and not "failed flows only" for the manifest). SHA updates to the worktree `HEAD` at the end of that run.
-- Tester FAIL → manifest records executed commands; Ship may report `EVIDENCE: included` with a FAIL tester verdict; missing or stale proof remains blocking for pr-reviewer.
+- Tester FAIL → manifest records executed commands; Ship may report `EVIDENCE: included` with a FAIL tester verdict; missing or stale proof remains a Critical pr-reviewer finding.
 - Accidental `git add` of evidence files → guidance recommends ignoring `specs/*/evidence/` and `specs/*/evidence.md`; bulky UI captures belong in CI workflow artifacts only.
 - Ship opens the PR before CI finishes → `## Evidence` still includes the manifest table and local small screenshots; bulky files are referenced by the documented workflow artifact name so the operator and pr-reviewer can open them after CI completes. Until that head's CI re-run finishes successfully, pr-reviewer treats PASS claims as claimed but unproven.
 - Multiple pr-review passes → each pass re-checks SHA vs current PR head and current CI; prior-pass PASS does not waive a newly stale bundle.
@@ -158,7 +158,7 @@ Documentation describes an optional check: new tests should fail on the base com
 - **FR-006a**: Those docs MUST recommend gitignoring `specs/*/evidence/` and `specs/*/evidence.md` in enrolled repos so local captures and the manifest are never committed. CI artifact URLs (or named artifacts) satisfy PR `## Evidence` links for bulky files.
 - **FR-007**: Speckit-orchestrate Ship / UAT section MUST require PR body `## Evidence` alongside `## Walkthrough`, populated from the manifest (table, inline small screenshots, CI artifact links or names). Walkthrough purpose MUST stay mandatory and unchanged.
 - **FR-008**: Ship compact report MUST add `EVIDENCE: included|none` without removing `SHIP`, `PR`, `WALKTHROUGH`, or `SUMMARY`.
-- **FR-009**: pr-reviewer prompts and pr-review-system overview MUST add an evidence audit step covering completeness, SHA freshness vs PR head, and CI agreement with tester claims. CI agreement means the PR CI re-run of `validation_commands` (or documented equivalent) on the current head succeeded; artifact bytes need not match the local bundle. A tester PASS whose CI job failed, was skipped, or has not finished is "claimed but unproven". "Claimed but unproven" MUST be a blocking finding. The step MUST be specified so it is re-runnable on every pr-review pass after a fix push.
+- **FR-009**: pr-reviewer prompts and pr-review-system overview MUST add an evidence audit step covering completeness, SHA freshness vs PR head, and CI agreement with tester claims. CI agreement means the PR CI re-run of `validation_commands` (or documented equivalent) on the current head succeeded; artifact bytes need not match the local bundle. A tester PASS whose CI job failed, was skipped, or has not finished is "claimed but unproven". "Claimed but unproven" and **stale** MUST be **Critical** findings under the pr-reviewer merge gate (trouble ≥ 0.8, file:line, trigger) so the verdict is REQUEST CHANGES — not a second blocker beside Critical. The step MUST be specified so it is re-runnable on every pr-review pass after a fix push.
 - **FR-010**: `feature-loop.md` compact-report definitions for tester and Ship MUST match the updated agent docs.
 - **FR-011**: Scope MUST be limited to the listed AiNative documentation paths plus `AiNative/CHANGELOG.md`. No new loop states, no new agents, no Hermes/runtime code, no third-party evidence products (reference-only mentions allowed).
 - **FR-012**: No new dependencies. UI proof uses Playwright's built-in trace, video, and screenshot only. Plans MUST NOT assign the UI proof type unless the flow's commands are Playwright.
@@ -181,7 +181,7 @@ Documentation describes an optional check: new tests should fail on the base com
 ### Measurable Outcomes
 
 - **SC-001**: An operator can open a shipped PR and, from `## Evidence` alone, see every acceptance criterion with a file path or CI artifact pointer — without reading tester chat logs.
-- **SC-002**: A tabletop review of pr-reviewer prompts yields a blocking finding whenever any criterion lacks evidence or the manifest SHA does not match PR head, including on a second review after a fix push.
+- **SC-002**: A tabletop review of pr-reviewer prompts yields a Critical finding (REQUEST CHANGES) whenever any criterion lacks evidence or the manifest SHA does not match PR head, including on a second review after a fix push.
 - **SC-003**: Plan plus critic documentation together make it a documented fail for the critic to approve a Plan whose acceptance criterion has no proof type.
 - **SC-004**: Tester and Ship `EVIDENCE` fields in `feature-loop.md` match the agent skills (same field names and allowed values).
 - **SC-005**: UAT still has a mandatory walkthrough; evidence is present in the PR next to it, not instead of it.

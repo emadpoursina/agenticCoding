@@ -12,9 +12,10 @@ On-demand after Ship. Not a loop gate. Re-runnable on every pr-review pass after
 ## Checks (all required)
 
 1. **Completeness** (verdict-aware): tester PASS → every acceptance criterion has a manifest row and the required artifact shape for its proof type. Tester FAIL → rows are required for every flow that was executed (with actual exit codes); unexecuted criteria are not "claimed proven" and are not flagged as claimed but unproven.
-2. **SHA freshness**: each row’s commit SHA must equal current PR head. Mismatch → mark those rows **stale** (blocking until tester re-runs at head).
+2. **SHA freshness**: each row’s commit SHA must equal current PR head. Mismatch → mark those rows **stale**.
 3. **CI agreement**: on this head, CI re-ran `validation_commands` (or documented equivalent) and those jobs **succeeded**. Artifact bytes need not match local files.
-4. **Claimed but unproven** (blocking): tester PASS (or claimed proven) when any of: missing manifest, missing required artifact, stale SHA, CI failed, CI skipped, CI unfinished.
+4. **Claimed but unproven**: tester PASS (or claimed proven) when any of: missing manifest, missing required artifact, stale SHA, CI failed, CI skipped, CI unfinished.
+5. **Merge gate:** stale and claimed-but-unproven are **Critical** (trouble ≥ 0.8, file:line on the manifest or PR `## Evidence` row, named trigger). They REQUEST CHANGES via the same gate as other findings. They are not a parallel blocker. Phase 1.5 BLOCKED is unchanged.
 
 ## Non-blocking / allowed
 

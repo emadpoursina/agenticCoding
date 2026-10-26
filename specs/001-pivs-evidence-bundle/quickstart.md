@@ -71,7 +71,7 @@ rg -n 'evidence audit|claimed but unproven|stale' \
   AiNative/docs/agents/pr-reviewer/ AiNative/docs/systems/pr-review-system.md
 ```
 
-**Pass**: Completeness, SHA vs PR head, CI job success (not byte match), and re-check after fix pushes are documented as blocking when unproven.
+**Pass**: Completeness, SHA vs PR head, CI job success (not byte match), and re-check after fix pushes are documented as Critical merge-gate findings (REQUEST CHANGES) when unproven. Not a second blocker. `rules.md` is not referenced as a live file.
 
 ## 7. CI + gitignore + vendor example (FR-006, FR-006a, SC-006)
 

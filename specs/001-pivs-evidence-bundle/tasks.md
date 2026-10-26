@@ -118,7 +118,7 @@
 ### Implementation for User Story 5
 
 - [X] T015 [P] [US5] Add an evidence-audit step to the staged review in `AiNative/docs/agents/pr-reviewer/prompts.md` covering completeness (every AC has a row and required artifact shape), SHA freshness vs PR head, and CI agreement as job success on this head for the re-run of `validation_commands` (or documented equivalent) — not byte-identical artifacts — per `specs/001-pivs-evidence-bundle/contracts/evidence-audit.md` (FR-009)
-- [X] T016 [P] [US5] Document blocking findings **stale** (manifest SHA ≠ PR head until tester re-runs) and **claimed but unproven** (tester PASS with missing manifest/artifact, stale SHA, or CI failed/skipped/unfinished) in `AiNative/docs/agents/pr-reviewer/SKILL.md`, `AiNative/docs/agents/pr-reviewer/rules.md`, `AiNative/docs/agents/pr-reviewer/rule.md`, and `AiNative/docs/agents/pr-reviewer/AGENTS.md`; audit is not a loop gate; prior-pass PASS does not waive a newly stale bundle (FR-009)
+- [X] T016 [P] [US5] Document **stale** and **claimed but unproven** as Critical merge-gate findings (trouble ≥ 0.8, file:line, trigger) in `AiNative/docs/agents/pr-reviewer/SKILL.md`, `AiNative/docs/agents/pr-reviewer/rule.md`, and `AiNative/docs/agents/pr-reviewer/AGENTS.md`; audit is not a loop gate; prior-pass PASS does not waive a newly stale bundle (FR-009)
 - [X] T017 [P] [US5] Summarize the same evidence-audit expectations for operators in `AiNative/docs/systems/pr-review-system.md` (FR-009, SC-002)
 
 **Checkpoint**: On-demand pr-reviewer can flag stale or unproven evidence after fix pushes.
@@ -224,7 +224,7 @@
 ```bash
 # After US2 + US4:
 # T015 — AiNative/docs/agents/pr-reviewer/prompts.md
-# T016 — pr-reviewer SKILL.md / rules.md / rule.md / AGENTS.md (single owner)
+# T016 — pr-reviewer SKILL.md / rule.md / AGENTS.md (single owner)
 # T017 — AiNative/docs/systems/pr-review-system.md
 ```
 

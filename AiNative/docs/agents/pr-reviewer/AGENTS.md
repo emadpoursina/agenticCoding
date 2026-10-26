@@ -23,7 +23,7 @@ Workflow context: [pr-review-system.md](../../systems/pr-review-system.md).
 - Risk ratings by category (Phase 2)
 - Deep findings for one focus area (Phase 4)
 - Adversarial edge cases (Phase 5)
-- Evidence audit (on demand after Ship): completeness (verdict-aware — PASS ⇒ every acceptance criterion has a row; FAIL ⇒ rows for every executed flow), manifest SHA vs PR head (stale), CI job success on this head; **stale** and **claimed but unproven** are blocking, re-runnable after every fix push
+- Evidence audit (after Ship when a feature bundle is expected): completeness, SHA vs PR head, CI job success — **stale** and **claimed but unproven** are Critical under the merge gate, re-checked after every fix push
 
 ## Phases
 
@@ -33,16 +33,16 @@ Workflow context: [pr-review-system.md](../../systems/pr-review-system.md).
 | 1.5 | Architecture compliance | Verify reuse of existing abstractions |
 | 2 | Risk classification | Rate security, scalability, migration, reliability, maintainability |
 | 3 | Select review focus | Pick the highest-rated risk from Phase 2 (or honor a `--focus` override) |
-| 4 | Deep focus review | Run the selected focus prompt |
-| 5 | Adversarial review | Hostile senior engineer pass |
-| Audit | Evidence audit (prompts.md) | On demand after Ship — completeness, stale SHA vs PR head, CI agreement; blocking findings re-checked after fix pushes |
+| 4 | Deep focus review | Run the selected focus prompt (skipped if every Phase 2 rating is Low or None) |
+| 5 | Adversarial review | Try to break the change; every failure needs a trigger |
+| Audit | Evidence audit (prompts.md) | After Ship when a bundle is expected; Criticals use the same merge gate |
 
 ## Supporting files
 
 | File | Purpose |
 |------|---------|
 | [SKILL.md](./SKILL.md) | Staged review phase prompts |
-| [rule.md](./rule.md) | Phase ordering, skip criteria, stop conditions |
+| [rule.md](./rule.md) | Constraints, merge bar, phase ordering, skip criteria, stop conditions |
 
 ## Quick start
 
