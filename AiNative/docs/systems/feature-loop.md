@@ -45,7 +45,7 @@ report.
 
 1. **AiNative agents** — folders under `docs/agents/`. Target required states: Ready,
    route-work, critic, and tester.    `pi-harness` is the Pi worker backend; `antigravity-harness` is the
-   Google Antigravity SDK worker backend. Ready selects one via
+   Google Antigravity CLI worker backend. Ready selects one via
    `SPECKIT_WORKER` / `speckit.worker` (default `antigravity`) and checks that
    runtime only. Both require `--model` (no harness default). `scout` (read-only brief / Repo Q&A),
    `pr-reviewer` (on-demand PR review after Ship), and

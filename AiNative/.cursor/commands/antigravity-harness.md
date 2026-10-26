@@ -1,5 +1,5 @@
 ---
-description: Delegates one bounded job to the Google Antigravity Python SDK and brings the result back. Use when the user asks to implement or fix code with Antigravity, to use the Antigravity SDK, or when SPECKIT_WORKER=antigravity. Cursor writes the job. The SDK Agent only executes that job.
+description: Delegates one bounded job to the official Antigravity CLI and brings the result back. Use when the user asks to implement or fix code with Antigravity, to use the Antigravity CLI, or when SPECKIT_WORKER=antigravity. Cursor writes the job. The agy CLI only executes that job.
 ---
 
 # /antigravity-harness

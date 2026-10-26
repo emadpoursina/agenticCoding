@@ -352,18 +352,20 @@ expect_contains "WORKER: pi" "case16"
 expect_contains "worker-runtime: fail" "case16"
 expect_contains "pi not on PATH" "case16"
 
-# --- Case 17: antigravity without SDK package -> worker-runtime fail ---------
-# Isolate HOME and PATH so an authenticated host 'agy' CLI or a user-site
-# google.antigravity install cannot make this case pass nondeterministically.
+# --- Case 17: antigravity without CLI on PATH -> worker-runtime fail ----------
+# Isolate HOME and PATH so an authenticated host 'agy' CLI cannot make this case pass nondeterministically.
 REPO15="$TMP/repo15"
 make_fixture "$REPO15"
 CASE17_HOME="$TMP/case17-home"
 mkdir -p "$CASE17_HOME"
 OUT="$(env -u GEMINI_API_KEY -u GOOGLE_API_KEY -u GOOGLE_GENAI_USE_VERTEXAI -u GOOGLE_GENAI_USE_ENTERPRISE -u GOOGLE_CLOUD_PROJECT -u GOOGLE_APPLICATION_CREDENTIALS HOME="$CASE17_HOME" PATH="$STUB_BIN:/usr/bin:/bin" SPECKIT_WORKER=antigravity "$CHECK" "$REPO15" flow_selftest_17 worker-agy-missing 2>&1)" && RC=0 || RC=$?
-expect_rc 1 "case17 (antigravity sdk missing or unauthenticated)"
+expect_rc 1 "case17 (antigravity CLI missing from PATH)"
 expect_contains "READY: blocked" "case17"
 expect_contains "WORKER: antigravity" "case17"
 expect_contains "worker-runtime: fail" "case17"
+expect_contains "agy not on PATH" "case17"
+expect_contains "put 'agy' on PATH" "case17"
+expect_not_contains "pip install" "case17"
 
 # --- Case 18: unknown worker backend -> blocked ------------------------------
 REPO16="$TMP/repo16"
