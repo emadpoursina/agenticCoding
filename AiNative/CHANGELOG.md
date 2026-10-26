@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.5.0] - 2026-10-26
+
+### Added
+- Agentic Validation loop: feature-path live graph and dispatcher sequence updated to `converge(converged) → critic → tester → ship → pr-review → uat`.
+- Validator compact reports: critic and PIVS tester add `LOOP_BACK: implement | plan | none`; implement-target failures route through converge, while plan-target or mixed failures park.
+- Automatic PR review: `pr-reviewer` runs automatically as a loop state after Ship on feature and change paths; compact header with `VERDICT`, `CRITICAL_COUNT`, and `CRITICALS` routes Criticals back through converge (feature) or change worker (change) without a separate fix loop.
+- Same-PR ship contract: subsequent ship passes on the same run reuse the existing PR URL and refresh walkthrough/evidence rather than opening a second PR; re-review runs with `--extra @<previous-review>.md`.
+- Converge fingerprint extended to include validator IDs alongside sorted source-refs; validator IDs appear in task descriptions only, preserving spec/plan/constitution source-refs.
+- Path isolation: change path remains tester-only (no critic, no LOOP_BACK, FINDINGS retry, no `tasks.md`); job path skips PR review and UAT.
+- `keep-local` (alias `no-ship`) support: runs path validation then emits `SHIP: declined` and skips ship, automatic PR review, and UAT.
+
 ## [0.4.0] - 2026-10-26
 
 ### Changed

@@ -15,11 +15,13 @@ Constraints for the PIV Validation executor. Architecture: [validation-layer.md]
 - Report PASS/FAIL per flow with concrete evidence
 - Reflect on output before handing results to the critic (Think → Act → Observe)
 - On FAIL, provide actionable Implement loop-back feedback (expected vs actual)
-- Compact report keeps the PASS/FAIL verdict and adds `EVIDENCE: specs/<flow>/evidence.md`
+- Compact report keeps the PASS/FAIL verdict, adds `LOOP_BACK: implement | plan | none` (`PASS` ⇒ `none`; `FAIL` ⇒ `implement` or `plan`, mixed ⇒ `plan`, assertion/code defaults to `implement`), and `EVIDENCE: specs/<flow>/evidence.md` (`<flow>` from `.specify/feature.json`, never `BRANCH`)
 
 ## Must not
 
 - Critique design or architecture — that is the critic
+- Write `tasks.md` (validators never write or append `tasks.md`)
+- Ship, commit, push, or dispatch next stage (parent is the only router)
 - Type evidence into chat instead of writing the on-disk evidence bundle
 - Commit `specs/<flow>/evidence/` or `specs/<flow>/evidence.md` — they stay uncommitted (local/CI-only)
 - Combine unit and system testing in one chat

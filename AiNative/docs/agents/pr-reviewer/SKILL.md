@@ -13,6 +13,8 @@ disable-model-invocation: true
 
 Staged workflow: understanding → architecture compliance → risk → one deep focus → adversarial. AI is a thinking partner, not an authority.
 
+The job is architecture, risk, and evidence on the opened PR — not a second spec/plan implementation critique that replaces critic. Critic handles spec/plan/implementation review before tests run; pr-reviewer handles architecture, risk, and evidence audit after the PR is opened.
+
 Prompts: read `prompts.md` in this skill directory.  
 Rules: read `rule.md` in this skill directory.
 
@@ -140,6 +142,26 @@ Verdict:
 Show at most 5 Warnings and 5 Suggestions, highest trouble score first.
 
 ## Output format
+
+The output begins with a parseable compact header for the parent dispatcher, followed by the consolidated markdown report body.
+
+Worker MUST NOT ship, merge, write `tasks.md`, or dispatch converge/implement.
+
+```text
+FLOW_ID: <id>
+VERDICT: APPROVE | REQUEST CHANGES | BLOCKED
+CRITICAL_COUNT: <integer>
+CRITICALS: <none, or one line each: ID | file:line | trigger | summary>
+REPORT: <path to the full markdown report>
+SUMMARY: <one paragraph>
+```
+
+- `VERDICT: REQUEST CHANGES` with `CRITICAL_COUNT: 0` is routed as APPROVE for the loop.
+- `BLOCKED` is Phase 1.5 only.
+- Merge gate remains Critical-only (Warning and Suggestion never change `VERDICT`).
+- Re-review: parent passes previous `REPORT` via existing `--extra @<previous-review>.md`.
+
+### Report body
 
 One consolidated report:
 

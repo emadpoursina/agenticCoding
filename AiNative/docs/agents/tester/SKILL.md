@@ -64,10 +64,21 @@ Reflect on your output before handing to the critic: did the outcome match the P
 - Evidence: [command output, assertion, or screenshot reference]
 - On FAIL: [specific fix instruction for Implement loop-back]
 
-## Verdict
-PASS / FAIL — one sentence summary
+### Compact report
+
+```text
+FLOW_ID: <id>
+TESTER: PASS | FAIL
+LOOP_BACK: implement | plan | none
 EVIDENCE: specs/<flow>/evidence.md
+FINDINGS: <none, or one line each: flow-id | problem | fix needed>
+SUMMARY: <one paragraph>
 ```
+
+- `PASS` ⇒ `LOOP_BACK: none`.
+- `FAIL` ⇒ `LOOP_BACK: implement` or `plan`. Mixed findings ⇒ `plan` (parks). Assertion/code failures default to `implement` when the field is omitted.
+- `<flow>` is the Spec Kit feature directory basename from `.specify/feature.json`, not `BRANCH`.
+- Worker MUST NOT write `tasks.md` or launch ship.
 
 ### Evidence bundle
 
