@@ -9,6 +9,12 @@
 - Dual timeout enforcement when wrapper `--timeout` is set: maps to `agy --print-timeout {n}s` and sets wrapper SIGTERM then SIGKILL kill timer.
 - Ready `worker-runtime` check for Antigravity now checks `agy` on PATH and successful `agy models`. The Python SDK is neither required nor checked.
 
+## [0.3.1] - 2026-10-26
+
+### Added
+- `/handoff-speckit` command now lives in `.cursor/commands/` (was a local-only file) and is symlinked like the others.
+- `/handoff-speckit` emits `keep-local` when the chat said not to ship, and lists unsettled questions under **Open decisions** for clarify to answer in its choice report. `skip` stays the default.
+
 ## [0.3.0] - 2026-10-26
 
 ### Added

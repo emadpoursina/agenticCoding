@@ -39,7 +39,7 @@ Platform aliases (Cursor name ≠ skill folder):
 |---------|----------------|
 | `/pr-review` | `pr-reviewer` |
 | `/pr-generate` | Cursor-only `pr-generate` (no OpenCode skill) |
-| `/handoff-speckit` | Cursor-only launch-block helper (does not run `/speckit-orchestrate`) |
+| `/handoff-speckit` | Cursor-only launch-block helper (does not run `/speckit-orchestrate`). No skill behind it; the command file is the workflow, the one exception to the rule above. |
 
 Skills with `disable-model-invocation: true` will not auto-load; use the slash
 command (or attach the skill) — `/speckit-orchestrate`, `/change`, `/critic`,
