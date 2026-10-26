@@ -303,3 +303,16 @@ With multiple writers (after Foundational):
 - [X] T043 Reconcile all-paths UAT prose in AiNative/docs/systems/feature-loop.md with job-path ban on pr-review and UAT [critic: C3] per FR-009 (contradicts)
 - [X] T044 Add critic and pr-reviewer to parent dispatcher execution bans and worker launch skill list in AiNative/docs/agents/speckit-orchestrate/SKILL.md [critic: C4] per FR-017 (partial)
 - [X] T045 Update keep-local keyword blurb in AiNative/docs/agents/speckit-orchestrate/SKILL.md to explicitly mention skipping automatic pr-review [critic: C5] per FR-018 (partial)
+
+---
+
+## Phase 13: Convergence
+
+- [X] T046 Re-run specs/002-agentic-validation/quickstart.md on the commit that will be PR head, then point every manifest Commit SHA (and later the PR ## Evidence table) at that SHA [pr-review: E1] per plan: AC-9 (partial)
+
+---
+
+## Phase 14: Convergence
+
+- [X] T047 Match validation-layer evidence hygiene by adding specs/*/evidence/ and specs/*/evidence.md to .gitignore and untracking specs/*/evidence*, then restamp local manifest after push, leave restamp uncommitted, and publish that table in the PR ## Evidence body without making a SHA-only commit [critic: C1] per plan: same-PR ship (contradicts)
+

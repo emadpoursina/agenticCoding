@@ -187,6 +187,7 @@ CI agreement with a tester PASS is **job success on the current PR head** — ar
 - Recommended enrolled-project ignores: `specs/*/evidence/` **and** `specs/*/evidence.md`. Evidence stays local/CI-only and is never committed.
 - Bulky traces and videos belong in CI workflow artifacts or local `specs/<flow>/evidence/` directories, never in git history. PR `## Evidence` links (or the named workflow artifact) satisfy bulky-file pointers.
 - API captures MUST redact credentials and `Authorization` tokens before they are written; UI traces and screenshots can contain secrets, so they stay local/CI-only.
+- Orchestrator hygiene: restamp local manifest after push with the pushed commit SHA, leave the restamp uncommitted on disk, and publish that table in PR `## Evidence` without making a SHA-only follow-up commit (reuse the existing PR; do not invent a second PR).
 
 ### Optional fail-before / pass-after
 

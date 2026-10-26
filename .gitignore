@@ -20,3 +20,7 @@ build/
 scratch/*
 !scratch/README.md
 .agent/
+
+# Validation evidence (local/CI-only)
+specs/*/evidence.md
+specs/*/evidence/

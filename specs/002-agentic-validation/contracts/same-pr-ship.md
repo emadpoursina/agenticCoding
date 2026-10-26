@@ -4,7 +4,7 @@ Parent-only. Applies after a validation PASS that follows REQUEST CHANGES (featu
 
 ## First ship of the run
 
-Unchanged from current Ship / UAT: commit, push `BRANCH`, `gh pr create` with `## Walkthrough` and `## Evidence`, emit `SHIP: ok` with `PR: <url>`.
+Commit, push `BRANCH`, restamp local manifest (`specs/<flow>/evidence.md`) with the pushed commit SHA leaving it uncommitted per validation-layer evidence hygiene, `gh pr create` with `## Walkthrough` and `## Evidence` (published without a SHA-only follow-up commit; do not invent a second PR), emit `SHIP: ok` with `PR: <url>`.
 
 ## Reuse (same-PR)
 
@@ -12,9 +12,10 @@ When `PR` is already set for this run (or `gh pr view --head <BRANCH>` shows an 
 
 1. Commit pending work on `BRANCH` in `WORKTREE` (Conventional Commits; same secret/pre-push guards).
 2. Push `BRANCH` (do not force-push unless the existing ship policy already requires it; default is a normal push of new commits).
-3. Refresh the existing PR body: keep the same URL; update `## Walkthrough` and `## Evidence` from current plan/quickstart/implement summary and tester manifest.
-4. Do **not** call `gh pr create`.
-5. Emit `SHIP: ok` with the **same** `PR:` URL.
+3. Restamp local manifest (`specs/<flow>/evidence.md`) with the pushed commit SHA (`git rev-parse HEAD`), leaving the restamp uncommitted per validation-layer evidence hygiene.
+4. Refresh the existing PR body: keep the same URL; update `## Walkthrough` and publish that table in PR `## Evidence` without a SHA-only follow-up commit.
+5. Do **not** call `gh pr create` (do not invent a second PR).
+6. Emit `SHIP: ok` with the **same** `PR:` URL.
 
 ## Must not
 

@@ -591,9 +591,10 @@ ship, emit `SHIP: declined`, skip automatic pr-review and UAT, and finish.
 **Ship action (First ship vs same-PR ship):**
 
 1. **First ship of the run:**
-   - Commit and push from `WORKTREE` on `BRANCH` using Conventional Commits, then
-     create a PR with `gh pr create`. Run Git as `git -C <WORKTREE>`.
+   - Commit and push from `WORKTREE` on `BRANCH` using Conventional Commits. Run Git as `git -C <WORKTREE>`.
    - Never commit to or push the protected base branch.
+   - Restamp the local tester manifest (`specs/<flow>/evidence.md`) with the pushed commit SHA (`git rev-parse HEAD`), leaving the restamp uncommitted per validation-layer evidence hygiene (`specs/*/evidence.md` and `specs/*/evidence/` in `.gitignore`).
+   - Create a PR with `gh pr create`. Do not invent a second PR.
    - The PR body must follow the host PR template when present (Cursor-only:
      `~/.cursor/skills/pr-generate/template.md`, not an AiNative agent) and always
      include a mandatory `## Walkthrough` section with step-by-step human
@@ -602,8 +603,8 @@ ship, emit `SHIP: declined`, skip automatic pr-review and UAT, and finish.
      optional — it is what the operator reviews.
    - The PR body must also include a mandatory `## Evidence` section alongside
      `## Walkthrough`, sourced from the tester manifest `specs/<flow>/evidence.md`
-     (where `<flow>` is the Spec Kit feature directory basename from `.specify/feature.json`): copy the
-     acceptance-criterion table, inline small PNG/JPEG screenshots that exist
+     (where `<flow>` is the Spec Kit feature directory basename from `.specify/feature.json`): publish that
+     acceptance-criterion table (restamped to the pushed commit SHA without making a SHA-only follow-up commit), inline small PNG/JPEG screenshots that exist
      locally, and reference bulky captures (traces, videos) by the documented CI
      workflow artifact name (or the URL when CI has already produced it). Do not
      wait for CI to finish before opening the PR. With no usable manifest
@@ -615,8 +616,9 @@ ship, emit `SHIP: declined`, skip automatic pr-review and UAT, and finish.
    When `PR` is already set for this run (or `gh pr view --head <BRANCH>` shows an open PR created by this run):
    - Commit pending work on `BRANCH` in `WORKTREE` using Conventional Commits (same secret and pre-push guards).
    - Push `BRANCH` via `git -C <WORKTREE> push origin <BRANCH>` (normal push; do not force-push unless existing ship policy already requires it).
-   - Refresh the existing PR body: keep the same PR URL; update `## Walkthrough` and `## Evidence` from current plan/quickstart/implement summary and tester manifest.
-   - Do **not** call `gh pr create` (MUST NOT open a second PR).
+   - Restamp the local tester manifest (`specs/<flow>/evidence.md`) with the pushed commit SHA (`git rev-parse HEAD`), leaving the restamp uncommitted per validation-layer evidence hygiene.
+   - Refresh the existing PR body: keep the same PR URL; update `## Walkthrough` and publish that table in PR `## Evidence` without making a SHA-only follow-up commit.
+   - Do **not** call `gh pr create` (MUST NOT open a second PR; do not invent a second PR).
    - Emit `SHIP: ok` with the **same** `PR:` URL.
    - Re-review after reuse: launch `pr-reviewer` against that PR URL with `--extra @<previous-review>.md` pointing at the previous review report artifact (`REPORT` from the prior compact header).
 
