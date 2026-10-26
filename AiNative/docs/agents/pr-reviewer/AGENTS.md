@@ -23,6 +23,7 @@ Workflow context: [pr-review-system.md](../../systems/pr-review-system.md).
 - Risk ratings by category (Phase 2)
 - Deep findings for one focus area (Phase 4)
 - Adversarial edge cases (Phase 5)
+- Evidence audit (after Ship when a feature bundle is expected): completeness, SHA vs PR head, CI job success — **stale** and **claimed but unproven** are Critical under the merge gate, re-checked after every fix push
 
 ## Phases
 
@@ -34,6 +35,7 @@ Workflow context: [pr-review-system.md](../../systems/pr-review-system.md).
 | 3 | Select review focus | Pick the highest-rated risk from Phase 2 (or honor a `--focus` override) |
 | 4 | Deep focus review | Run the selected focus prompt (skipped if every Phase 2 rating is Low or None) |
 | 5 | Adversarial review | Try to break the change; every failure needs a trigger |
+| Audit | Evidence audit (prompts.md) | After Ship when a bundle is expected; Criticals use the same merge gate |
 
 ## Supporting files
 

@@ -12,9 +12,10 @@ Constraints for staged PR review. Workflow overview: [pr-review-system.md](../..
 - In Phase 3, pick the highest-rated risk from Phase 2 — do not fall back to a fixed default category. Honor a `--focus <area>` override from the caller, and state when you are using it
 - Give every finding the two 0.0–1.0 scores; trouble sets severity (see SKILL.md Scores)
 - Only Critical findings block merge. Warning and Suggestion never change the verdict
-- Every finding names file:line. Critical findings also name a trigger. Code outside the PR's changed lines is never Critical
+- Every finding names file:line. Critical findings also name a trigger. Code outside the PR's changed lines is never Critical, except evidence-audit Criticals against the current head's gitignored bundle and CI
 - Use diff compression for large PRs before Phase 1
 - On re-review, follow the Re-review section in SKILL.md
+- After Phase 5, run the evidence audit when the PR carries (or should carry) a feature-loop evidence bundle; skip otherwise. **stale** and **claimed but unproven** are Critical under the merge gate (trouble ≥ 0.8, file:line, trigger) — they REQUEST CHANGES; they are not a separate blocker
 
 ## Must not
 

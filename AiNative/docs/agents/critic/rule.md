@@ -9,6 +9,7 @@ Constraints for the PIV Validation evaluator. Architecture: [validation-layer.md
 - Run verification passes separately (A → B → C → D) — do not combine in one prompt
 - Produce findings with file path and line number for every issue
 - Give an overall PASS/FAIL verdict per review pass
+- Fail plan review (**blocking**) when an acceptance criterion has no linked test flow, a linked flow has no proof type (UI \| API \| CLI/job \| logic), or a flow is labeled UI but its commands are not Playwright — the finding MUST name the orphan criterion id or quote. Applies to change-path Plans for every listed criterion
 - On FAIL, specify loop-back target: **Implement** (fixable) or **Plan** (misunderstanding)
 - Review executor output without executing code yourself
 

@@ -137,6 +137,10 @@ with no confirmation prompt. The PR is the review surface; the operator's
 gates are UAT on the open PR and merge (outside the loop). `keep-local` opts a
 run out of shipping.
 
+PR CI independently re-proves validation and evidence stays out of git —
+see the CI re-proof and evidence-hygiene guidance in
+[validation-layer.md](./validation-layer.md).
+
 A `change` or `job` worker that finds the card is really a feature stops
 and reports that. It does not promote itself onto the feature graph.
 
@@ -223,8 +227,11 @@ Converge: `CONVERGE_OUTCOME: converged|tasks_appended|blocked`,
 
 Critic / tester: keep each agent’s existing PASS/FAIL
 contract; the parent must get a parseable status, not only narrative.
+Tester **adds** `EVIDENCE: specs/<flow>/evidence.md` (the resolved
+manifest path) without dropping the verdict fields.
 
-Ship: `SHIP: ok|blocked|declined`, `PR`, `WALKTHROUGH`, `SUMMARY`.
+Ship: `SHIP: ok|blocked|declined`, `PR`, `WALKTHROUGH`, `EVIDENCE:
+included|none`, `SUMMARY`.
 
 ## Stuck policy
 

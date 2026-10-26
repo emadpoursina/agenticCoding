@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.3.0] - 2026-10-26
+
+### Added
+- PIVS evidence bundle methodology: Plan test flows declare a proof type (UI = Playwright trace, video, and screenshots with Playwright commands only; API; CLI/job; logic); critic plan review **blocks** on orphan acceptance criteria, missing proof types, and UI proof without Playwright commands.
+- Tester persists command-produced captures under `specs/<flow>/evidence/` and a single-table manifest at `specs/<flow>/evidence.md` (replaced on each run, FAIL still records every executed flow, full 40-char `HEAD` per row, API captures redact credentials/`Authorization`); tester compact report adds `EVIDENCE: <path>` without dropping PASS/FAIL.
+- Validation layer: vendor-neutral PR CI re-run of `validation_commands` with Playwright capture and workflow-artifact uploads (GitHub Actions example only), recommended `specs/*/evidence/` and `specs/*/evidence.md` ignores, secrets guidance, and an optional fail-before/pass-after check.
+- Ship adds mandatory PR `## Evidence` beside `## Walkthrough` and `EVIDENCE: included|none` (walkthrough unchanged); pr-reviewer evidence audit maps **stale** and **claimed but unproven** onto the Critical merge gate (trouble ≥ 0.8, file:line, trigger) so they REQUEST CHANGES without a second blocker; re-review audits the new head.
+
 ## [0.2.3] - 2026-10-26
 
 ### Changed

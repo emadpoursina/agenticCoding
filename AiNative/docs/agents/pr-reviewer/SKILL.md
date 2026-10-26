@@ -81,8 +81,21 @@ Read the matching prompt block from `prompts.md` each phase. Do not combine phas
 | 3 — Select focus | `--focus` if given; else the highest Phase 2 risk rating; `default_focus` only on a tie |
 | 4 — Deep focus | Exactly one of security / reliability / maintainability / performance; skipped if every Phase 2 rating is Low or None |
 | 5 — Adversarial | Final AI pass |
+| Audit — evidence | After Phase 5 when the PR carries (or should carry) a feature-loop evidence bundle; skip otherwise |
 
 If the project has extra review rules (e.g. `.cursor/rules/*pr-review*`), apply those in addition to the one Phase 4 focus when the PR touches API or multi-client behavior.
+
+## Evidence audit (on demand, after Ship)
+
+Run the **Evidence audit** prompt from `prompts.md` after Phase 5 whenever the caller asks, or when the PR carries (or should carry) a feature-loop evidence bundle. Skip it for typo/dependency/config-only PRs and for docs with no Plan acceptance criteria. It is not a loop gate.
+
+Findings use the same **Scores** and **Merge gate** as every other phase. Do not invent a second "blocking" channel.
+
+- **Completeness (verdict-aware):** tester PASS ⇒ every acceptance criterion has a manifest row and the artifact shape its proof type requires. Tester FAIL ⇒ rows are required for every executed flow; unexecuted criteria are not claimed proven.
+- **SHA freshness:** each row's `Commit SHA` vs the current PR head; mismatch ⇒ **stale**.
+- **CI agreement:** the PR-head CI re-run of `validation_commands` (or documented equivalent) **succeeded** — job success on this head, not byte-identical artifacts.
+- **stale** and **claimed but unproven** (tester PASS with missing manifest, missing required artifact, stale SHA, or CI failed / skipped / unfinished) are **Critical**: trouble ≥ 0.8, `file:line` on the manifest row or PR `## Evidence` table, and a trigger (SHA pair, missing path, or CI job conclusion). The bundle is gitignored — audit the working tree or attached CI artifacts, not `git show`.
+- Re-run on every pr-review pass after a fix push (see Re-review). A newly stale head is a new Critical, not a repeated Warning.
 
 ## Scores
 
@@ -100,7 +113,7 @@ Anchors: 0.9 = data loss, security hole, wrong money, outage. 0.5 = wrong result
 
 Never multiply the two to gate. A rare data-loss bug would then rank below a common cosmetic one.
 
-Score every concrete problem in Phases 1.5, 2, 4, and 5 — not the Phase 1 summary.
+Score every concrete problem in Phases 1.5, 2, 4, 5, and the evidence audit — not the Phase 1 summary.
 
 ```markdown
 ### <problem title>
@@ -117,7 +130,7 @@ Same labels as `critic` and `verification`:
 - **Warning**: should fix. Never blocks.
 - **Suggestion**: optional. Never blocks. Tests, naming, docs, duplication, "could be cleaner".
 
-Scope: only lines this PR adds or changes. Older code gets at most a Pre-existing note, never Critical.
+Scope: only lines this PR adds or changes. Older code gets at most a Pre-existing note, never Critical. Evidence-audit Criticals are in scope against the current head's bundle and CI even though those files are gitignored.
 
 Verdict:
 - **BLOCKED**: Phase 1.5 is blocking.
@@ -140,6 +153,7 @@ One consolidated report:
 ## Phase 3 — Focus chosen
 ## Phase 4 — Deep review
 ## Phase 5 — Adversarial
+## Evidence audit (or SKIPPED — reason)
 ## Follow-ups (Warning and Suggestion, non-blocking)
 ## Accepted risks (author-marked)
 ## Verdict — APPROVE / REQUEST CHANGES / BLOCKED (Phase 1.5)
@@ -160,6 +174,7 @@ Pass the previous report with `--extra @<previous-review>.md`.
 4. Don't re-raise a listed finding unless its code changed. An author note "accepted: <reason>" moves it to Accepted risks.
 5. If the author disputes a finding with file:line evidence, re-read that code once. Drop it if the evidence holds. Otherwise keep it and state the trigger.
 6. From round 3 on, report Criticals only.
+7. Re-run the evidence audit against the **new** PR head. A SHA that no longer matches, or CI that has not succeeded on this head, is a new Critical (the head changed). A prior-pass PASS does not waive it. An author "accepted: unproven" note is not valid for stale or claimed-but-unproven.
 
 ## Errors
 

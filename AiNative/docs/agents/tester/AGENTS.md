@@ -18,8 +18,9 @@ Methodology: PIVS Validation phase of the live [feature loop](../../systems/feat
 ## Outputs
 
 - Per-test-flow result: **PASS** / **FAIL** with the specific failure detail
+- Evidence bundle: captures under `specs/<flow>/evidence/` plus the manifest at `specs/<flow>/evidence.md` (one Markdown table; artifact paths point at command-produced files; FAIL still records every executed flow; each run replaces the prior bundle)
 - When FAIL, explicit feedback for the Implement loop-back (e.g. "function returns undefined for empty array — expected empty array")
-- Overall verdict: **PASS** or **FAIL**
+- Overall verdict: **PASS** or **FAIL**, plus `EVIDENCE: specs/<flow>/evidence.md` in the compact report
 
 ## Supporting files
 

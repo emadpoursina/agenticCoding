@@ -4,7 +4,7 @@ For each problem give 2 score between 0.0 - 1.0:
   - how often it could happen
   - if it happended, how much trouble it makes
 
-Apply this in Phases 1.5, 2, 4, and 5. Skip Phase 1 (understanding only).
+Apply this in Phases 1.5, 2, 4, 5, and the evidence audit. Skip Phase 1 (understanding only).
 
 ## PR understanding (Phase 1)
 
@@ -144,6 +144,44 @@ For each candidate failure, give:
 Read the surrounding code and tests. Drop any candidate the code already handles.
 Long-term maintenance concerns are Suggestions, never Critical.
 If nothing breaks, answer "No Critical findings." That is a complete answer.
+```
+
+## Evidence audit (after Ship; re-run on every pass)
+
+```text
+Audit this PR's evidence bundle against the current PR head. Skip if the PR
+has no Plan acceptance criteria (typo/dependency/config-only, or docs with
+no feature ACs).
+
+Inputs: Plan acceptance criteria and proof types; specs/<flow>/evidence.md
+from the working tree or attached CI artifacts (gitignored — not git
+history); CI results for the PR-head jobs that re-run validation_commands
+(or the documented equivalent).
+
+Checks:
+1. Completeness (verdict-aware):
+   - Tester PASS: every acceptance criterion has a manifest row and the
+     artifact shape its proof type requires.
+   - Tester FAIL: rows are required for every flow that was executed
+     (including non-zero exit codes). Unexecuted criteria are not "claimed
+     proven".
+2. SHA freshness: each row's Commit SHA must equal the current PR head.
+3. CI agreement: on this head the validation_commands re-run jobs SUCCEEDED.
+   Agreement is job success, not byte-identical artifacts.
+
+Write each fail as a scored finding (same Scores / Merge gate as the rest of
+the review). file:line is the manifest row or the PR ## Evidence table row.
+Trigger is the SHA pair, the missing artifact path, or the CI job
+conclusion.
+
+- STALE and CLAIMED BUT UNPROVEN (tester PASS with missing manifest,
+  missing required artifact, stale SHA, or CI failed / skipped /
+  unfinished) are Critical: trouble 0.9. They REQUEST CHANGES. They are
+  not a second blocker beside the merge gate.
+- Do not mark unexecuted FAIL-path criteria as claimed but unproven.
+
+Not a loop gate. On re-review, audit the new head. Prior-pass PASS does
+not waive a newly stale bundle. "accepted: unproven" is not allowed.
 ```
 
 ## Diff compression (large PRs)

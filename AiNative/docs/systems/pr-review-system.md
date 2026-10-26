@@ -75,6 +75,17 @@ Run **one** focus prompt from [pr-reviewer agent](../agents/pr-reviewer/) matchi
 
 ---
 
+### Phase 5.5 — Evidence audit (feature PRs, on demand)
+
+* Goal: verify the tester evidence bundle proves the PR's acceptance criteria **at the current head**. Run after Ship whenever the PR carries (or should carry) `specs/<flow>/evidence.md`; skip typo/dependency/config-only PRs and docs with no Plan ACs. Re-run on every pr-review pass after a fix push.
+* **Completeness (verdict-aware):** tester PASS ⇒ every acceptance criterion has a manifest row and the artifact shape its proof type requires. Tester FAIL ⇒ rows are required for every executed flow; unexecuted criteria are not "claimed proven".
+* **SHA freshness:** manifest row SHA ≠ PR head ⇒ **stale**.
+* **CI agreement:** the PR-head CI re-run of `validation_commands` (or documented equivalent) **succeeded** — job success, not byte-identical artifacts. Failed, skipped, or unfinished CI behind a tester PASS ⇒ **claimed but unproven**.
+* **stale** and **claimed but unproven** are **Critical** under the pr-reviewer merge gate (trouble ≥ 0.8, file:line, trigger). They REQUEST CHANGES. They are not a second blocker beside Critical. The audit is not a loop gate; a prior-pass PASS does not waive a newly stale bundle.
+* Use the **Evidence audit** prompt in the [pr-reviewer agent](../agents/pr-reviewer/).
+
+---
+
 ### Phase 6 — Human Review (Critical Step)
 
 * AI does NOT finalize decisions.  

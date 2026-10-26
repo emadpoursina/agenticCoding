@@ -18,6 +18,7 @@ Methodology: PIVS Validation phase of the live [feature loop](../../systems/feat
 ## Outputs
 
 - Findings list grouped by severity: **Critical** / **Warning** / **Suggestion**
+- Blocking plan-review finding when an acceptance criterion has no provable test flow (no linked flow, no proof type, or UI proof without Playwright commands) — the finding names the orphan criterion
 - Overall verdict: **PASS** or **FAIL**
 - When FAIL, explicit feedback for the Implement loop-back (or a replan note when the failure is a Plan-level misunderstanding)
 
