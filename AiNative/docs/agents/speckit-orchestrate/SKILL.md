@@ -593,7 +593,7 @@ ship, emit `SHIP: declined`, skip automatic pr-review and UAT, and finish.
 1. **First ship of the run:**
    - Commit and push from `WORKTREE` on `BRANCH` using Conventional Commits. Run Git as `git -C <WORKTREE>`.
    - Never commit to or push the protected base branch.
-   - Restamp the local tester manifest (`specs/<flow>/evidence.md`) with the pushed commit SHA (`git rev-parse HEAD`), leaving the restamp uncommitted per validation-layer evidence hygiene (`specs/*/evidence.md` and `specs/*/evidence/` in `.gitignore`).
+   - Restamp the local tester manifest (`specs/<flow>/evidence.md`) with the pushed commit SHA (`git rev-parse HEAD`), re-running any HEAD-sensitive validation commands (such as section 1 touch list) on the pushed SHA so captures match that head, leaving the restamp uncommitted per validation-layer evidence hygiene (`specs/*/evidence.md` and `specs/*/evidence/` in `.gitignore`).
    - Create a PR with `gh pr create`. Do not invent a second PR.
    - The PR body must follow the host PR template when present (Cursor-only:
      `~/.cursor/skills/pr-generate/template.md`, not an AiNative agent) and always
@@ -616,7 +616,7 @@ ship, emit `SHIP: declined`, skip automatic pr-review and UAT, and finish.
    When `PR` is already set for this run (or `gh pr view --head <BRANCH>` shows an open PR created by this run):
    - Commit pending work on `BRANCH` in `WORKTREE` using Conventional Commits (same secret and pre-push guards).
    - Push `BRANCH` via `git -C <WORKTREE> push origin <BRANCH>` (normal push; do not force-push unless existing ship policy already requires it).
-   - Restamp the local tester manifest (`specs/<flow>/evidence.md`) with the pushed commit SHA (`git rev-parse HEAD`), leaving the restamp uncommitted per validation-layer evidence hygiene.
+   - Restamp the local tester manifest (`specs/<flow>/evidence.md`) with the pushed commit SHA (`git rev-parse HEAD`), re-running any HEAD-sensitive validation commands (such as section 1 touch list) on the pushed SHA so captures match that head, leaving the restamp uncommitted per validation-layer evidence hygiene.
    - Refresh the existing PR body: keep the same PR URL; update `## Walkthrough` and publish that table in PR `## Evidence` without making a SHA-only follow-up commit.
    - Do **not** call `gh pr create` (MUST NOT open a second PR; do not invent a second PR).
    - Emit `SHIP: ok` with the **same** `PR:` URL.

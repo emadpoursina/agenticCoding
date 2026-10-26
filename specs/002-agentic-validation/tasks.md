@@ -316,3 +316,8 @@ With multiple writers (after Foundational):
 
 - [X] T047 Match validation-layer evidence hygiene by adding specs/*/evidence/ and specs/*/evidence.md to .gitignore and untracking specs/*/evidence*, then restamp local manifest after push, leave restamp uncommitted, and publish that table in the PR ## Evidence body without making a SHA-only commit [critic: C1] per plan: same-PR ship (contradicts)
 
+---
+
+## Phase 15: Convergence
+
+- [X] T048 Re-run specs/002-agentic-validation/quickstart.md including section 1 git diff --name-only origin/main...HEAD on the commit that is PR head to refresh tf-0-touch-list.log, then restamp SHA after the next same-PR ship without a SHA-only commit [pr-review: E2] per plan: AC-9 (partial)
