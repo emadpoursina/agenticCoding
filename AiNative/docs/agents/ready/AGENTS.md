@@ -30,8 +30,29 @@ Compact report (the parent parses it, never worker prose):
 - `BRANCH`
 - `WORKER` (`pi` or `antigravity`)
 - `WORKTREE` (absolute feature worktree path on `ok`; `REPO_ROOT` itself when already on the branch)
-- `CHECKS` (includes `worker-runtime` for the selected backend only)
+- `CHECKS` (includes `worker-runtime` for the selected backend only; plus
+  `worktree-copy` and `worktree-setup` when a feature worktree was selected)
 - `FIXES`
+
+## Worktree local files (optional)
+
+A project may commit a `.worktreeinclude` at the repository root: a
+ gitignore-syntax allow-list of ignored/untracked paths (secrets, local config,
+ per-worktree data). When Ready **adds** a new worktree (existing-branch or
+ new-branch path) and no other required check has failed, it copies the
+ matching files from `REPO_ROOT` into the new worktree (layout preserved,
+symlinks preserved, never dereferenced). Missing include file, empty file, or
+zero matches is a no-op. CHECKS reports the outcome plus a file count only —
+never copied paths or contents.
+
+`.specify/ready.yml` MAY declare one optional top-level `setup:` command (the
+only YAML-declared command Ready runs; `checks:` stay non-shell). After the
+copy (including a zero-file copy) on a newly added worktree, Ready runs it
+with the new worktree as cwd, bounded at 10 minutes. Non-zero exit or timeout
+blocks Ready with a FIXES line, and the worktree added in that run is removed
+so the next run retries fresh. Reused worktrees are never overwritten, never
+copied into, and never re-run `setup:`. If another required check already
+failed, copy and setup are skipped.
 
 ## Model behavior
 

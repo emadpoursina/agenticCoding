@@ -209,6 +209,7 @@ if [ "$branch_fail" -eq 0 ] && ! git check-ref-format --branch "$SLUG" >/dev/nul
 fi
 
 worktree_path=""
+worktree_added_this_run=0
 
 if [ "$branch_fail" -eq 0 ]; then
   protected_branch=0
@@ -264,6 +265,7 @@ LIST
       elif git show-ref --verify --quiet "refs/heads/$SLUG"; then
         if mkdir -p "$wt_root" && git worktree add -- "$wt_path" "$SLUG" >/dev/null 2>&1; then
           worktree_path="$wt_path"
+          worktree_added_this_run=1
           current_branch="$SLUG"
           branch_note="added feature worktree for existing branch '$SLUG' at $worktree_path (base '$default_branch'; $default_detection_note)"
         else
@@ -274,6 +276,7 @@ LIST
       else
         if mkdir -p "$wt_root" && git worktree add -b "$SLUG" -- "$wt_path" "$default_ref" >/dev/null 2>&1; then
           worktree_path="$wt_path"
+          worktree_added_this_run=1
           current_branch="$SLUG"
           branch_note="created feature branch '$SLUG' from '$default_branch' ($default_detection_note); feature worktree at $worktree_path"
         else
@@ -383,6 +386,7 @@ project_check_lines=""
 project_fix_lines=""
 project_required_fail=0
 saw_malformed=0
+setup_cmd=""
 
 PYPROG="$(cat <<'PY'
 import re
@@ -401,6 +405,24 @@ except Exception as exc:  # noqa: BLE001
     emit_malformed("cannot read ready.yml: %s" % exc)
     sys.exit(0)
 
+def unquote(value):
+    value = value.strip()
+    if len(value) >= 2 and value[0] == value[-1] and value[0] in ("'", '"'):
+        return value[1:-1]
+    return value
+
+# Optional top-level `setup:` command string (FR-005). Scanned over all
+# unindented lines so its position relative to `checks:` does not matter.
+# Absence is a no-op, not a failure (FR-006).
+setup_cmd = ""
+for raw_line in raw_lines:
+    if raw_line != raw_line.lstrip():
+        continue
+    sm = re.match(r"^setup\s*:\s*(.*)$", raw_line.strip())
+    if sm:
+        setup_cmd = unquote(sm.group(1))
+        break
+
 start = None
 for i, line in enumerate(raw_lines):
     s = line.strip()
@@ -415,8 +437,15 @@ for i, line in enumerate(raw_lines):
     sys.exit(0)
 
 if start is None:
+    if setup_cmd:
+        # setup-only ready.yml is valid: no checks block, no MALFORM (FR-005).
+        sys.stdout.write("SETUP\x1f" + setup_cmd + "\n")
+        sys.exit(0)
     emit_malformed("no 'checks:' block found")
     sys.exit(0)
+
+if setup_cmd:
+    sys.stdout.write("SETUP\x1f" + setup_cmd + "\n")
 
 items = []
 cur = None
@@ -450,13 +479,6 @@ for j in range(start + 1, len(raw_lines)):
 
 if cur is not None:
     items.append(cur)
-
-
-def unquote(value):
-    value = value.strip()
-    if len(value) >= 2 and value[0] == value[-1] and value[0] in ("'", '"'):
-        return value[1:-1]
-    return value
 
 
 def parse_bool(value, default):
@@ -546,6 +568,11 @@ if [ -f ".specify/ready.yml" ]; then
       fi
       IFS=$'\x1f' read -ra parts <<< "$record"
       first="${parts[0]:-}"
+
+      if [ "$first" = "SETUP" ]; then
+        setup_cmd="${parts[1]:-}"
+        continue
+      fi
 
       if [ "$first" = "MALFORMED" ]; then
         if [ "$saw_malformed" -eq 0 ]; then
@@ -729,6 +756,137 @@ case "$worker_lc" in
 esac
 
 # ---------------------------------------------------------------------------
+# Worktree local files (optional): copy from .worktreeinclude, then setup:
+# Runs only for a worktree added this run, and only when no other required
+# check has already failed. Reused trees are never overwritten and setup is
+# never re-run there. Copy or setup failure rolls back a worktree added in
+# this run (never a reused one), then blocks the gate.
+# ---------------------------------------------------------------------------
+
+copy_stat=""
+copy_note=""
+setup_stat=""
+setup_note=""
+copy_fail=0
+setup_fail=0
+copy_fix=""
+setup_fix=""
+
+rollback_added_worktree() {
+  if [ "$worktree_added_this_run" -eq 1 ] && [ -n "$worktree_path" ]; then
+    git worktree remove --force -- "$worktree_path" >/dev/null 2>&1 || true
+    worktree_path=""
+  fi
+}
+
+if [ -n "$worktree_path" ]; then
+  copy_stat="pass"
+  setup_stat="pass"
+  other_required_fail=0
+  if [ "$branch_fail" -ne 0 ] || [ "$layout_fail" -ne 0 ] || [ "$project_required_fail" -ne 0 ] || [ "$worker_fail" -ne 0 ]; then
+    other_required_fail=1
+  fi
+
+  if [ "$worktree_added_this_run" -eq 0 ]; then
+    copy_note="skipped (reused worktree)"
+    setup_note="skipped (reused worktree)"
+  elif [ "$other_required_fail" -ne 0 ]; then
+    copy_note="skipped (other required checks failed)"
+    setup_note="skipped (other required checks failed)"
+  elif [ ! -f "$REPO_ROOT/.worktreeinclude" ]; then
+    # FR-004: missing include file is a no-op, not a failure.
+    copy_note="skipped (no .worktreeinclude)"
+  else
+    # FR-002/FR-003: copy untracked-or-ignored paths allowed by the
+    # include file. Never print copied paths or contents (FR-011).
+    if ! command -v rsync >/dev/null 2>&1; then
+      copy_stat="fail"
+      copy_note="rsync unavailable"
+      copy_fail=1
+      copy_fix="worktree copy could not run (rsync unavailable); install rsync, then re-run."
+    else
+      copy_list_file="$(mktemp)"
+      if git ls-files --others --ignored --exclude-from=.worktreeinclude -z > "$copy_list_file" 2>/dev/null; then
+        copied_count="$(tr -cd '\0' < "$copy_list_file" | wc -c | tr -d ' ')"
+        if rsync -a --from0 --files-from=- ./ "$worktree_path/" < "$copy_list_file" >/dev/null 2>&1; then
+          copy_note="copied ${copied_count} files"
+        else
+          copy_stat="fail"
+          copy_note="copy failed (tool/io error)"
+          copy_fail=1
+          copy_fix="worktree copy failed (tool/io error); check the include file, disk space, and permissions, then re-run."
+        fi
+      else
+        copy_stat="fail"
+        copy_note="could not list local files"
+        copy_fail=1
+        copy_fix="worktree copy failed while listing local files; check the include file and repository state, then re-run."
+      fi
+      rm -f "$copy_list_file"
+    fi
+  fi
+
+  if [ "$copy_fail" -ne 0 ]; then
+    setup_note="skipped (copy failed)"
+    rollback_added_worktree
+  elif [ "$worktree_added_this_run" -eq 0 ] || [ "$other_required_fail" -ne 0 ]; then
+    : # already noted above
+  elif [ -z "$setup_cmd" ]; then
+    # FR-006: missing setup: is a no-op, not a failure.
+    setup_note="skipped (no setup:)"
+  else
+    # FR-005: one command, cwd = the new worktree, 600s default bound.
+    # Capture stdout/stderr so CHECKS/FIXES never dump command output.
+    setup_timeout="${SPECKIT_READY_SETUP_TIMEOUT_SEC:-600}"
+    case "$setup_timeout" in
+      ''|*[!0-9]*) setup_timeout=600 ;;
+    esac
+    if [ "$setup_timeout" -le 0 ] 2>/dev/null; then
+      setup_timeout=600
+    fi
+    setup_result="$(python3 -c '
+import subprocess, sys
+cmd = sys.argv[1]
+cwd = sys.argv[2]
+timeout = int(sys.argv[3])
+try:
+    p = subprocess.run(cmd, shell=True, cwd=cwd, capture_output=True, timeout=timeout)
+except subprocess.TimeoutExpired:
+    print("TIMEOUT")
+    sys.exit(0)
+print("EXIT %d" % p.returncode)
+' "$setup_cmd" "$worktree_path" "$setup_timeout" 2>/dev/null)" || setup_result="ERROR"
+    case "$setup_result" in
+      "EXIT 0")
+        setup_note="ran"
+        ;;
+      EXIT\ *)
+        setup_exit="${setup_result#EXIT }"
+        setup_stat="fail"
+        setup_note="exit ${setup_exit}"
+        setup_fail=1
+        setup_fix="worktree setup '${setup_cmd}' failed (exit ${setup_exit}); fix setup: in .specify/ready.yml, then re-run."
+        rollback_added_worktree
+        ;;
+      TIMEOUT)
+        setup_stat="fail"
+        setup_note="timed out after 10 minutes"
+        setup_fail=1
+        setup_fix="worktree setup '${setup_cmd}' timed out after 10 minutes; shorten or split setup: in .specify/ready.yml, then re-run."
+        rollback_added_worktree
+        ;;
+      *)
+        setup_stat="fail"
+        setup_note="setup could not run"
+        setup_fail=1
+        setup_fix="worktree setup '${setup_cmd}' could not run; check python3 and setup: in .specify/ready.yml, then re-run."
+        rollback_added_worktree
+        ;;
+    esac
+  fi
+fi
+
+# ---------------------------------------------------------------------------
 # Report
 # ---------------------------------------------------------------------------
 
@@ -750,7 +908,7 @@ else
 fi
 
 ready="ok"
-if [ "$branch_fail" -ne 0 ] || [ "$layout_fail" -ne 0 ] || [ "$project_required_fail" -ne 0 ] || [ "$worker_fail" -ne 0 ]; then
+if [ "$branch_fail" -ne 0 ] || [ "$layout_fail" -ne 0 ] || [ "$project_required_fail" -ne 0 ] || [ "$worker_fail" -ne 0 ] || [ "$copy_fail" -ne 0 ] || [ "$setup_fail" -ne 0 ]; then
   ready="blocked"
 fi
 
@@ -765,6 +923,12 @@ printf 'CHECKS:\n'
 printf -- '- [required] git-branch-state: %s — %s\n' "$bstat" "$branch_note"
 printf -- '- [required] speckit-layout: %s — %s\n' "$lstat" "$layout_note"
 printf -- '- [required] worker-runtime: %s — %s\n' "$wstat" "$worker_note"
+if [ -n "$copy_note" ]; then
+  printf -- '- [required] worktree-copy: %s — %s\n' "$copy_stat" "$copy_note"
+fi
+if [ -n "$setup_note" ]; then
+  printf -- '- [required] worktree-setup: %s — %s\n' "$setup_stat" "$setup_note"
+fi
 if [ -n "$project_check_lines" ]; then
   printf '%s' "$project_check_lines"
 fi
@@ -779,6 +943,12 @@ if [ "$ready" = "blocked" ]; then
   fi
   if [ "$worker_fail" -ne 0 ] && [ -n "$worker_fix" ]; then
     printf -- '- %s\n' "$worker_fix"
+  fi
+  if [ -n "$copy_fix" ]; then
+    printf -- '- %s\n' "$copy_fix"
+  fi
+  if [ -n "$setup_fix" ]; then
+    printf -- '- %s\n' "$setup_fix"
   fi
   if [ -n "$project_fix_lines" ]; then
     printf '%s' "$project_fix_lines"

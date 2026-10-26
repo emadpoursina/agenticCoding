@@ -353,9 +353,13 @@ expect_contains "worker-runtime: fail" "case16"
 expect_contains "pi not on PATH" "case16"
 
 # --- Case 17: antigravity without SDK package -> worker-runtime fail ---------
+# Isolate HOME and PATH so an authenticated host 'agy' CLI or a user-site
+# google.antigravity install cannot make this case pass nondeterministically.
 REPO15="$TMP/repo15"
 make_fixture "$REPO15"
-OUT="$(env -u GEMINI_API_KEY -u GOOGLE_API_KEY -u GOOGLE_GENAI_USE_VERTEXAI -u GOOGLE_GENAI_USE_ENTERPRISE -u GOOGLE_CLOUD_PROJECT -u GOOGLE_APPLICATION_CREDENTIALS SPECKIT_WORKER=antigravity "$CHECK" "$REPO15" flow_selftest_17 worker-agy-missing 2>&1)" && RC=0 || RC=$?
+CASE17_HOME="$TMP/case17-home"
+mkdir -p "$CASE17_HOME"
+OUT="$(env -u GEMINI_API_KEY -u GOOGLE_API_KEY -u GOOGLE_GENAI_USE_VERTEXAI -u GOOGLE_GENAI_USE_ENTERPRISE -u GOOGLE_CLOUD_PROJECT -u GOOGLE_APPLICATION_CREDENTIALS HOME="$CASE17_HOME" PATH="$STUB_BIN:/usr/bin:/bin" SPECKIT_WORKER=antigravity "$CHECK" "$REPO15" flow_selftest_17 worker-agy-missing 2>&1)" && RC=0 || RC=$?
 expect_rc 1 "case17 (antigravity sdk missing or unauthenticated)"
 expect_contains "READY: blocked" "case17"
 expect_contains "WORKER: antigravity" "case17"
@@ -375,6 +379,149 @@ make_fixture "$REPO17"
 OUT="$(env -u SPECKIT_WORKER -u GEMINI_API_KEY -u GOOGLE_API_KEY -u GOOGLE_GENAI_USE_VERTEXAI -u GOOGLE_GENAI_USE_ENTERPRISE -u GOOGLE_CLOUD_PROJECT -u GOOGLE_APPLICATION_CREDENTIALS "$CHECK" "$REPO17" flow_selftest_19 worker-default 2>&1)" && RC=0 || RC=$?
 expect_contains "WORKER: antigravity" "case19 (default antigravity)"
 expect_contains "worker-runtime:" "case19"
+
+# --- Case 20: committed .worktreeinclude copies listed ignored files (FR-002/FR-013) ---
+REPO18="$TMP/repo18"
+make_fixture "$REPO18"
+printf '.env\nsecret.local\n' > "$REPO18/.gitignore"
+printf '.env\n' > "$REPO18/.worktreeinclude"
+git -C "$REPO18" add .gitignore .worktreeinclude
+git -C "$REPO18" -c user.email=selftest@example.com -c user.name=selftest commit -qm 'add worktreeinclude'
+printf 'TOKEN=shhh\n' > "$REPO18/.env"
+printf 'noise\n' > "$REPO18/secret.local"
+run_check "$REPO18" flow_selftest_20 copy-listed
+expect_rc 0 "case20 (copy listed local files)"
+expect_contains "READY: ok" "case20"
+expect_contains "worktree-copy: pass — copied 1 files" "case20"
+expect_contains "worktree-setup: pass — skipped (no setup:)" "case20"
+assert_worktree_ok "$REPO18" copy-listed "case20"
+WT20="$(wt_path "$REPO18" copy-listed)"
+[ -f "$WT20/.env" ] || fail "case20: listed .env was not copied into the new worktree"
+[ "$(cat "$WT20/.env")" = "TOKEN=shhh" ] || fail "case20: copied .env content differs from the source"
+[ ! -e "$WT20/secret.local" ] || fail "case20: unlisted ignored file leaked into the new worktree"
+copy_line20="$(printf '%s\n' "$OUT" | sed -n 's/^- \[required\] worktree-copy: //p')"
+case "$copy_line20" in
+  *".env"*|*"secret.local"*) fail "case20: copy note leaks a copied path: $copy_line20" ;;
+esac
+expect_not_contains "TOKEN=" "case20"
+
+# --- Case 21: no .worktreeinclude -> copy is a no-op, still READY ok (T005) --
+REPO19="$TMP/repo19"
+make_fixture "$REPO19"
+printf '.env\n' > "$REPO19/.gitignore"
+git -C "$REPO19" add .gitignore
+git -C "$REPO19" -c user.email=selftest@example.com -c user.name=selftest commit -qm 'add gitignore'
+printf 'TOKEN=shhh\n' > "$REPO19/.env"
+run_check "$REPO19" flow_selftest_21 no-include
+expect_rc 0 "case21 (no .worktreeinclude)"
+expect_contains "READY: ok" "case21"
+expect_contains "worktree-copy: pass — skipped (no .worktreeinclude)" "case21"
+expect_contains "worktree-setup: pass — skipped (no setup:)" "case21"
+assert_worktree_ok "$REPO19" no-include "case21"
+[ ! -e "$(wt_path "$REPO19" no-include)/.env" ] || fail "case21: ignored file copied without an include list"
+
+# --- Case 22: other required check failed after add -> copy/setup skipped (T006) ---
+REPO20="$TMP/repo20"
+make_fixture "$REPO20"
+printf '.env\n' > "$REPO20/.gitignore"
+printf '.env\n' > "$REPO20/.worktreeinclude"
+mkdir -p "$REPO20/.specify"
+cat > "$REPO20/.specify/ready.yml" <<'YML'
+setup: touch setup-ran.marker
+checks:
+  - name: must-exist
+    check: file_exists
+    path: required-marker.txt
+    required: true
+YML
+git -C "$REPO20" add .gitignore .worktreeinclude .specify/ready.yml
+git -C "$REPO20" -c user.email=selftest@example.com -c user.name=selftest commit -qm 'add include list and required check'
+printf 'TOKEN=shhh\n' > "$REPO20/.env"
+run_check "$REPO20" flow_selftest_22 other-fail-skip
+expect_rc 1 "case22 (other required fail skips copy/setup)"
+expect_contains "READY: blocked" "case22"
+expect_contains "must-exist (file_exists): fail" "case22"
+expect_contains "worktree-copy: pass — skipped (other required checks failed)" "case22"
+expect_contains "worktree-setup: pass — skipped (other required checks failed)" "case22"
+WT22="$(wt_path "$REPO20" other-fail-skip)"
+[ -d "$WT22" ] || fail "case22: worktree lifetime for non-copy failures should be unchanged"
+[ ! -e "$WT22/.env" ] || fail "case22: copy ran despite another required failure"
+[ ! -e "$WT22/setup-ran.marker" ] || fail "case22: setup ran despite another required failure"
+
+# --- Case 23: setup exit 1 -> blocked, FIXES, rollback of the new worktree (T010/T017) ---
+REPO21="$TMP/repo21"
+make_fixture "$REPO21"
+printf '#!/bin/sh\necho SETUP_SECRET_OUTPUT\nexit 1\n' > "$REPO21/fail-setup.sh"
+mkdir -p "$REPO21/.specify"
+printf 'setup: sh fail-setup.sh\n' > "$REPO21/.specify/ready.yml"
+git -C "$REPO21" add fail-setup.sh .specify/ready.yml
+git -C "$REPO21" -c user.email=selftest@example.com -c user.name=selftest commit -qm 'add failing setup'
+run_check "$REPO21" flow_selftest_23 setup-fail
+expect_rc 1 "case23 (setup exit 1)"
+expect_contains "READY: blocked" "case23"
+expect_contains "worktree-setup: fail — exit 1" "case23"
+expect_contains "worktree setup 'sh fail-setup.sh' failed (exit 1)" "case23"
+expect_not_contains "SETUP_SECRET_OUTPUT" "case23 (setup stdout must not leak)"
+[ ! -e "$(wt_path "$REPO21" setup-fail)" ] || fail "case23: worktree added this run was not removed after setup failure"
+case "$(git -C "$REPO21" worktree list --porcelain)" in
+  *"/setup-fail"*) fail "case23: worktree for setup-fail is still registered" ;;
+esac
+
+# --- Case 24: reuse does not overwrite locals and does not re-run setup (T011) ---
+REPO22="$TMP/repo22"
+make_fixture "$REPO22"
+printf '.env\n' > "$REPO22/.gitignore"
+printf '.env\n' > "$REPO22/.worktreeinclude"
+mkdir -p "$REPO22/.specify"
+printf 'setup: touch setup-ran.marker\n' > "$REPO22/.specify/ready.yml"
+git -C "$REPO22" add .gitignore .worktreeinclude .specify/ready.yml
+git -C "$REPO22" -c user.email=selftest@example.com -c user.name=selftest commit -qm 'add include list and setup'
+printf 'TOKEN=shhh\n' > "$REPO22/.env"
+run_check "$REPO22" flow_selftest_24 setup-reuse
+expect_rc 0 "case24 (first run creates and sets up)"
+expect_contains "worktree-copy: pass — copied 1 files" "case24"
+expect_contains "worktree-setup: pass — ran" "case24"
+WT24="$(wt_path "$REPO22" setup-reuse)"
+[ -f "$WT24/setup-ran.marker" ] || fail "case24: setup did not run on the new worktree"
+printf 'changed-locally\n' > "$WT24/.env"
+rm -f "$WT24/setup-ran.marker"
+run_check "$REPO22" flow_selftest_24b setup-reuse
+expect_rc 0 "case24 (reuse run)"
+expect_contains "READY: ok" "case24"
+expect_contains "worktree-copy: pass — skipped (reused worktree)" "case24"
+expect_contains "worktree-setup: pass — skipped (reused worktree)" "case24"
+[ "$(cat "$WT24/.env")" = "changed-locally" ] || fail "case24: reuse overwrote a changed local file"
+[ ! -e "$WT24/setup-ran.marker" ] || fail "case24: setup re-ran on a reused worktree"
+
+# --- Case 25: hanging setup trips the timeout override (T012) -----------------
+REPO23="$TMP/repo23"
+make_fixture "$REPO23"
+mkdir -p "$REPO23/.specify"
+printf 'setup: sleep 30\n' > "$REPO23/.specify/ready.yml"
+git -C "$REPO23" add .specify/ready.yml
+git -C "$REPO23" -c user.email=selftest@example.com -c user.name=selftest commit -qm 'add hanging setup'
+OUT="$(SPECKIT_READY_SETUP_TIMEOUT_SEC=2 "$CHECK" "$REPO23" flow_selftest_25 setup-timeout 2>&1)" && RC=0 || RC=$?
+expect_rc 1 "case25 (setup timeout)"
+expect_contains "READY: blocked" "case25"
+expect_contains "worktree-setup: fail — timed out after 10 minutes" "case25"
+expect_contains "worktree setup 'sleep 30' timed out" "case25"
+[ ! -e "$(wt_path "$REPO23" setup-timeout)" ] || fail "case25: worktree added this run was not removed after setup timeout"
+
+# --- Case 26: setup-only ready.yml with zero-file copy is valid (T013) --------
+REPO24="$TMP/repo24"
+make_fixture "$REPO24"
+printf 'nothing-here.txt\n' > "$REPO24/.worktreeinclude"
+mkdir -p "$REPO24/.specify"
+printf 'setup: touch setup-ran.marker\n' > "$REPO24/.specify/ready.yml"
+git -C "$REPO24" add .worktreeinclude .specify/ready.yml
+git -C "$REPO24" -c user.email=selftest@example.com -c user.name=selftest commit -qm 'add setup-only ready.yml'
+run_check "$REPO24" flow_selftest_26 setup-only
+expect_rc 0 "case26 (setup-only ready.yml)"
+expect_contains "READY: ok" "case26"
+expect_not_contains "malformed" "case26"
+expect_contains "worktree-copy: pass — copied 0 files" "case26"
+expect_contains "worktree-setup: pass — ran" "case26"
+[ -f "$(wt_path "$REPO24" setup-only)/setup-ran.marker" ] || fail "case26: setup did not run after a zero-file copy"
 
 echo "SELFTEST: ok"
 exit 0

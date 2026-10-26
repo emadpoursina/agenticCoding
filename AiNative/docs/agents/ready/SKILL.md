@@ -116,8 +116,50 @@ If `.specify/ready.yml` is absent, skip (not a failure). If present, only:
 - `file_exists` — path exists relative to repo root
 - `env_var_set` — named environment variable is non-empty
 
-No arbitrary shell from YAML. Honor `required` vs `optional`. Malformed YAML is
+No per-check shell from YAML. The **only** YAML-declared command Ready runs is
+the optional top-level `setup:` string (see below). Honor `required` vs
+`optional`. Malformed YAML is
 a required failure. Unknown `check` type is a required failure for that item.
+
+### Worktree local files (optional)
+
+If the project commits a `.worktreeinclude` at the repository root (
+gitignore-syntax allow-list of ignored/untracked paths), then when Ready
+**adds** a new feature worktree (both the existing-branch and new-branch
+paths), and only when no other required check has already failed, it copies
+the matching untracked-or-ignored files from `REPO_ROOT` into the new
+worktree via
+`git ls-files --others --ignored --exclude-from=.worktreeinclude -z` piped to
+`rsync -a --from0 --files-from=- ./ "$wt_path/"` (layout preserved; symlinks
+are copied as symlinks, not dereferenced). Missing `.worktreeinclude`, an
+empty file, or zero matches is a no-op, not a failure. Ignored files that do
+not match are never copied. Ready never symlinks `node_modules`, `.venv`, or
+`.env` back to the source checkout.
+
+If `.specify/ready.yml` declares a top-level `setup:` command string, Ready
+runs it after the copy (including a zero-file copy), only in a newly added
+worktree, with that worktree as cwd, bounded at 10 minutes
+(`SPECKIT_READY_SETUP_TIMEOUT_SEC` overrides the bound for self-tests only).
+Missing `setup:` is a no-op. Non-zero exit or timeout is a required failure.
+Reuse of an existing worktree (or the current checkout already on the slug)
+overwrites nothing and runs neither the copy nor `setup:`. Copy or setup
+failure on a worktree added in this run removes that worktree before
+reporting `READY: blocked`, so the next run adds it fresh; reused worktrees
+are never removed. `checks:` types stay `tcp` | `http` | `file_exists` |
+`env_var_set` — no per-check shell.
+
+CHECKS lines when a feature worktree was selected (new or reuse; omitted when
+no worktree was selected):
+
+- `[required] worktree-copy: pass|fail` — `copied N files` |
+  `skipped (no .worktreeinclude)` | `skipped (reused worktree)` |
+  `skipped (other required checks failed)` | `fail — <tool/io error, no
+  paths>`. Copied paths and contents never appear in output.
+- `[required] worktree-setup: pass|fail` — `ran` | `skipped (no setup:)` |
+  `skipped (reused worktree)` | `skipped (other required checks failed)` |
+  `fail — exit N` | `fail — timed out after 10 minutes`. Command
+  stdout/stderr never appear in output; FIXES may name the command and exit
+  status or timeout.
 
 ### Gate
 
@@ -139,6 +181,8 @@ CHECKS:
 - [required] git-branch-state: pass|fail — <note>
 - [required] speckit-layout: pass|fail — <note>
 - [required] worker-runtime: pass|fail — <note>
+- [required] worktree-copy: pass|fail — <outcome; "copied N files" when copied, never paths>
+- [required] worktree-setup: pass|fail — <outcome; never command stdout/stderr>
 FIXES:
 - <only when blocked>
 ```
