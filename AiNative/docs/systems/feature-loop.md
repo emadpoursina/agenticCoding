@@ -47,11 +47,11 @@ report.
    route-work, critic, and tester.    `pi-harness` is the Pi worker backend; `antigravity-harness` is the
    Google Antigravity SDK worker backend. Ready selects one via
    `SPECKIT_WORKER` / `speckit.worker` (default `antigravity`) and checks that
-   runtime only. Both require `--model` (no harness default). `scout` (read-only brief / Repo Q&A),
-   `pr-reviewer` (on-demand PR review after Ship), and
-   `legacy-system-assessment-agent` (standalone assessment) are on-hand tools
+   runtime only. Both require `--model` (no harness default). `scout` (read-only brief / Repo Q&A)
+   and `legacy-system-assessment-agent` (standalone assessment) are on-hand tools
    Hermes may call whenever it needs them — not loop states, not tied to one
-   step. `speckit-orchestrate` is the Cursor parent implementation of this same
+   step. `pr-reviewer` is an automatic loop state after Ship on feature and change paths (and on-hand for ad-hoc reviews).
+   `speckit-orchestrate` is the Cursor parent implementation of this same
    graph (Cursor `Task` workers or Pi fallback); the Hermes parent implements
    the same graph via dispatch. Other agents run only as an explicitly named `job`.
 2. **Spec Kit** — project prompts stored in the enrolled project by
@@ -127,15 +127,18 @@ means a default — it means machine-infer by `route-work`.
 
 | Path | When | Graph |
 |---|---|---|
-| `feature` | A desired product outcome that needs a spec, plan, and review | The graph below; planning creates child Task Cards |
-| `change` | A small code edit already specified by the card | `ready` → `route` → one worker → `tester` → `ship` |
-| `job` | Work that is not a code change (write a PRD, bootstrap from a PRD) | `ready` → `route` → one worker for the named skill. It may park for a human. Workers never ship. After the worker reports `STATUS: ok` the parent automatically commits, pushes the branch, and opens a pull request (the PR is the review surface; `keep-local` opts out). It does not enter the feature graph |
+| `feature` | A desired product outcome that needs a spec, plan, and review | The graph below (`ready → route → specify → clarify → plan → tasks → [analyze] → implement ↔ converge → critic → tester → ship → pr-review → uat`); planning creates child Task Cards |
+| `change` | A small code edit already specified by the card | `ready` → `route` → one worker → `tester` → `ship` → `pr-review` → `uat` (no critic, no converge, no `tasks.md`) |
+| `job` | Work that is not a code change (write a PRD, bootstrap from a PRD) | `ready` → `route` → one worker for the named skill. It may park for a human. Workers never ship. After the named skill reports `STATUS: ok` the parent automatically ships (commit, push branch, open PR; `keep-local` opts out); after named skill `STATUS: ok` → ship (or declined); MUST NOT run pr-reviewer; UAT is not a job-path stage. It does not enter the feature graph |
+
+Downstream stages MUST use `FEATURE_DIR` / `.specify/feature.json` (basename e.g. `002-agentic-validation`) and MUST NOT infer the spec directory from git `BRANCH` (`agentic-validation` may differ).
 
 No worker on any path ships. Every path ends the same way: once validation
 passes, the parent commits, pushes the branch, and opens a PR automatically,
-with no confirmation prompt. The PR is the review surface; the operator's
-gates are UAT on the open PR and merge (outside the loop). `keep-local` opts a
-run out of shipping.
+with no confirmation prompt. The PR is the review surface; on feature and
+change paths, the operator's gates are UAT on the open PR and merge (outside the
+loop; job path skips pr-review and UAT). `keep-local` opts a run out of
+shipping.
 
 PR CI independently re-proves validation and evidence stays out of git —
 see the CI re-proof and evidence-hygiene guidance in
@@ -145,7 +148,7 @@ A `change` or `job` worker that finds the card is really a feature stops
 and reports that. It does not promote itself onto the feature graph.
 
 `change` does not run specify, clarify, plan, tasks, analyze,
-implement/converge, critic, or UAT. `tester` runs the
+implement/converge, or critic. `tester` runs the
 project `validation_commands`. `ready` on a `change` is branch preflight
 only.
 
@@ -164,8 +167,11 @@ ready → route
   → implement ↔ converge
   → critic → tester
   → ship
+  → pr-review
   → uat
 ```
+
+Graph string: `ready → route → specify → clarify → plan → tasks → [analyze] → implement ↔ converge → critic → tester → ship → pr-review → uat`
 
 | State | Kind | Worker? | Notes |
 |---|---|---|---|
@@ -180,12 +186,14 @@ ready → route
 | `converge` | Spec Kit | yes | `tasks_appended` (new work) → implement again. Unchanged fingerprint → stuck. Only `converged` exits the loop. |
 | `critic` | AiNative | yes | Adversarial review of spec/plan/implementation. Required. After converge; not a “finish” report. |
 | `tester` | AiNative | yes | Prove the flows. Project `validation_commands` run **here**, not as a parallel parent phase. Required. |
-| `ship` | parent / GitHub | **no** | Parent commits everything, pushes the branch, and opens a PR with a step-by-step human walkthrough in the PR body. Automatic once validation passes (feature: `converged`; change: tester PASS; job: `STATUS: ok`); `keep-local` opts out; workers never ship, on any path. |
+| `ship` | parent / GitHub | **no** | Parent commits everything, pushes the branch, and opens a PR with a step-by-step human walkthrough in the PR body. Automatic once validation passes (feature: critic PASS then tester PASS; change: tester PASS; job: `STATUS: ok`); `keep-local` opts out; workers never ship, on any path. |
+| `pr-review` | AiNative | yes | Staged PR review (`pr-reviewer`). Required loop state after `ship` on feature and change paths (host Task, Validation profile, fresh session). Evaluates architecture, risk, and evidence. APPROVE or REQUEST CHANGES with zero Criticals routes to UAT park; REQUEST CHANGES with Criticals routes back to converge (feature) or change worker (change). Job path skips pr-review. |
 | `uat` | parent ↔ human | **no** | Operator exercises the shipped PR using the walkthrough. Pass/fail confirmation; exact trigger/presentation policy is being refined. |
 
 **End-of-path rule (all paths):** workers never commit, push, or open PRs.
-The parent does that in `ship` automatically once validation passes; the
-operator then reviews the PR (UAT) and merges. Merge is never done by this loop.
+The parent does that in `ship` automatically once validation passes; on feature
+and change paths, the operator then reviews the PR (UAT) and merges (job path
+skips pr-review and UAT). Merge is never done by this loop.
 
 ## PIVS mapping
 
@@ -194,14 +202,11 @@ The loop above is the detailed form of PIVS:
 * **Plan** = `ready → route → specify → clarify → plan → tasks → [analyze]`
 * **Implementation** = `implement ↔ converge`
 * **Validation** = `critic → tester`
-* **Ship** = `ship` (commit, push, PR with walkthrough; ends uat-ready) → human `uat` → human merge (outside the loop)
+* **Ship** = `ship → pr-review → uat` (pr-review is an automatic loop state after Ship on feature and change paths; job path skips pr-review and UAT) → human merge (outside the loop)
 
-`pr-reviewer` is an on-demand tool after Ship, not a loop state. Run it
-whenever a PR needs review; do not gate Ship on it.
-
-**Default ship order** (until explicitly changed): tester PASS, then parent
+**Default ship order** (until explicitly changed): critic PASS then tester PASS, then parent
 ships the **branch** (commit, push, open PR with walkthrough) automatically,
-with no confirmation prompt; `keep-local` opts out. Do not open a PR and then
+with no confirmation prompt; `keep-local` opts out. After `SHIP: ok`, pr-reviewer runs automatically. Do not open a PR and then
 treat the walkthrough as optional. Merge stays human and outside the loop.
 
 `skip` is an **operator flag**, not a skipped specify/clarify state.
@@ -222,16 +227,37 @@ Specify/clarify/plan/tasks/analyze: `FLOW_ID`, `ARTIFACTS`,
 Implement: `IMPLEMENT_STATUS`, `TASKS_DONE`, `TASKS_OPEN`, `BLOCKER`,
 `SUMMARY`.
 
-Converge: `CONVERGE_OUTCOME: converged|tasks_appended|blocked`,
-`FINDINGS`, `FINGERPRINT`, `TASKS_APPENDED`, `SUMMARY`.
+Converge: `FLOW_ID`, `CONVERGE_OUTCOME: converged|tasks_appended|blocked`,
+`FINDINGS`, `FINGERPRINT: <sorted source-refs> | <sorted validator-ids or "none">`,
+`PHASE_APPENDED`, `TASKS_APPENDED`, `BLOCKER`, `SUMMARY`. Source-refs in FINDINGS / appended
+tasks remain spec/plan/constitution only (`FR-###`, `US#/AC#`, `plan: …`, `Constitution …`).
+Validator IDs appear in the task description only (`[tester: flow-2]`, `[critic: C1]`, `[pr-review: C1]`);
+MUST NOT invent PR-review source-refs.
 
-Critic / tester: keep each agent’s existing PASS/FAIL
-contract; the parent must get a parseable status, not only narrative.
-Tester **adds** `EVIDENCE: specs/<flow>/evidence.md` (the resolved
-manifest path) without dropping the verdict fields.
+Critic: `FLOW_ID`, `CRITIC: PASS | FAIL`, `LOOP_BACK: implement | plan | none`,
+`FINDINGS: <none, or one line each: ID | severity | file:line | summary>`, `SUMMARY`.
+PASS ⇒ `LOOP_BACK: none`. FAIL mixed implement+plan ⇒ emit `plan` (parent parks).
+Worker MUST NOT write `tasks.md` or launch tester/ship.
 
-Ship: `SHIP: ok|blocked|declined`, `PR`, `WALKTHROUGH`, `EVIDENCE:
-included|none`, `SUMMARY`.
+Tester: `FLOW_ID`, `TESTER: PASS | FAIL`, `LOOP_BACK: implement | plan | none`,
+`EVIDENCE: specs/<flow>/evidence.md`, `FINDINGS: <none, or one line each: flow-id | problem | fix needed>`,
+`SUMMARY`. PASS ⇒ `none`. Assertion/code failures default to `implement` when omitted.
+`<flow>` is the Spec Kit feature directory basename from `feature.json`, not `BRANCH`.
+
+Change-path tester (`change` SKILL `STEP: tester`): `FLOW_ID`, `TESTER: PASS | FAIL`,
+`TESTS`, `FINDINGS`, `SUMMARY` (validation remains `STEP: tester` only; no critic, no `LOOP_BACK`;
+FAIL retries the change worker with FINDINGS, three attempts then park; never converge, never `tasks.md`).
+
+pr-reviewer (after `SHIP: ok`, feature and change only): `FLOW_ID`,
+`VERDICT: APPROVE | REQUEST CHANGES | BLOCKED`, `CRITICAL_COUNT: <integer>`,
+`CRITICALS: <none, or one line each: ID | file:line | trigger | summary>`,
+`REPORT: <path>`, `SUMMARY`. Merge gate remains Critical-only (Warning/Suggestion never change `VERDICT`).
+`VERDICT: REQUEST CHANGES` with `CRITICAL_COUNT: 0` is routed as APPROVE for the loop.
+Worker MUST NOT ship, merge, write `tasks.md`, or dispatch converge/implement.
+
+Ship: `SHIP: ok|blocked|declined`, `PR: <PR URL, or none>`, `WALKTHROUGH: <included|none|blocked>`,
+`EVIDENCE: included|none`, `SUMMARY`. After a first `SHIP: ok`, later passes on the same run MUST reuse `PR`
+(same URL). `SHIP: declined` only for `keep-local`. `SHIP: blocked` does not launch pr-reviewer.
 
 ## Stuck policy
 

@@ -18,9 +18,9 @@ Methodology: PIVS Validation phase of the live [feature loop](../../systems/feat
 ## Outputs
 
 - Per-test-flow result: **PASS** / **FAIL** with the specific failure detail
-- Evidence bundle: captures under `specs/<flow>/evidence/` plus the manifest at `specs/<flow>/evidence.md` (one Markdown table; artifact paths point at command-produced files; FAIL still records every executed flow; each run replaces the prior bundle)
+- Evidence bundle: captures under `specs/<flow>/evidence/` plus the manifest at `specs/<flow>/evidence.md` (`<flow>` from `.specify/feature.json`, not `BRANCH`; one Markdown table; artifact paths point at command-produced files; FAIL still records every executed flow; each run replaces the prior bundle)
 - When FAIL, explicit feedback for the Implement loop-back (e.g. "function returns undefined for empty array — expected empty array")
-- Overall verdict: **PASS** or **FAIL**, plus `EVIDENCE: specs/<flow>/evidence.md` in the compact report
+- Compact report: `FLOW_ID`, `TESTER: PASS | FAIL`, `LOOP_BACK: implement | plan | none`, `EVIDENCE: specs/<flow>/evidence.md`, `FINDINGS`, `SUMMARY` (`PASS` ⇒ `none`; `FAIL` defaults assertion/code to `implement`, mixed to `plan`). Worker MUST NOT write `tasks.md` or launch ship
 
 ## Supporting files
 

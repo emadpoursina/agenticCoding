@@ -17,10 +17,13 @@ Methodology: PIVS Validation phase of the live [feature loop](../../systems/feat
 
 ## Outputs
 
+- Compact report: `FLOW_ID`, `CRITIC: PASS | FAIL`, `LOOP_BACK: implement | plan | none`, `FINDINGS` (validator IDs `C1`, …), `SUMMARY`
+- PASS ⇒ `LOOP_BACK: none`; FAIL mixed implement+plan ⇒ `plan` (parks)
 - Findings list grouped by severity: **Critical** / **Warning** / **Suggestion**
 - Blocking plan-review finding when an acceptance criterion has no provable test flow (no linked flow, no proof type, or UI proof without Playwright commands) — the finding names the orphan criterion
 - Overall verdict: **PASS** or **FAIL**
-- When FAIL, explicit feedback for the Implement loop-back (or a replan note when the failure is a Plan-level misunderstanding)
+- Implementation review is required after Implementation and before tester runs; FAIL on spec/plan mismatch remains
+- When FAIL, explicit feedback for the Implement loop-back (or a replan note when the failure is a Plan-level misunderstanding). Worker MUST NOT write `tasks.md` or launch tester/ship
 
 ## Supporting files
 

@@ -14,12 +14,14 @@ standalone and must not assume any project-specific workflow beyond the
 project's Spec Kit skills and the global skills it names.
 
 ```text
-ready → route-work ─┬─ feature → specify … converge → ship* → UAT
-                    ├─ change  → change → tester → ship* → UAT
-                    └─ job     → named skill → ship* (no UAT)
+ready → route-work ─┬─ feature → specify … converge → critic → tester → ship* → pr-review → UAT
+                    ├─ change  → change → tester → ship* → pr-review → UAT
+                    └─ job     → named skill → ship* (no pr-review, no UAT)
 ```
 
-\* `ship` is automatic once validation passes; `keep-local` opts out. Merge is
+Graph string: `ready → route → specify → clarify → plan → tasks → [analyze] → implement ↔ converge → critic → tester → ship → pr-review → uat`
+
+\* `ship` is automatic once validation passes; `keep-local` (alias `no-ship`) opts out. Merge is
 manual and outside this loop.
 
 Only **feature** uses the heavy Spec Kit machinery. **change** and **job** are
@@ -40,9 +42,9 @@ arguments or in a later reply during specify or clarify. Match case-insensitivel
   on ship: ship is automatic after validation passes (see **Ship / UAT**).
 - **keep-local** — A lone word `keep-local` (alias `no-ship`) opts this run out
   of shipping. After validation passes the parent leaves the work uncommitted
-  in `WORKTREE`, emits `SHIP: declined`, and skips UAT. It is the only way to
-  suppress the automatic ship; the default is to ship. Committing the work
-  locally afterward is the operator's job.
+  in `WORKTREE`, emits `SHIP: declined`, and skips automatic pr-review and UAT.
+  It is the only way to suppress the automatic ship; the default is to ship.
+  Committing the work locally afterward is the operator's job.
 - **path: feature|change|job** — the user chose the path. Pass it to route-work
   as `REQUESTED_PATH`; route-work must honor it.
 - **skill: <name>** — the skill a job must use. Pass it to route-work as
@@ -60,7 +62,7 @@ arguments or in a later reply during specify or clarify. Match case-insensitivel
   `reasoning: my-reviewer-slug`. Never applied to Worker or Validation
   stages.
 - **validation: <task-slug>** — per-profile override for the Validation profile
-  only (`critic`, `tester`). Must be a slug from the runtime's allowed Task
+  only (`critic`, `tester`, `pr-reviewer`). Must be a slug from the runtime's allowed Task
   model list. Example: `validation: my-validator-slug`. Never applied to
   Worker or Reasoning stages.
 
@@ -74,10 +76,10 @@ worker stages MUST pass explicit `--provider` / `--model` / `--thinking`
 resolved per run from **Model resolution** below (never a skill-pinned value).
 
 The parent is a dispatcher. It MUST NOT execute ready, route, specify, clarify,
-plan, tasks, analyze, implement, converge, change, tester, or a job skill
-itself: not by following those skills in this session, not by writing their
-artifacts, not by running `ready-check.sh`, not by editing code in-place
-because context is already loaded.
+plan, tasks, analyze, implement, converge, change, critic, tester, pr-reviewer,
+or a job skill itself: not by following those skills in this session, not by
+writing their artifacts, not by running `ready-check.sh`, not by editing code
+in-place because context is already loaded.
 
 Never omit `model`. Never pass `inherit` on Task launches. Ban
 `inherit` for every reasoning- or validation-stage Task in this pipeline.
@@ -135,7 +137,7 @@ Profiles (stage kinds, not model IDs):
 | --- | --- |
 | Reasoning | `ready`, `route`, `specify`, `clarify`, `plan`, `tasks`, `analyze` (host Task: Cursor `generalPurpose` Task, OpenCode subagent equivalent, or Hermes worker session). plan-reviewer when used = Reasoning, same model as plan. |
 | Worker | `implement`, `converge`, `change`, `job` (Pi via `pi-harness` or Antigravity SDK via `antigravity-harness`) |
-| Validation | `critic`, `tester` (host Task or equivalent, fresh session, validation model — distinct from plan/implement) |
+| Validation | `critic`, `tester`, `pr-reviewer` (host Task or equivalent, fresh session, validation model — distinct from plan/implement) |
 
 Which profile fits which job is the authority of `docs/systems/agentic-system.md`
 §2 Model; this skill only resolves concrete values per profile.
@@ -232,7 +234,7 @@ runtime fallback, or the fallback also cannot be used, STOP
 immediately. Do not continue to the next stage and do not count this as a
 stuck retry. Wait for the user to fix it.
 
-**Validation stages** (`critic`, `tester`): launch a fresh foreground host
+**Validation stages** (`critic`, `tester`, `pr-reviewer`): launch a fresh foreground host
 Task with the resolved validation model — never continue a plan or implement
 session. Same rules as reasoning stages: check the allowed Task model list,
 never invent a slug, retry only a runtime-defined distinct fallback, and STOP
@@ -316,20 +318,32 @@ flowchart TD
   analyzeRun --> impl
   impl --> conv[converge]
   conv -->|tasks_appended| impl
-  conv -->|converged| featureShip[ship: commit, push, PR]
-  featureShip -->|ok| featureUat[UAT park]
+  conv -->|converged| critic[critic]
+  critic -->|PASS| tester[tester]
+  critic -->|FAIL: LOOP_BACK implement| conv
+  critic -->|FAIL: LOOP_BACK plan| haltCritic[park: plan misunderstanding]
+  tester -->|PASS| featureShip[ship: commit, push, PR]
+  tester -->|FAIL: LOOP_BACK implement| conv
+  tester -->|FAIL: LOOP_BACK plan| haltTester[park: plan misunderstanding]
+  featureShip -->|ok| featureReview[pr-reviewer]
   featureShip -->|keep-local / declined| featureDone[finish report]
   featureShip -->|blocked| featureShipHalt[halt: ship blocked]
+  featureReview -->|APPROVE / zero Criticals| featureUat[UAT park]
+  featureReview -->|REQUEST CHANGES: Criticals| conv
+  featureReview -->|BLOCKED| haltReview[park: Phase 1.5 blocked]
   featureUat -->|pass| featureDone
   featureUat -->|fail| featureHalt[halt with findings]
 
   change -->|SCOPE feature| haltScope[stop: needs feature path]
-  change --> tester[tester]
-  tester -->|FAIL| change
-  tester -->|PASS| changeShip[ship: commit, push, PR]
-  changeShip -->|ok| changeUat[UAT park]
+  change --> changeTester[tester]
+  changeTester -->|FAIL| change
+  changeTester -->|PASS| changeShip[ship: commit, push, PR]
+  changeShip -->|ok| changeReview[pr-reviewer]
   changeShip -->|keep-local / declined| changeDone[finish report]
   changeShip -->|blocked| changeShipHalt[halt: ship blocked]
+  changeReview -->|APPROVE / zero Criticals| changeUat[UAT park]
+  changeReview -->|REQUEST CHANGES: Criticals| change
+  changeReview -->|BLOCKED| haltChangeReview[park: Phase 1.5 blocked]
   changeUat -->|pass| changeDone
   changeUat -->|fail| changeHalt[halt with findings]
 
@@ -447,12 +461,65 @@ flowchart TD
    `tasks_appended` with genuinely new tasks starts another implementation
    pass. Do not request user confirmation. The parent MUST NOT implement
    application code or append converge tasks itself.
-9. **Ship / UAT** — after `CONVERGE_OUTCOME: converged`, run the shared
-   **Ship / UAT** procedure below automatically. There is no ship confirmation
-   prompt: unless the operator passed `keep-local`, the parent commits, pushes,
-   and opens the PR, then parks for UAT; a UAT pass completes the run and a UAT
-   failure halts with findings. On `SHIP: blocked`, halt with the blocker. On
-   `keep-local` / `SHIP: declined`, finish with the report and skip UAT.
+9. **Critic** — after `CONVERGE_OUTCOME: converged`, launch a fresh host Task with
+   the resolved Validation-profile model in a fresh session. Follow
+   `<AINATIVE>/docs/agents/critic/SKILL.md`. Critic performs adversarial review
+   of spec/plan/implementation before tests run. Critic implementation review is
+   required.
+   - `CRITIC: PASS` (`LOOP_BACK: none`) → proceed to tester.
+   - `CRITIC: FAIL` with `LOOP_BACK: implement` → launch converge with `$ARGUMENTS`
+     containing `VALIDATOR_CRITICALS` (the critic Criticals; parent MUST NOT feed
+     validator Criticals directly to implement). Converge appends tasks to
+     `tasks.md`, then parent loops `implement ↔ converge`, then relaunches critic.
+   - `CRITIC: FAIL` with `LOOP_BACK: plan` (or mixed implement+plan) → park. Do not
+     re-run critic/tester/pr-review until a human unparks.
+   - Missing `LOOP_BACK` on FAIL: treat assertion/code failures as `implement`,
+     explicit spec/plan contradictions as `plan`, else park.
+   - If converge returns `CONVERGE_OUTCOME: converged` while a validator FAIL is
+     still open → park (do not treat as validation PASS; do not re-run
+     critic/tester/pr-review).
+   Worker MUST NOT write `tasks.md` or launch tester/ship.
+10. **Tester** — after `CRITIC: PASS`, launch a fresh host Task with the resolved
+    Validation-profile model in a fresh session. Follow
+    `<AINATIVE>/docs/agents/tester/SKILL.md`. Tester executes test flows and
+    persists the evidence bundle at `specs/<flow>/evidence.md` (where `<flow>` is
+    the Spec Kit feature directory basename from `.specify/feature.json`, never
+    `BRANCH`).
+    - `TESTER: PASS` (`LOOP_BACK: none`) → proceed to Ship (or if `keep-local` /
+      `no-ship` is active, emit `SHIP: declined`, skip ship, automatic pr-review,
+      and UAT, and finish).
+    - `TESTER: FAIL` with `LOOP_BACK: implement` → launch converge with `$ARGUMENTS`
+      = `VALIDATOR_CRITICALS`. Converge appends tasks, parent loops
+      `implement ↔ converge`, then runs critic → tester.
+    - `TESTER: FAIL` with `LOOP_BACK: plan` (or mixed) → park.
+    - Missing `LOOP_BACK` on FAIL: defaults to `implement` for assertion/code failures.
+    Worker MUST NOT write `tasks.md` or launch ship.
+11. **Ship** — after tester PASS:
+    - If `keep-local` (alias `no-ship`) is active: emit `SHIP: declined`, skip ship,
+      skip automatic pr-review, skip UAT, and finish.
+    - Otherwise, execute the automatic ship procedure below (commit, push `BRANCH`, PR).
+    - On `SHIP: blocked`, halt with the blocker; do not launch pr-reviewer; MUST NOT
+      infer `keep-local` from blocked ship.
+    - On `SHIP: ok`, proceed automatically to PR review.
+12. **PR review** — after `SHIP: ok`, launch `pr-reviewer` automatically as a loop
+    state (host Task, Validation-profile model, fresh session). Follow
+    `<AINATIVE>/docs/agents/pr-reviewer/SKILL.md`. `pr-reviewer` evaluates
+    architecture, risk, and evidence on the opened PR (automatic loop state on this
+    path, not on-demand).
+    Parent routes on the compact header:
+    - `VERDICT: APPROVE`, or `VERDICT: REQUEST CHANGES` with `CRITICAL_COUNT: 0` →
+      route as APPROVE for the loop; park for operator UAT pass/fail (does not
+      complete the run; merge stays human).
+    - `VERDICT: REQUEST CHANGES` with `CRITICAL_COUNT ≥ 1` → parent feeds Criticals
+      to converge as `$ARGUMENTS = VALIDATOR_CRITICALS` (parent MUST NOT feed validator
+      Criticals directly to implement). Converge appends tasks →
+      `implement ↔ converge` loop → `critic` → `tester` → same-PR ship →
+      `pr-reviewer` re-review with `--extra @<previous-review>.md`.
+    - `VERDICT: BLOCKED` (Phase 1.5 architecture block) → park (not a REQUEST CHANGES retry).
+    Worker MUST NOT ship, merge, write `tasks.md`, or dispatch converge/implement.
+13. **UAT** — after PR review APPROVE (or zero Criticals), park for operator UAT.
+    - UAT pass: complete the run.
+    - UAT fail: halt with findings (v1 does not auto-loop UAT).
 
 ### Change path
 
@@ -464,14 +531,19 @@ flowchart TD
    (re-run with `path: feature`). Do not switch paths on your own.
 4. **Tester** — launch a fresh `generalPurpose` worker with the
    resolved validation model (fresh session; never the change worker's model). Tell it to follow the same skill with
-   `STEP: tester`, and pass the change report. On `TESTER: FAIL`, launch a new
+   `STEP: tester` (no critic, no `LOOP_BACK`), and pass the change report. On `TESTER: FAIL`, launch a new
    change worker with the `FINDINGS` and the next `ATTEMPT`, then test again.
-   This counts toward the change step's stuck limit.
-5. **Ship / UAT** — after `TESTER: PASS`, run the shared **Ship / UAT**
-   procedure below automatically (no confirmation prompt). Unless the operator
-   passed `keep-local`, the parent commits, pushes, and opens the PR, then parks
-   for UAT; a UAT failure halts with findings; v1 does not loop back to
-   implement. On `SHIP: blocked`, halt with the blocker.
+   This counts toward the change step's 3-attempt stuck limit (never converge, never `tasks.md`).
+5. **Ship** — after `TESTER: PASS`, run the shared **Ship / UAT**
+   procedure below automatically (no confirmation prompt).
+   - If `keep-local` (alias `no-ship`) was passed: emit `SHIP: declined`, skip ship and pr-review, and finish.
+   - On `SHIP: blocked`, halt with the blocker; do not launch pr-reviewer; MUST NOT infer `keep-local` from blocked ship.
+   - On `SHIP: ok`, proceed automatically to PR review.
+6. **PR review** — launch `pr-reviewer` automatically as a loop state (host Task, Validation profile, fresh session).
+   - `VERDICT: APPROVE` or `REQUEST CHANGES` with `CRITICAL_COUNT: 0` → UAT park.
+   - `REQUEST CHANGES` with `CRITICAL_COUNT ≥ 1` → retry change worker with FINDINGS (no `tasks.md`, no converge) → tester → same-PR ship → re-review.
+   - `BLOCKED` → park.
+7. **UAT** — operator exercises the PR: UAT pass completes; UAT failure halts with findings.
 
 ### Job path
 
@@ -485,15 +557,15 @@ flowchart TD
    and resume or relaunch the worker with the answers. If the worker reports
    the task is really a code change, stop and tell the user; do not switch
    paths on your own.
-4. **Ship** — after `STATUS: ok`, run the shared **Ship / UAT** procedure
+4. **Ship** — after named skill `STATUS: ok`, run the shared **Ship / UAT** procedure
    below automatically (no confirmation prompt), unless the operator passed
-   `keep-local`. For jobs, ship is the final action: do not run UAT.
+   `keep-local` (alias `no-ship`). For jobs, after named skill `STATUS: ok` → ship (or declined); MUST NOT run pr-reviewer; UAT is not a job-path stage.
 5. **Complete** — report the skill used, the artifacts, and the PR URL when
    published.
 
 ## Ship / UAT (parent only; job skips UAT)
 
-Feature enters this procedure after `CONVERGE_OUTCOME: converged`; change
+Feature enters this procedure after `TESTER: PASS` (following `CRITIC: PASS`); change
 enters after `TESTER: PASS`; job enters after `STATUS: ok`.
 
 **Ship is automatic and asks no confirmation.** Once the path's validation
@@ -503,12 +575,12 @@ intent beforehand. Merge is never part of this loop — the parent never merges
 anything, on any path. Human judgment keeps exactly two gates: UAT on the open
 PR, and merge (outside the loop).
 
-Opt out with the `keep-local` keyword (see **Keywords**): when present, skip
-ship, emit `SHIP: declined`, and finish.
+Opt out with the `keep-local` keyword (alias `no-ship`, see **Keywords**): when present, skip
+ship, emit `SHIP: declined`, skip automatic pr-review and UAT, and finish.
 
 **Pre-push guards — all must hold before pushing; otherwise `SHIP: blocked`:**
 
-- Path validation passed (feature: `CONVERGE_OUTCOME: converged`; change:
+- Path validation passed (feature: critic PASS then tester PASS; change:
   `TESTER: PASS`; job: `STATUS: ok`).
 - `BRANCH` is a topic branch, never a protected base branch (`main`, `master`,
   `develop`, `development`, or another protected name).
@@ -516,26 +588,37 @@ ship, emit `SHIP: declined`, and finish.
 - No obvious secret material is staged (`.env`, credential files, keys). If
   found, stop and report rather than push.
 
-**Ship action:**
+**Ship action (First ship vs same-PR ship):**
 
-- Commit and push from `WORKTREE` on `BRANCH` using Conventional Commits, then
-  create a PR with `gh pr create`. Run Git as `git -C <WORKTREE>`.
-- Never commit to or push the protected base branch.
-- The PR body must follow the host PR template when present (Cursor-only:
-  `~/.cursor/skills/pr-generate/template.md`, not an AiNative agent) and always
-  include a mandatory `## Walkthrough` section with step-by-step human
-  instructions. Source the walkthrough from plan test flows, `quickstart.md`,
-  and the implement summary. Once a PR exists, the walkthrough is required, not
-  optional — it is what the operator reviews.
-- The PR body must also include a mandatory `## Evidence` section alongside
-  `## Walkthrough`, sourced from the tester manifest `specs/<flow>/evidence.md`
-  (where `<flow>` is the Spec Kit feature directory basename): copy the
-  acceptance-criterion table, inline small PNG/JPEG screenshots that exist
-  locally, and reference bulky captures (traces, videos) by the documented CI
-  workflow artifact name (or the URL when CI has already produced it). Do not
-  wait for CI to finish before opening the PR. With no usable manifest
-  (missing, empty, or invalid), still include `## Walkthrough` and report
-  `EVIDENCE: none`. Evidence never replaces the walkthrough.
+1. **First ship of the run:**
+   - Commit and push from `WORKTREE` on `BRANCH` using Conventional Commits, then
+     create a PR with `gh pr create`. Run Git as `git -C <WORKTREE>`.
+   - Never commit to or push the protected base branch.
+   - The PR body must follow the host PR template when present (Cursor-only:
+     `~/.cursor/skills/pr-generate/template.md`, not an AiNative agent) and always
+     include a mandatory `## Walkthrough` section with step-by-step human
+     instructions. Source the walkthrough from plan test flows, `quickstart.md`,
+     and the implement summary. Once a PR exists, the walkthrough is required, not
+     optional — it is what the operator reviews.
+   - The PR body must also include a mandatory `## Evidence` section alongside
+     `## Walkthrough`, sourced from the tester manifest `specs/<flow>/evidence.md`
+     (where `<flow>` is the Spec Kit feature directory basename from `.specify/feature.json`): copy the
+     acceptance-criterion table, inline small PNG/JPEG screenshots that exist
+     locally, and reference bulky captures (traces, videos) by the documented CI
+     workflow artifact name (or the URL when CI has already produced it). Do not
+     wait for CI to finish before opening the PR. With no usable manifest
+     (missing, empty, or invalid), still include `## Walkthrough` and report
+     `EVIDENCE: none`. Evidence never replaces the walkthrough.
+   - Emit `SHIP: ok` with `PR: <url>`.
+
+2. **Reuse (same-PR ship):**
+   When `PR` is already set for this run (or `gh pr view --head <BRANCH>` shows an open PR created by this run):
+   - Commit pending work on `BRANCH` in `WORKTREE` using Conventional Commits (same secret and pre-push guards).
+   - Push `BRANCH` via `git -C <WORKTREE> push origin <BRANCH>` (normal push; do not force-push unless existing ship policy already requires it).
+   - Refresh the existing PR body: keep the same PR URL; update `## Walkthrough` and `## Evidence` from current plan/quickstart/implement summary and tester manifest.
+   - Do **not** call `gh pr create` (MUST NOT open a second PR).
+   - Emit `SHIP: ok` with the **same** `PR:` URL.
+   - Re-review after reuse: launch `pr-reviewer` against that PR URL with `--extra @<previous-review>.md` pointing at the previous review report artifact (`REPORT` from the prior compact header).
 
 After the parent completes the ship action, emit:
 
@@ -552,17 +635,19 @@ the manifest (allowed even when the tester verdict was FAIL); `EVIDENCE: none`
 means no usable manifest (missing, empty, or invalid). It is added — the
 existing `SHIP`, `PR`, `WALKTHROUGH`, and `SUMMARY` fields stay.
 
-For feature and change only, `SHIP: ok` parks the run for operator UAT:
+After `SHIP: ok`, for feature and change paths, the parent launches `pr-reviewer`
+automatically as a loop state. After PR review completes with APPROVE
+(or zero Criticals), the parent parks for operator UAT:
 
 - **A — UAT pass:** complete the pipeline.
 - **B — UAT fail:** halt with the findings. In v1, do not loop back to
   implement.
 
-Do not run UAT after a job ship, nor after `SHIP: blocked` or `SHIP: declined`.
+Do not run UAT or pr-reviewer after a job ship, nor after `SHIP: blocked` or `SHIP: declined`.
 A ship failure is `SHIP: blocked`, not an implicit keep-local decision; report
-the blocker and stop. `SHIP: declined` means only the `keep-local` opt-out.
+the blocker and stop (MUST NOT infer `keep-local` from blocked ship). `SHIP: declined` means only the `keep-local` (alias `no-ship`) opt-out.
 Workers do not commit, push, create PRs, write walkthroughs, or perform UAT on
-any path. Ship and UAT add no worker launch or model-resolution entry.
+any path.
 
 ## Worker launches
 
@@ -574,7 +659,7 @@ resolution (runtime-owned, no pinned values)** above:
 | --- | --- |
 | ready, route, specify, clarify, plan, tasks, analyze | **Reasoning** — host Task with `model` = resolved Reasoning-profile model (plan-reviewer, when used, pinned to the same model as plan) |
 | implement, converge, change, job | **Worker** — resolved backend (`pi-harness` or `antigravity-harness`) with resolved `--model` (fallback may specify HOST: host Task with fallback model) |
-| critic, tester | **Validation** — host Task with `model` = resolved Validation-profile model, fresh session (distinct from Reasoning/Worker when available) |
+| critic, tester, pr-reviewer | **Validation** — host Task with `model` = resolved Validation-profile model, fresh session (distinct from Reasoning/Worker when available) |
 
 Pass the resolved values exactly as resolved. If the resolved value for that
 profile cannot be used, use the runtime's distinct fallback for that profile if one
@@ -604,6 +689,9 @@ prompt:
 - the skill file to read and follow exactly (AiNative-first per **Skill path resolution**; hosts resolve via symlink/mount):
   - ready: `<AINATIVE>/docs/agents/speckit-ready/SKILL.md`
   - route: `<AINATIVE>/docs/agents/route-work/SKILL.md`
+  - critic: `<AINATIVE>/docs/agents/critic/SKILL.md`
+  - tester: `<AINATIVE>/docs/agents/tester/SKILL.md` (or change-path tester via `<AINATIVE>/docs/agents/change/SKILL.md` plus `STEP: tester`)
+  - pr-reviewer: `<AINATIVE>/docs/agents/pr-reviewer/SKILL.md`
   - change / tester: `<AINATIVE>/docs/agents/change/SKILL.md` plus `STEP`
   - job: the `SKILL_PATH` from route-work (already AiNative-first resolved)
   - feature stages: the project's `REPO_ROOT/.pi/prompts/speckit-<step>.md`
@@ -666,12 +754,70 @@ Converge returns:
 FLOW_ID: <flow_id>
 CONVERGE_OUTCOME: converged | tasks_appended | blocked
 FINDINGS: <none, or one line per finding: ID | gap-type | severity | source-ref | remaining work>
-FINGERPRINT: <sorted source-refs joined by commas, or "none">
+FINGERPRINT: <sorted source-refs> | <sorted validator-ids or "none">
 PHASE_APPENDED: <none or "Phase N">
 TASKS_APPENDED: <none or new task IDs>
 BLOCKER: <none or one paragraph>
 SUMMARY: <counts checked; gap-type counts; whether tasks.md was written>
 ```
+
+- Source-refs in FINDINGS / appended tasks: spec/plan/constitution only (`FR-###`, `US#/AC#`, `plan: …`, `Constitution …`).
+- Validator IDs appear in the task description only (`[tester: flow-2]`, `[critic: C1]`, `[pr-review: C1]`); MUST NOT invent PR-review source-refs.
+- `$ARGUMENTS` when the parent sends validator Criticals:
+  ```text
+  VALIDATOR_CRITICALS:
+  - source: critic|tester|pr-review
+    id: C1
+    summary: <one line>
+    suggested_source_ref: FR-### or US#/AC#
+  ```
+
+Critic returns:
+
+```text
+FLOW_ID: <id>
+CRITIC: PASS | FAIL
+LOOP_BACK: implement | plan | none
+FINDINGS: <none, or one line each: ID | severity | file:line | summary>
+SUMMARY: <one paragraph>
+```
+
+- PASS ⇒ `LOOP_BACK: none`.
+- FAIL ⇒ `LOOP_BACK: implement` or `plan`. If findings mix both targets, emit `plan` (parent parks).
+- Finding `ID` values are validator finding IDs (`C1`, …).
+- Worker MUST NOT write `tasks.md` or launch tester/ship.
+
+Tester returns:
+
+```text
+FLOW_ID: <id>
+TESTER: PASS | FAIL
+LOOP_BACK: implement | plan | none
+EVIDENCE: specs/<flow>/evidence.md
+FINDINGS: <none, or one line each: flow-id | problem | fix needed>
+SUMMARY: <one paragraph>
+```
+
+- PASS ⇒ `LOOP_BACK: none`.
+- FAIL ⇒ same LOOP_BACK rules as critic. Assertion/code failures default to `implement` when omitted.
+- `<flow>` is the Spec Kit feature directory basename from `.specify/feature.json`, not `BRANCH`.
+
+pr-reviewer returns:
+
+```text
+FLOW_ID: <id>
+VERDICT: APPROVE | REQUEST CHANGES | BLOCKED
+CRITICAL_COUNT: <integer>
+CRITICALS: <none, or one line each: ID | file:line | trigger | summary>
+REPORT: <path to the full markdown report>
+SUMMARY: <one paragraph>
+```
+
+- `VERDICT: REQUEST CHANGES` with `CRITICAL_COUNT: 0` is routed as APPROVE for the loop.
+- `BLOCKED` is Phase 1.5 only.
+- Merge gate remains Critical-only (Warning/Suggestion never change `VERDICT`).
+- Re-review: parent passes previous `REPORT` via `--extra @<previous-review>.md`.
+- Worker MUST NOT ship, merge, write `tasks.md`, or dispatch converge/implement.
 
 ## Stuck policy
 
@@ -681,7 +827,8 @@ repeated converge fingerprint is stuck. Retry the same step up to three
 attempts total: the original attempt plus two resume or relaunch attempts
 carrying the failure text and an instruction to fix it and finish. After the
 third attempt, halt and ask the user. A repeated fingerprint is the same stuck
-point even if the iteration number changed.
+point even if the iteration number changed. An unchanged fingerprint across
+original + two resumes parks.
 
 Ready and route worker crash or empty/unparseable report may use that
 3-attempt retry. Do **not** retry a stable `READY: blocked` (required check
@@ -706,20 +853,24 @@ Do not retry these cases:
   inaccessible, or could not be opened (see **Model access and fallback**)
 - a Worker-profile stage resolved Pi flags and runtime fallback both failed (Pi missing, provider
   or auth failure, job hung, or unusable report)
+- `LOOP_BACK: plan` (or mixed implement+plan) from critic or tester — park
+- `CONVERGE_OUTCOME: converged` while a validator FAIL is still open — park immediately (do not continue critic/tester/pr-review)
 
 For these cases, stop immediately and tell the user the prerequisite,
 decision, or model problem required.
 
-Treat `CONVERGE_OUTCOME: blocked` as an immediate stop. Treat
+Treat `CONVERGE_OUTCOME: blocked` as an immediate stop (park immediately). Treat
 `CONVERGE_OUTCOME: tasks_appended` as progress only when it adds new remaining
-work; an unchanged fingerprint follows the stuck policy. Only
+work; an unchanged fingerprint follows the stuck policy (three unchanged attempts park). Only
 `CONVERGE_OUTCOME: converged` is a successful exit.
 
 During the loop, keep updates short: iteration number, implement status,
 converge outcome, and finding count. On `CONVERGE_OUTCOME: converged`, state
 that the feature satisfies the specification, plan, and tasks, give the number
-of iterations, then proceed to the automatic ship (and UAT when ship
-succeeds). On a stop, state the failed step, attempt count,
+of iterations, then launch critic; launch tester only after critic PASS; ship
+only after tester PASS (unless `keep-local`); launch pr-reviewer automatically
+after `SHIP: ok`; and park for UAT only after pr-reviewer APPROVE or zero
+Criticals. On a stop, state the failed step, attempt count,
 worker report, actions already tried, and what the user must do next.
 
 Do not handle constitution, checklist, taskstoissues, or other commands outside

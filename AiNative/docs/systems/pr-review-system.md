@@ -9,6 +9,8 @@ Do NOT ask AI to "review this PR" directly.
 Instead, run a staged workflow that builds understanding → architecture compliance → risk awareness → deep analysis → adversarial testing → human judgment.  
 AI is a thinking partner, not an authority.  
 
+**Loop Integration:** On the feature and change paths, PR review is an automatic loop state after Ship (`ship → pr-review → uat`), not on-demand-only after `SHIP: ok`. It reviews architecture, risk, and evidence on the opened PR (not a second implementation critique replacing critic). The merge gate remains strictly Critical-only: only Critical findings trigger REQUEST CHANGES; Warnings and Suggestions never change the verdict. The job path skips PR review entirely.
+
 **Prompts:** [pr-reviewer agent](../agents/pr-reviewer/)
 
 ---

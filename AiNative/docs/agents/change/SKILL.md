@@ -10,14 +10,15 @@ disable-model-invocation: true
 
 <!-- canonical: AiNative docs/agents/change/ (promoted from Cursor change 2026-09-25). -->
 
-The thin engineering path. No spec, plan, tasks, or converge loop.
+The thin engineering path. No spec, plan, tasks, or converge loop. Validation is `STEP: tester` only (no critic, no `LOOP_BACK`).
 
 ```text
-change → inspect → edit → tester → complete
+change → inspect → edit → tester → ship → pr-review → uat
 ```
 
 The parent launches one worker per step and tells it which one:
 `STEP: change` (inspect + edit) or `STEP: tester`. Do only the named step.
+Validation remains `STEP: tester` only (no critic).
 
 ## Inputs (from the parent prompt)
 
@@ -35,6 +36,9 @@ The parent launches one worker per step and tells it which one:
   no new module, no public API, schema, or contract change.
 - No architectural decisions. Follow the existing structure and style.
 - Do not commit, push, open a pull request, or deploy.
+- MUST NOT write `tasks.md` or run converge.
+- Critic MUST NOT run on this path.
+- On `keep-local`, tester still runs, but ship and pr-review are skipped (`SHIP: declined`).
 
 If the task breaks any of these, stop and report `SCOPE: feature`. Do not
 edit anything first. Do not promote yourself to the feature path.
@@ -81,3 +85,6 @@ TESTS: <commands run and result>
 FINDINGS: <none, or one line each: file | problem | fix needed>
 SUMMARY: <one paragraph>
 ```
+
+Validation remains `STEP: tester` only (no critic, no `LOOP_BACK`).
+On `TESTER: FAIL`, the parent retries the change worker with FINDINGS (three attempts then park). Never converge. Never append `tasks.md`. On `TESTER: PASS`, the parent ships unless `keep-local` was requested.

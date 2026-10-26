@@ -1,6 +1,6 @@
 # Validation layer
 
-Technical guide for the PIVS **Validation** phase (`critic → tester`) — local, independent validation for agentic E2E testing. Methodology context: [agentic-coding.md](./agentic-coding.md). Live graph: [feature-loop.md](./feature-loop.md#pivs-mapping). Agents: [critic](../agents/critic/) (evaluator) and [tester](../agents/tester/) (executors). [pr-reviewer](../agents/pr-reviewer/) is an on-demand tool after Ship, not a loop state.
+Technical guide for the PIVS **Validation** phase (`critic → tester`) — local, independent validation for agentic E2E testing. Methodology context: [agentic-coding.md](./agentic-coding.md). Live graph: [feature-loop.md](./feature-loop.md#pivs-mapping) (`critic → tester → ship → pr-review → uat`). Agents: [critic](../agents/critic/) (evaluator) and [tester](../agents/tester/) (executors). Critic implementation review is required before tester; [pr-reviewer](../agents/pr-reviewer/) is an automatic loop state after Ship (evaluating architecture, risk, and evidence on the opened PR, not a second implementation critique that replaces critic).
 
 By separating executor and evaluator roles behind deterministic quality gates, Validation bridges non-deterministic generative AI and strict software engineering requirements.
 
@@ -124,7 +124,7 @@ Loop-back rules: [critic rule.md](../agents/critic/rule.md), [tester rule.md](..
 | 5. Fix functional errors | Implementation | Address bugs found during verification |
 | 6. Validate E2E | tester + critic | Final pass in end-to-end dev environment |
 
-Steps 3–6 are the PIVS Validation phase. [pr-reviewer](../agents/pr-reviewer/) is an on-demand tool after Ship, not a loop state.
+Steps 3–6 are the PIVS Validation phase (`critic → tester`), required before Ship. [pr-reviewer](../agents/pr-reviewer/) is an automatic loop state after Ship on the feature path (reviewing architecture, risk, and evidence on the opened PR). Critic implementation review remains required before tester; keep-local runs critic and tester then declines ship and skips pr-review.
 
 ---
 

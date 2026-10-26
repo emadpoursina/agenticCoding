@@ -114,3 +114,22 @@ Determine:
 
 Output: loop-back target (Implement | Plan) + prioritized findings + verdict.
 ```
+
+---
+
+## Compact report (PIVS, feature path)
+
+The parent parses these fields from the critic report. Keep severity-grouped findings and overall PASS/FAIL. The worker MUST NOT write `tasks.md` or launch tester/ship.
+
+```text
+FLOW_ID: <id>
+CRITIC: PASS | FAIL
+LOOP_BACK: implement | plan | none
+FINDINGS: <none, or one line each: ID | severity | file:line | summary>
+SUMMARY: <one paragraph>
+```
+
+- `PASS` ⇒ `LOOP_BACK: none`.
+- `FAIL` ⇒ `LOOP_BACK: implement` or `plan`. If findings mix both targets, emit `plan` (parent parks).
+- Finding `ID` values are validator finding IDs (`C1`, `C2`, …).
+- Critic implementation review is required after Implementation and before tester runs; FAIL on spec/plan mismatch remains. Worker MUST NOT write `tasks.md` or launch tester/ship.

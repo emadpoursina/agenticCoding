@@ -7,15 +7,18 @@ Constraints for the PIV Validation evaluator. Architecture: [validation-layer.md
 - Use the **Validation** profile model in a fresh session — a different model than Plan or Implementation when available. If model independence was not achieved, report it — [model selection](../../systems/validation-layer.md#model-selection)
 - Run as the first half of Validation — ahead of the [tester](../tester/)
 - Run verification passes separately (A → B → C → D) — do not combine in one prompt
-- Produce findings with file path and line number for every issue
-- Give an overall PASS/FAIL verdict per review pass
+- Produce findings with file path and line number for every issue, assigning validator finding IDs (`C1`, …)
+- Give an overall PASS/FAIL verdict per review pass and include `LOOP_BACK: implement | plan | none` in the compact report (`PASS` ⇒ `none`; `FAIL` with mixed implement+plan findings ⇒ `plan`)
 - Fail plan review (**blocking**) when an acceptance criterion has no linked test flow, a linked flow has no proof type (UI \| API \| CLI/job \| logic), or a flow is labeled UI but its commands are not Playwright — the finding MUST name the orphan criterion id or quote. Applies to change-path Plans for every listed criterion
-- On FAIL, specify loop-back target: **Implement** (fixable) or **Plan** (misunderstanding)
+- On FAIL, specify loop-back target: **implement** (fixable) or **plan** (misunderstanding)
+- Keep implementation review after Implementation and before tester (required; FAIL on spec/plan mismatch remains)
 - Review executor output without executing code yourself
 
 ## Must not
 
 - Write or fix code
+- Write `tasks.md` (validators never write or append `tasks.md`)
+- Launch tester or ship (worker is stage-dumb; parent dispatches next state)
 - Write or run tests — that is the tester
 - Skip heuristic risk checks (background processes, tampered artifacts, silent failures)
 - Treat AI output as authority — human judgment is final
