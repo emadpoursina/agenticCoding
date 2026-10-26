@@ -32,15 +32,15 @@ Workflow context: [pr-review-system.md](../../systems/pr-review-system.md).
 | 1.5 | Architecture compliance | Verify reuse of existing abstractions |
 | 2 | Risk classification | Rate security, scalability, migration, reliability, maintainability |
 | 3 | Select review focus | Pick the highest-rated risk from Phase 2 (or honor a `--focus` override) |
-| 4 | Deep focus review | Run the selected focus prompt |
-| 5 | Adversarial review | Hostile senior engineer pass |
+| 4 | Deep focus review | Run the selected focus prompt (skipped if every Phase 2 rating is Low or None) |
+| 5 | Adversarial review | Try to break the change; every failure needs a trigger |
 
 ## Supporting files
 
 | File | Purpose |
 |------|---------|
 | [SKILL.md](./SKILL.md) | Staged review phase prompts |
-| [rule.md](./rule.md) | Phase ordering, skip criteria, stop conditions |
+| [rule.md](./rule.md) | Constraints, merge bar, phase ordering, skip criteria, stop conditions |
 
 ## Quick start
 

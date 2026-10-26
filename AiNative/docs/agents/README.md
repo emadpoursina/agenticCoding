@@ -33,7 +33,7 @@ Each agent is a folder with three core files tuned for one job.
 | [tester](./tester/) | Feature-loop Validation | Proves flows and runs project `validation_commands` ([feature-loop.md](../systems/feature-loop.md)) |
 | [e2e-testing](./e2e-testing/) | On-demand tool | Plans, implements, executes, debugs, and maintains E2E tests across web, iOS, Android, and React Native; honest Passed/Failed/Blocked reporting with human handoff on retry exhaustion |
 | [handoff](./handoff/) | On-demand tool | Capture or resume session state in `.agent/handoff/`; not a loop state |
-| [pr-reviewer](./pr-reviewer/) | On-demand tool | PR review after Ship on operator request; not a loop state (`SKILL.md` + `prompts.md` + `rules.md`) |
+| [pr-reviewer](./pr-reviewer/) | On-demand tool | PR review after Ship on operator request; not a loop state (`SKILL.md` + `prompts.md` + `rule.md`) |
 | [project-bootstrapper](./project-bootstrapper/) | Post-onboarding `job` | Scaffolds an onboarded repo from a PRD card; onboarding itself never writes a PRD |
 | [prd-writer](./prd-writer/) | Post-onboarding `job` | Writes the PRD as a card after onboarding |
 | [task-groomer](./task-groomer/) | Per-card helper | Turns a rough request into a dispatch-ready Hermes kanban card; not a dispatched worker |

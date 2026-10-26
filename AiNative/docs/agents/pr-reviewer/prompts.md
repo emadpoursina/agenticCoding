@@ -43,6 +43,8 @@ Output:
 - DUPLICATED — logic reimplemented instead of reused
 - INTEGRATION VERDICT — clean / needs rework / blocking
 
+Use blocking only when the PR bypasses a safety layer (auth, logging, billing, config) or breaks a documented project rule (AGENTS.md, CLAUDE.md, or an ADR). A different structure from a similar feature is a Suggestion.
+
 Do not run security, reliability, or performance review yet.
 ```
 
@@ -50,7 +52,7 @@ Do not run security, reliability, or performance review yet.
 
 ```text
 Classify the risks in this PR.
-Rate:
+Rate each as High, Medium, Low, or None:
 - security risk
 - scalability risk
 - migration risk
@@ -67,6 +69,8 @@ Selection order (do not skip to `default_focus`):
 1. `--focus` if the user passed it.
 2. Else the Phase 2 category with the **highest** rating (High > Medium > Low; ignore N/A). Eligible: security, reliability, maintainability, performance, and client compatibility when that row was rated.
 3. On a tie for the top rating, use `agents.pr-reviewer.default_focus`.
+
+If every rating is Low or None, skip Phase 4 and say why. Phase 5 still runs.
 
 State which Phase 2 ratings drove the choice.
 
@@ -131,15 +135,15 @@ Focus on:
 ## Adversarial review (Phase 5)
 
 ```text
-Act like a hostile senior engineer.
-Assume this PR will fail in production.
-Find:
-- hidden assumptions
-- edge cases
-- race conditions
-- rollback risks
-- scalability traps
-- long-term maintenance issues
+Try to break this change. Only lines this PR adds or changes are in scope.
+For each candidate failure, give:
+- file:line
+- the input or sequence that triggers it
+- what the user or the data sees
+
+Read the surrounding code and tests. Drop any candidate the code already handles.
+Long-term maintenance concerns are Suggestions, never Critical.
+If nothing breaks, answer "No Critical findings." That is a complete answer.
 ```
 
 ## Diff compression (large PRs)
