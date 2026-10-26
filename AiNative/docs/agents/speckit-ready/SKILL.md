@@ -97,11 +97,10 @@ Check only the backend this run will use (do not require both):
 Aliases for Antigravity: `antigravity`, `agy`, `google-antigravity`.
 
 - **pi** — `pi` is on PATH (`SPECKIT_PI_BIN` overrides the binary name).
-- **antigravity** — `python3` can `from google.antigravity import Agent, LocalAgentConfig`,
-  and auth is present (`GEMINI_API_KEY` / `GOOGLE_API_KEY`, or Vertex
-  `GOOGLE_GENAI_USE_VERTEXAI` + `GOOGLE_CLOUD_PROJECT` / ADC, or an authenticated Antigravity CLI (agy models returns a model list)). Do not
-  require the `agy` TUI. The install is `pip install google-antigravity`
-  (PyPI wheel includes `localharness`).
+- **antigravity** — `agy` is on PATH and authenticated (`agy models` exits 0).
+  SDK import is neither required nor sufficient. Do not require the `agy` TUI.
+  FIXES tell the operator to install/put `agy` on PATH or authenticate the CLI
+  (never `pip install google-antigravity`).
 
 The compact report includes `WORKER: pi|antigravity` and a
 `worker-runtime` check line.

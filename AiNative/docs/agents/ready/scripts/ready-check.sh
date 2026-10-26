@@ -706,45 +706,21 @@ case "$worker_lc" in
     else
       worker_fail=1
       worker_note="pi not on PATH (${worker_source})"
-      worker_fix="install Pi and put 'pi' on PATH, or unset SPECKIT_WORKER / set SPECKIT_WORKER=antigravity to use the default Antigravity SDK backend, then re-run."
+      worker_fix="install Pi and put 'pi' on PATH, or unset SPECKIT_WORKER / set SPECKIT_WORKER=antigravity to use the default Antigravity backend, then re-run."
     fi
     ;;
   antigravity|agy|google-antigravity)
     worker="antigravity"
-    if ! command -v python3 >/dev/null 2>&1; then
+    if ! command -v agy >/dev/null 2>&1; then
       worker_fail=1
-      worker_note="python3 not on PATH (${worker_source})"
-      worker_fix="install Python 3, then 'pip install google-antigravity', then re-run."
-    elif ! python3 -c "from google.antigravity import Agent, LocalAgentConfig" >/dev/null 2>&1; then
+      worker_note="agy not on PATH (${worker_source})"
+      worker_fix="install Antigravity CLI and put 'agy' on PATH, then re-run."
+    elif ! agy models >/dev/null 2>&1; then
       worker_fail=1
-      worker_note="google.antigravity is not importable (${worker_source})"
-      worker_fix="pip install google-antigravity (PyPI wheel; a git clone has no localharness binary), then re-run."
+      worker_note="CLI unauthenticated or broken (${worker_source})"
+      worker_fix="authenticate the CLI ('agy' interactive login once); API key env is not enough, then re-run."
     else
-      auth_ok=0
-      auth_note=""
-      if [ -n "${GEMINI_API_KEY:-}" ] || [ -n "${GOOGLE_API_KEY:-}" ]; then
-        auth_ok=1
-        auth_note="Gemini API key env is set"
-      elif [ "${GOOGLE_GENAI_USE_VERTEXAI:-}" = "True" ] || [ "${GOOGLE_GENAI_USE_VERTEXAI:-}" = "true" ] || [ "${GOOGLE_GENAI_USE_VERTEXAI:-}" = "1" ] || [ "${GOOGLE_GENAI_USE_ENTERPRISE:-}" = "True" ] || [ "${GOOGLE_GENAI_USE_ENTERPRISE:-}" = "true" ]; then
-        if [ -n "${GOOGLE_CLOUD_PROJECT:-}" ] || [ -n "${GOOGLE_APPLICATION_CREDENTIALS:-}" ]; then
-          auth_ok=1
-          auth_note="Vertex/Enterprise env is set"
-        else
-          worker_fail=1
-          worker_note="Vertex enabled but GOOGLE_CLOUD_PROJECT / ADC missing (${worker_source})"
-          worker_fix="set GOOGLE_CLOUD_PROJECT (and ADC via gcloud auth application-default login) or GEMINI_API_KEY, then re-run."
-        fi
-      elif agy_bin="$(command -v agy || printf '%s' "$HOME/.local/bin/agy")" && [ -x "$agy_bin" ] && "$agy_bin" models >/dev/null 2>&1; then
-        auth_ok=1
-        auth_note="CLI authenticated (agy models)"
-      else
-        worker_fail=1
-        worker_note="no Gemini API key or Vertex env (${worker_source})"
-        worker_fix="set GEMINI_API_KEY (or GOOGLE_API_KEY), or Vertex GOOGLE_GENAI_USE_VERTEXAI + GOOGLE_CLOUD_PROJECT, then re-run. Do not paste keys into chat."
-      fi
-      if [ "$worker_fail" -eq 0 ] && [ "$auth_ok" -eq 1 ]; then
-        worker_note="google.antigravity importable; ${auth_note} (${worker_source})"
-      fi
+      worker_note="agy on PATH; CLI authenticated (agy models) (${worker_source})"
     fi
     ;;
   *)

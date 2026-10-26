@@ -190,9 +190,10 @@ the same run.
 
 - **pi** — follow `pi-harness`. Pass resolved `--provider` / `--model` /
   `--thinking`. `--cwd` is `WORKTREE` after ready.
-- **antigravity** — follow `antigravity-harness` (`agy-spawn.py`, Google
-  Antigravity Python SDK). Pass `--model` (required). Do not launch `agy`
-  TUI, do not use npm `antigravity-sdk`. `--cwd` is `WORKTREE` after ready.
+- **antigravity** — follow `antigravity-harness` (`agy-spawn.py` wrapping official
+  headless `agy -p`). Pass `--model` (required). Spawn only via `agy-spawn.py`;
+  never exec `agy -p` directly, do not launch `agy` TUI, do not use npm `antigravity-sdk`.
+  `--cwd` is `WORKTREE` after ready.
 
 Do not swap backends mid-run because spawn failed. Same fallback rules as
 the model: retry once only if the runtime defines a distinct fallback.
@@ -210,7 +211,7 @@ the worker with `--cwd` set to `WORKTREE`. Pass the resolved `--model` (and
 Pi `--provider` / `--thinking` when the backend is Pi). Then continue from
 the worker's compact report.
 
-If the resolved worker launch cannot be used — binary/SDK missing, provider/auth
+If the resolved worker launch cannot be used — binary missing, provider/auth
 failure, spawn reject, or the launch fails because of the model — do not
 improvise another backend or model. Retry once only if the runtime defines a
 distinct fallback value for that profile. The fallback may use a different

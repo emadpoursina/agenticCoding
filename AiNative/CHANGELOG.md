@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.4.0] - 2026-10-26
+
+### Changed
+- Switch Antigravity worker runtime from Python SDK (`google.antigravity.Agent`) to official CLI headless `agy -p` invoked through `agy-spawn.py`.
+- Edit jobs pass `--mode accept-edits --dangerously-skip-permissions`; scout jobs pass `--mode plan`. Child stdin is ignored (`DEVNULL`) and `--prompt-interactive` is omitted.
+- Short jobs with wrapper `--print` use text stdout; long jobs use `--output-format stream-json` and persist raw CLI events to `events.jsonl`. Worker STATUS reconstructed from stream-json events or text stdout.
+- Dual timeout enforcement when wrapper `--timeout` is set: maps to `agy --print-timeout {n}s` and sets wrapper SIGTERM then SIGKILL kill timer.
+- Ready `worker-runtime` check for Antigravity now checks `agy` on PATH and successful `agy models`. The Python SDK is neither required nor checked.
+
 ## [0.3.0] - 2026-10-26
 
 ### Added
