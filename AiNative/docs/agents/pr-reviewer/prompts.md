@@ -142,6 +142,38 @@ Find:
 - long-term maintenance issues
 ```
 
+## Evidence audit (after Ship; re-run on every pass)
+
+```text
+Audit this PR's evidence bundle against the current PR head.
+Inputs: Plan acceptance criteria and proof types; specs/<flow>/evidence.md
+from the working tree or attached CI artifacts (gitignored — not git history);
+CI results for the PR-head jobs that re-run validation_commands (or the
+documented equivalent).
+
+Checks:
+1. Completeness (verdict-aware):
+   - Tester PASS: every acceptance criterion has a manifest row and the
+     artifact shape its proof type requires.
+   - Tester FAIL: rows are required for every flow that was executed
+     (including non-zero exit codes). Unexecuted criteria are not "claimed
+     proven" and are NOT flagged as claimed but unproven.
+2. SHA freshness: each row's Commit SHA must equal the current PR head.
+   Mismatch → mark those rows STALE (blocking until the tester re-runs at head).
+3. CI agreement: on this head the validation_commands re-run jobs SUCCEEDED.
+   Agreement is job success, not byte-identical artifacts. CI failed, skipped,
+   or unfinished does not count as agreement.
+
+Blocking findings:
+- STALE — manifest SHA ≠ PR head
+- CLAIMED BUT UNPROVEN — tester PASS with missing manifest, missing required
+  artifact, stale SHA, or CI failed / skipped / unfinished on this head
+
+This audit is not a loop gate. It is re-runnable on every pr-review pass
+after a fix push; re-apply the same rules to the new head. Prior-pass PASS
+does not waive a newly stale bundle.
+```
+
 ## Diff compression (large PRs)
 
 ```text

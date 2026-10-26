@@ -527,6 +527,15 @@ ship, emit `SHIP: declined`, and finish.
   instructions. Source the walkthrough from plan test flows, `quickstart.md`,
   and the implement summary. Once a PR exists, the walkthrough is required, not
   optional — it is what the operator reviews.
+- The PR body must also include a mandatory `## Evidence` section alongside
+  `## Walkthrough`, sourced from the tester manifest `specs/<flow>/evidence.md`
+  (where `<flow>` is the Spec Kit feature directory basename): copy the
+  acceptance-criterion table, inline small PNG/JPEG screenshots that exist
+  locally, and reference bulky captures (traces, videos) by the documented CI
+  workflow artifact name (or the URL when CI has already produced it). Do not
+  wait for CI to finish before opening the PR. With no usable manifest
+  (missing, empty, or invalid), still include `## Walkthrough` and report
+  `EVIDENCE: none`. Evidence never replaces the walkthrough.
 
 After the parent completes the ship action, emit:
 
@@ -534,8 +543,14 @@ After the parent completes the ship action, emit:
 SHIP: ok | blocked | declined
 PR: <PR URL, or none>
 WALKTHROUGH: <included | none | blocked>
+EVIDENCE: <included | none>
 SUMMARY: <what shipped, why it was kept local, or what blocked>
 ```
+
+`EVIDENCE: included` means the PR body carries a usable `## Evidence` from
+the manifest (allowed even when the tester verdict was FAIL); `EVIDENCE: none`
+means no usable manifest (missing, empty, or invalid). It is added — the
+existing `SHIP`, `PR`, `WALKTHROUGH`, and `SUMMARY` fields stay.
 
 For feature and change only, `SHIP: ok` parks the run for operator UAT:
 

@@ -23,6 +23,7 @@ Workflow context: [pr-review-system.md](../../systems/pr-review-system.md).
 - Risk ratings by category (Phase 2)
 - Deep findings for one focus area (Phase 4)
 - Adversarial edge cases (Phase 5)
+- Evidence audit (on demand after Ship): completeness (verdict-aware — PASS ⇒ every acceptance criterion has a row; FAIL ⇒ rows for every executed flow), manifest SHA vs PR head (stale), CI job success on this head; **stale** and **claimed but unproven** are blocking, re-runnable after every fix push
 
 ## Phases
 
@@ -34,6 +35,7 @@ Workflow context: [pr-review-system.md](../../systems/pr-review-system.md).
 | 3 | Select review focus | Pick the highest-rated risk from Phase 2 (or honor a `--focus` override) |
 | 4 | Deep focus review | Run the selected focus prompt |
 | 5 | Adversarial review | Hostile senior engineer pass |
+| Audit | Evidence audit (prompts.md) | On demand after Ship — completeness, stale SHA vs PR head, CI agreement; blocking findings re-checked after fix pushes |
 
 ## Supporting files
 

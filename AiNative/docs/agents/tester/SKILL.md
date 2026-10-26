@@ -66,7 +66,30 @@ Reflect on your output before handing to the critic: did the outcome match the P
 
 ## Verdict
 PASS / FAIL — one sentence summary
+EVIDENCE: specs/<flow>/evidence.md
 ```
+
+### Evidence bundle
+
+Persist proof to disk — **files produced by the executed commands**, not prose typed into the chat.
+
+- Captures (screenshots, traces, HTTP dumps, transcripts, JUnit XML): under `specs/<flow>/evidence/`, where `<flow>` is the Spec Kit feature directory basename from `.specify/feature.json` (not the FLOW_ID, not the branch name).
+- Manifest: `specs/<flow>/evidence.md` — **one** Markdown table, no YAML front matter, no JSON, columns in this fixed order:
+
+| Acceptance criterion | Flow name | Command | Exit code | Artifact path(s) | Commit SHA |
+|---|---|---|---|---|---|
+
+Rules:
+
+- Every artifact path MUST point at a file the executed command created — never text invented in the report.
+- On FAIL, still write rows (with actual exit codes and produced paths) for every flow that was executed. FAIL is a verdict, not a reason to skip the bundle.
+- Each validation run **replaces** the prior `evidence.md` and reconciles artifacts for that run (full regeneration, no leftover rows). After an Implement loop-back, regenerate the whole bundle for the full validation run even when execution prefers failed flows first.
+- `Commit SHA`: full 40-char worktree `HEAD` at the end of the run, immediately before the compact report.
+- API captures MUST redact credentials and `Authorization` tokens before they are written. UI traces and screenshots can contain secrets — keep evidence local/CI-only and never commit it (recommended ignores: `specs/*/evidence/` and `specs/*/evidence.md`).
+
+Compact report: keep the PASS/FAIL verdict and add `EVIDENCE: specs/<flow>/evidence.md` — never drop existing verdict fields.
+
+Optional (not required for every flow): fail-before / pass-after — run a new flow against the merge-base commit, observe failure, then confirm pass on the feature branch. See [validation-layer.md](../../systems/validation-layer.md).
 
 ---
 
@@ -79,4 +102,8 @@ Inputs: the specific flows that failed, changed files (@ references), critic or 
 
 Re-run only the failed flows (unit or system as originally classified).
 Report whether the fix resolved each failure.
+
+Evidence files are the exception: replace `specs/<flow>/evidence.md` and
+reconcile `specs/<flow>/evidence/` for the **full** validation run, not a
+row patch of failed flows only.
 ```

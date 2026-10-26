@@ -8,13 +8,20 @@ Constraints for the PIV Validation executor. Architecture: [validation-layer.md]
 - Run only after the [critic](../critic/) implementation review PASSes
 - Run unit tester and system tester in separate chats — reset context between sub-roles
 - Execute every test flow from the Plan artifact — do not skip
+- Write command-produced captures under `specs/<flow>/evidence/` and the manifest at `specs/<flow>/evidence.md` — one Markdown table (`Acceptance criterion | Flow name | Command | Exit code | Artifact path(s) | Commit SHA`); artifact paths reference files the command created, never chat prose
+- On FAIL, still write manifest rows (actual exit codes) for every flow that was executed; each run **replaces** the prior bundle — full regeneration, not a row patch
+- Record the full 40-char worktree `HEAD` as each row's `Commit SHA` at the end of the run
+- Redact credentials and `Authorization` tokens from API captures; warn that UI traces and screenshots can contain secrets; never commit evidence files
 - Report PASS/FAIL per flow with concrete evidence
 - Reflect on output before handing results to the critic (Think → Act → Observe)
 - On FAIL, provide actionable Implement loop-back feedback (expected vs actual)
+- Compact report keeps the PASS/FAIL verdict and adds `EVIDENCE: specs/<flow>/evidence.md`
 
 ## Must not
 
 - Critique design or architecture — that is the critic
+- Type evidence into chat instead of writing the on-disk evidence bundle
+- Commit `specs/<flow>/evidence/` or `specs/<flow>/evidence.md` — they stay uncommitted (local/CI-only)
 - Combine unit and system testing in one chat
 - Treat AI output as authority — human judgment is final
 - Proceed to [pr-reviewer](../pr-reviewer/) while any flow FAILs

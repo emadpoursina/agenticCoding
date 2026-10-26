@@ -8,6 +8,7 @@
 - Stop and request rework if Phase 1.5 verdict is **blocking** — do not continue to Phase 2
 - Run exactly one deep focus review in Phase 4
 - Use diff compression for large PRs before Phase 1
+- Run the evidence audit on demand after Ship: completeness (tester PASS ⇒ every acceptance criterion has a row; FAIL ⇒ rows for every executed flow), manifest SHA vs current PR head, CI job success on this head (not byte-identical artifacts); re-run after every fix push
 - For each problem give 2 score between 0.0 - 1.0: how often it could happen; if it happended, how much trouble it makes
 
 ## Must not
@@ -16,8 +17,10 @@
 - Run all review types in Phase 4 — choose one based on PR type
 - Run security/reliability/performance review before Phase 1.5 completes
 - Treat AI output as authority — human judgment is final
+- Treat **stale** or **claimed but unproven** evidence as non-blocking; prior-pass PASS does not waive a newly stale bundle
 
 ## Stop conditions
 
 - Phase 1.5 INTEGRATION VERDICT is **blocking** — stop, request rework
+- Evidence audit **stale** (manifest SHA ≠ PR head) or **claimed but unproven** (tester PASS with missing manifest/artifact, stale SHA, or CI failed/skipped/unfinished) — blocking for that claim
 - PR is typo-only, dependency-only, or config-only with no logic — skip Phase 1.5

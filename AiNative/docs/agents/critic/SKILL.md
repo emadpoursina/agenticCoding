@@ -52,6 +52,7 @@ Inputs: Execution plan, Acceptance criteria, Validation layer, Test flows, Commi
 
 Review for:
 - Acceptance criteria are testable and complete — no vague "works correctly" statements
+- Every acceptance criterion maps to at least one test flow, and each flow declares exactly one **proof type**: UI (Playwright trace, video, and screenshots — Playwright commands only), API (HTTP request/response capture), CLI/job (terminal transcript + exit code), or logic (test name + JUnit-style report)
 - Validation layer gives critic and tester enough to verify later (test types, PASS/FAIL signals, heuristic risks)
 - Missing edge cases or error paths in test flows
 - Spec gaps vs stated requirements
@@ -62,6 +63,12 @@ Run verification passes A–D against the plan only — not code.
 
 Output: findings by severity + PASS/FAIL verdict.
 On FAIL: specify whether to revise Plan or proceed with documented risks.
+
+A missing proof type, an orphan acceptance criterion (no linked test flow),
+or a flow labeled UI whose validation commands are not Playwright is a
+**blocking** FAIL — name the orphan criterion id or quote and tell the Plan
+to use CLI/job or logic instead. Apply the same checks to a change-path Plan
+for every criterion that Plan lists.
 ```
 
 ---

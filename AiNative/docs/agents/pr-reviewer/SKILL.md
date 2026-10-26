@@ -81,8 +81,19 @@ Read the matching prompt block from `prompts.md` each phase. Do not combine phas
 | 3 — Select focus | `--focus` if given; else the highest Phase 2 risk rating; `default_focus` only on a tie |
 | 4 — Deep focus | Exactly one of security / reliability / maintainability / performance |
 | 5 — Adversarial | Final AI pass |
+| Audit — evidence (on demand, after Ship) | See below |
 
 If the project has extra review rules (e.g. `.cursor/rules/*pr-review*`), apply those in addition to the one Phase 4 focus when the PR touches API or multi-client behavior.
+
+## Evidence audit (on demand, after Ship)
+
+Run the **Evidence audit** prompt from `prompts.md` after Phase 5 whenever the caller asks, or when the PR carries (or should carry) a feature-loop evidence bundle. It is an extra step in the staged review — not a loop gate.
+
+- **Completeness (verdict-aware):** tester PASS ⇒ every acceptance criterion has a manifest row and the artifact shape its proof type requires. Tester FAIL ⇒ rows are required for every flow that was executed; unexecuted criteria are not "claimed proven" and are not flagged as claimed but unproven.
+- **SHA freshness:** each row's `Commit SHA` vs the current PR head; mismatch ⇒ **stale** (blocking until the tester re-runs at head).
+- **CI agreement:** the PR-head CI re-run of `validation_commands` (or documented equivalent) **succeeded** — job success on this head, not byte-identical artifacts.
+- **Blocking findings:** **stale** and **claimed but unproven** (tester PASS with missing manifest, missing required artifact, stale SHA, or CI failed / skipped / unfinished).
+- Re-run the audit on every pr-review pass after a fix push; prior-pass PASS does not waive a newly stale bundle.
 
 ## Problem scores (required)
 
@@ -113,6 +124,7 @@ One consolidated report:
 ## Phase 3 — Focus chosen
 ## Phase 4 — Deep review
 ## Phase 5 — Adversarial
+## Evidence audit — findings (when run)
 ## Verdict — APPROVE / REQUEST CHANGES / BLOCKED (Phase 1.5)
 ## Human checklist (Phase 6)
 ```

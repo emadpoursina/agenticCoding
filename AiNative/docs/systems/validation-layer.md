@@ -159,6 +159,41 @@ The validation layer is the final quality gate before Ship: every autonomous wor
 
 ---
 
+## CI re-proof and evidence hygiene (enrolled projects)
+
+**Requirement (CI-vendor-neutral):** enrolled projects' PR CI MUST re-execute the Plan's `validation_commands` (or the documented equivalent) on the PR head, enable Playwright trace, video, and screenshots where UI proof types apply, and publish bulky captures as **workflow artifacts** — never into git history. This is a documented expectation for enrolled repos; do not commit CI workflow files into those repos as part of this methodology, and do not treat GitHub Actions as the only allowed CI (it is the one example below).
+
+```yaml
+# .github/workflows/pr-validation.yml — example only (GitHub Actions), not a committed file
+on: [pull_request]
+jobs:
+  validation:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm exec playwright test   # re-runs Plan validation_commands with UI capture on
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: evidence-captures        # named artifact referenced from PR ## Evidence
+          path: test-results/
+```
+
+CI agreement with a tester PASS is **job success on the current PR head** — artifact bytes need not match the local bundle. A failed, skipped, or unfinished CI job for a PASS claim is claimed but unproven (see [pr-reviewer](../agents/pr-reviewer/)).
+
+### Evidence hygiene
+
+- Recommended enrolled-project ignores: `specs/*/evidence/` **and** `specs/*/evidence.md`. Evidence stays local/CI-only and is never committed.
+- Bulky traces and videos belong in CI workflow artifacts or local `specs/<flow>/evidence/` directories, never in git history. PR `## Evidence` links (or the named workflow artifact) satisfy bulky-file pointers.
+- API captures MUST redact credentials and `Authorization` tokens before they are written; UI traces and screenshots can contain secrets, so they stay local/CI-only.
+
+### Optional fail-before / pass-after
+
+When practical — not required for every project or every flow — run a new test flow against the merge-base commit and observe it fail, then confirm it passes on the feature branch. That shows the test measures the new behavior. Not a gate; adoption is optional.
+
+---
+
 ## Related
 
 | Topic | Location |
