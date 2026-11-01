@@ -723,11 +723,55 @@ case "$worker_lc" in
       worker_note="agy on PATH; CLI authenticated (agy models) (${worker_source})"
     fi
     ;;
+  claude|claude-code|anthropic)
+    worker="claude"
+    claude_bin="${SPECKIT_CLAUDE_BIN:-claude}"
+    if ! command -v "$claude_bin" >/dev/null 2>&1; then
+      worker_fail=1
+      worker_note="claude not on PATH (${worker_source})"
+      worker_fix="install Claude Code CLI and put 'claude' on PATH (or set SPECKIT_CLAUDE_BIN), then re-run."
+    else
+      auth_found=0
+      auth_source=""
+      if [ -n "${ANTHROPIC_API_KEY:-}" ]; then
+        auth_found=1
+        auth_source="ANTHROPIC_API_KEY"
+      elif [ -n "${CLAUDE_CODE_OAUTH_TOKEN:-}" ]; then
+        auth_found=1
+        auth_source="CLAUDE_CODE_OAUTH_TOKEN"
+      elif [ -n "${ANTHROPIC_AUTH_TOKEN:-}" ]; then
+        auth_found=1
+        auth_source="ANTHROPIC_AUTH_TOKEN"
+      else
+        claude_cfg_dir="${CLAUDE_CONFIG_DIR:-$HOME/.claude}"
+        if [ -s "$claude_cfg_dir/.credentials.json" ]; then
+          auth_found=1
+          auth_source=".credentials.json"
+        else
+          for sf in "$claude_cfg_dir/settings.json" "$REPO_ROOT/.claude/settings.json" "$REPO_ROOT/.claude/settings.local.json"; do
+            if [ -f "$sf" ] && grep -q '"apiKeyHelper"' "$sf" 2>/dev/null; then
+              auth_found=1
+              auth_source="apiKeyHelper in $sf"
+              break
+            fi
+          done
+        fi
+      fi
+
+      if [ "$auth_found" -eq 1 ]; then
+        worker_note="claude on PATH; unattended auth verified (${auth_source}) (${worker_source})"
+      else
+        worker_fail=1
+        worker_note="claude CLI found on PATH but unattended auth not detected (${worker_source})"
+        worker_fix="authenticate the Claude CLI: set ANTHROPIC_API_KEY, run 'claude auth login' or 'claude setup-token' to create .credentials.json, or configure apiKeyHelper in settings.json. (Keychain-only login is undetectable without env token, credentials file, or helper; do not invoke a model), then re-run."
+      fi
+    fi
+    ;;
   *)
     worker="$worker_lc"
     worker_fail=1
     worker_note="unknown worker backend '$worker_raw' (${worker_source})"
-    worker_fix="set SPECKIT_WORKER or git config speckit.worker to 'pi' or 'antigravity', then re-run."
+    worker_fix="set SPECKIT_WORKER or git config speckit.worker to 'pi', 'antigravity', or 'claude', then re-run."
     ;;
 esac
 

@@ -374,6 +374,7 @@ OUT="$(SPECKIT_WORKER=not-a-backend "$CHECK" "$REPO16" flow_selftest_18 worker-u
 expect_rc 1 "case18 (unknown worker)"
 expect_contains "READY: blocked" "case18"
 expect_contains "unknown worker backend" "case18"
+expect_contains "claude" "case18"
 
 # --- Case 19: unset SPECKIT_WORKER -> default antigravity --------------------
 REPO17="$TMP/repo17"
@@ -524,6 +525,70 @@ expect_not_contains "malformed" "case26"
 expect_contains "worktree-copy: pass — copied 0 files" "case26"
 expect_contains "worktree-setup: pass — ran" "case26"
 [ -f "$(wt_path "$REPO24" setup-only)/setup-ran.marker" ] || fail "case26: setup did not run after a zero-file copy"
+
+# --- Case 27: claude missing from PATH -> worker-runtime fail -----------------
+REPO25="$TMP/repo25"
+make_fixture "$REPO25"
+OUT="$(env -u SPECKIT_CLAUDE_BIN PATH="$STUB_BIN:/usr/bin:/bin" SPECKIT_WORKER=claude "$CHECK" "$REPO25" flow_selftest_27 worker-claude-missing 2>&1)" && RC=0 || RC=$?
+expect_rc 1 "case27 (claude missing from PATH)"
+expect_contains "READY: blocked" "case27"
+expect_contains "WORKER: claude" "case27"
+expect_contains "worker-runtime: fail" "case27"
+expect_contains "claude not on PATH" "case27"
+expect_contains "put 'claude' on PATH" "case27"
+expect_not_contains "pip install" "case27"
+expect_not_contains "npm install" "case27"
+
+# --- Case 28: claude on PATH without auth -> worker-runtime fail --------------
+CLAUDE_BIN_DIR="$TMP/claude-bin"
+mkdir -p "$CLAUDE_BIN_DIR"
+cat > "$CLAUDE_BIN_DIR/claude" <<'EOF'
+#!/bin/sh
+if [ "$1" = "-p" ] || [ "$1" = "--print" ]; then
+  echo "MODEL INVOKED ERROR"
+  exit 99
+fi
+echo "claude 1.0.0"
+EOF
+chmod +x "$CLAUDE_BIN_DIR/claude"
+
+REPO26="$TMP/repo26"
+make_fixture "$REPO26"
+CASE28_HOME="$TMP/case28-home"
+mkdir -p "$CASE28_HOME"
+OUT="$(env -u ANTHROPIC_API_KEY -u CLAUDE_CODE_OAUTH_TOKEN -u ANTHROPIC_AUTH_TOKEN -u CLAUDE_CONFIG_DIR HOME="$CASE28_HOME" PATH="$CLAUDE_BIN_DIR:$STUB_BIN:/usr/bin:/bin" SPECKIT_WORKER=claude "$CHECK" "$REPO26" flow_selftest_28 worker-claude-auth-missing 2>&1)" && RC=0 || RC=$?
+expect_rc 1 "case28 (claude auth missing)"
+expect_contains "READY: blocked" "case28"
+expect_contains "WORKER: claude" "case28"
+expect_contains "worker-runtime: fail" "case28"
+expect_contains "unattended auth not detected" "case28"
+expect_contains "ANTHROPIC_API_KEY" "case28"
+expect_not_contains "MODEL INVOKED ERROR" "case28 (must not invoke model)"
+
+# --- Case 29: claude on PATH with auth env token -> worker-runtime pass -------
+REPO27="$TMP/repo27"
+make_fixture "$REPO27"
+OUT="$(env ANTHROPIC_API_KEY="test-token" PATH="$CLAUDE_BIN_DIR:$STUB_BIN:/usr/bin:/bin" SPECKIT_WORKER=claude "$CHECK" "$REPO27" flow_selftest_29 worker-claude-auth-env 2>&1)" && RC=0 || RC=$?
+expect_rc 0 "case29 (claude auth env pass)"
+expect_contains "READY: ok" "case29"
+expect_contains "WORKER: claude" "case29"
+expect_contains "worker-runtime: pass" "case29"
+expect_contains "unattended auth verified" "case29"
+
+# --- Case 30: claude-code and anthropic aliases resolve to claude -------------
+REPO28="$TMP/repo28"
+make_fixture "$REPO28"
+OUT="$(env ANTHROPIC_API_KEY="test-token" PATH="$CLAUDE_BIN_DIR:$STUB_BIN:/usr/bin:/bin" SPECKIT_WORKER=claude-code "$CHECK" "$REPO28" flow_selftest_30 worker-claude-alias 2>&1)" && RC=0 || RC=$?
+expect_rc 0 "case30 (claude-code alias)"
+expect_contains "WORKER: claude" "case30"
+expect_contains "worker-runtime: pass" "case30"
+
+REPO29="$TMP/repo29"
+make_fixture "$REPO29"
+OUT="$(env ANTHROPIC_API_KEY="test-token" PATH="$CLAUDE_BIN_DIR:$STUB_BIN:/usr/bin:/bin" SPECKIT_WORKER=anthropic "$CHECK" "$REPO29" flow_selftest_30b worker-anthropic-alias 2>&1)" && RC=0 || RC=$?
+expect_rc 0 "case30b (anthropic alias)"
+expect_contains "WORKER: claude" "case30b"
+expect_contains "worker-runtime: pass" "case30b"
 
 echo "SELFTEST: ok"
 exit 0

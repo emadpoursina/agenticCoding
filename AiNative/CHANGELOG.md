@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.6.0] - 2026-10-31
+
+### Added
+- Claude Code CLI worker backend: third Spec Kit Worker backend `claude` (aliases `claude-code`, `anthropic`) beside Pi and Antigravity; default unset worker remains `antigravity`.
+- `claude-harness`: new harness wrapper `claude-spawn.mjs` execs official Claude Code print mode (`claude -p`). Short jobs use CLI default text output; long jobs use `--output-format stream-json --verbose` and write raw events to `events.jsonl`.
+- Unattended permissions: edit jobs pass `--permission-mode auto` (never `--dangerously-skip-permissions` or `--permission-mode bypassPermissions`); scout jobs pass `--permission-mode plan`. Never defaults `--bare` so project and user configurations load normally. Child stdin is ignored (`DEVNULL`).
+- Run directory and status: writes `.agent/claude/<job-name>/<run-id>/{status.json,report.json,events.jsonl,stderr.log}` plus `latest.json`; reconstructs worker `STATUS: ok|stuck|blocked` for `report.json` without requiring parent to parse `events.jsonl`.
+- Ready gate and selftest: Ready reports `WORKER: claude` and validates `claude` CLI on PATH and unattended auth evidence (`ANTHROPIC_API_KEY`, `CLAUDE_CODE_OAUTH_TOKEN`, `ANTHROPIC_AUTH_TOKEN`, `apiKeyHelper`, or `.credentials.json`) without invoking a model. Language Agent SDK packages are neither required nor checked.
+
 ## [0.5.0] - 2026-10-26
 
 ### Added

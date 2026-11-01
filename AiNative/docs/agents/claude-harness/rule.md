@@ -1,0 +1,10 @@
+- Cursor (or Hermes) is the orchestrator. Claude is the worker. Never invert that.
+- Spawn through `claude-spawn.mjs` using official headless `claude -p`. Never launch the `claude` TUI, and never call `claude -p` directly from the parent.
+- Always pass `--model`. There is no harness default.
+- Never pass `--prompt-interactive`, `--bg`, `--cloud` task descriptions, `--desktop`, or `--input-format`. Child stdin is ignored.
+- Default edit jobs pass `--permission-mode auto`. Scout jobs use `--permission-mode plan`. Never pass `--dangerously-skip-permissions` or `--permission-mode bypassPermissions`.
+- Never default `--bare` so project and user config (CLAUDE.md, skills, MCP, hooks) load normally.
+- Scope file ops with `--cwd`. Do not add MCP servers or subagents unless the prompt asked for them.
+- Do not copy Cursor user rules into the prompt. The wrapper attaches `worker-contract.md` via `--append-system-prompt-file` (or fallback).
+- After exit, read `report.json`. Process `lifecycle=completed` is not worker success; require `reportValid` and `workerStatus`.
+- Do not install packages, paste API keys, or change auth. If `claude` is not on PATH or unattended auth is missing, stop.

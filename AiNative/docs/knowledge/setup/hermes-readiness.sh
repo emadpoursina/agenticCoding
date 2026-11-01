@@ -203,7 +203,9 @@ container_checks() {
                docs/agents/speckit-orchestrate/SKILL.md docs/agents/pi-harness/SKILL.md \
                docs/agents/pi-harness/worker-contract.md \
                docs/agents/antigravity-harness/SKILL.md docs/agents/antigravity-harness/worker-contract.md \
-               docs/agents/antigravity-harness/agy-spawn.py docs/agents/critic/SKILL.md \
+               docs/agents/antigravity-harness/agy-spawn.py docs/agents/claude-harness/SKILL.md \
+               docs/agents/claude-harness/worker-contract.md docs/agents/claude-harness/claude-spawn.mjs \
+               docs/agents/critic/SKILL.md \
                docs/agents/critic/rule.md docs/agents/tester/SKILL.md docs/agents/tester/rule.md \
                docs/agents/pr-reviewer/SKILL.md; do
     [ -r "/opt/data/mnt/AiNative/$skill" ] || missing="$missing $skill"
@@ -357,7 +359,8 @@ host_checks() {
       [ -r "$HOME/.cursor/skills/$s/SKILL.md" ] || missing="$missing $s"
     done
     for s in speckit-ready/scripts/ready-check.sh pi-harness/worker-contract.md pi-harness/pi-spawn.mjs \
-             antigravity-harness/worker-contract.md antigravity-harness/agy-spawn.py; do
+             antigravity-harness/worker-contract.md antigravity-harness/agy-spawn.py \
+             claude-harness/worker-contract.md claude-harness/claude-spawn.mjs; do
       [ -r "$HOME/.cursor/skills/$s" ] || missing="$missing $s"
     done
   else

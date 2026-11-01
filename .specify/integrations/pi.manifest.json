@@ -1,7 +1,7 @@
 {
   "integration": "pi",
   "version": "1.0.10",
-  "installed_at": "2026-10-26T11:25:18.871779+00:00",
+  "installed_at": "2026-11-01T05:48:27.529876+00:00",
   "files": {
     ".pi/prompts/speckit.analyze.md": "91fe16257ededdea9cc21d3cb27d539fcdd12d93ddcea52332cd4b68176b6a8d",
     ".pi/prompts/speckit.clarify.md": "dd11eb5b9759f7d3cd18c9d7f23a0ae2fe7973fc6ca2486dbfaf53a5569224b1",

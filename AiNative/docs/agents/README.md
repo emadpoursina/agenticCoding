@@ -28,6 +28,7 @@ Each agent is a folder with three core files tuned for one job.
 | [speckit-ready](./speckit-ready/) | Shared gate impl | Same body/script as `ready/` (Cursor stage name); canonical script `scripts/ready-check.sh` |
 | [pi-harness](./pi-harness/) | Worker backend | Delegates one bounded job to Pi (required `--model`); `pi-spawn.mjs` + `worker-contract.md` |
 | [antigravity-harness](./antigravity-harness/) | Worker backend | Delegates one bounded job to the official Antigravity CLI (required `--model`); `agy-spawn.py` + `worker-contract.md` |
+| [claude-harness](./claude-harness/) | Worker backend | Delegates one bounded job to the official Claude Code CLI (required `--model`); `claude-spawn.mjs` + `worker-contract.md` |
 | [change](./change/) | `change` path worker | Thin inspect→edit→tester path; stops with `SCOPE: feature` when underspecified |
 | [critic](./critic/) | Feature-loop Validation | Adversarial review after converge ([feature-loop.md](../systems/feature-loop.md)) |
 | [tester](./tester/) | Feature-loop Validation | Proves flows and runs project `validation_commands` ([feature-loop.md](../systems/feature-loop.md)) |
