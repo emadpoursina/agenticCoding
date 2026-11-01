@@ -62,16 +62,17 @@ Third-party persona collections are external reference material, not part of the
 |----------|-------------|
 | [The Agency (agency-agents)](https://github.com/msitarzewski/agency-agents) | Specialized AI agent personas (engineering, design, marketing, PM, etc.) with setup for multiple coding tools |
 
-## Host editor access (Cursor and OpenCode)
+## Host editor access (Cursor, OpenCode, Claude Code)
 
-Same folders, two hosts. Do not copy skill bodies into either editor.
+Same folders, three hosts. Do not copy skill bodies into any editor.
 
 | Host | Skills | Invoke |
 |------|--------|--------|
 | OpenCode | `~/.config/opencode/skill/<name>` → this directory | Skill name |
 | Cursor | `~/.cursor/skills/<name>` → this directory | Skill name, or `/<name>` command |
+| Claude Code | `~/.claude/skills/<name>` → this directory | Skill name, or `/<name>` |
 
-Cursor slash commands live in [`../../.cursor/commands/`](../../.cursor/commands/) and only wrap the skill. That is the Cursor-only difference; see [cursor-setup.md](../knowledge/setup/cursor-setup.md). Relink after adding an agent:
+Cursor slash commands live in [`../../.cursor/commands/`](../../.cursor/commands/) and only wrap the skill. Claude Code already exposes skills as `/name` ([skills docs](https://code.claude.com/docs/en/skills)); do not put AiNative agents under `~/.claude/agents/` (that is Claude's subagent format). See [cursor-setup.md](../knowledge/setup/cursor-setup.md). Relink after adding an agent:
 
 ```bash
 ./docs/knowledge/setup/link-host-skills.sh --all
@@ -86,7 +87,7 @@ Cursor slash commands live in [`../../.cursor/commands/`](../../.cursor/commands
 5. Add supporting prompt files if the workflow has phases
 6. Register the agent in this README table
 7. If Hermes must dispatch it, wire it to the relevant feature-loop state or named job skill in the control plane.
-8. Run `docs/knowledge/setup/link-host-skills.sh --all` so Cursor and OpenCode symlink this folder. Cursor gets a slash command that only points at the skill; do not fork the workflow in the command file.
+8. Run `docs/knowledge/setup/link-host-skills.sh --all` so Cursor, OpenCode, and Claude Code symlink this folder. Cursor gets a slash command that only points at the skill; do not fork the workflow in the command file.
 9. Tune all three files as the agent is used
 
 ## Related

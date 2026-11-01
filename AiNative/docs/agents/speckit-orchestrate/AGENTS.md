@@ -6,8 +6,9 @@ one of `feature` / `change` / `job`, with shared ship/UAT.
 
 Canonical source: AiNative `docs/agents/speckit-orchestrate/` (promoted from
 Cursor `speckit-orchestrate` 2026-10-13). Symlinked into Cursor
-(`~/.cursor/skills/speckit-orchestrate/`) and OpenCode
-(`~/.config/opencode/skill/speckit-orchestrate/`); the Hermes parent
+(`~/.cursor/skills/speckit-orchestrate/`), OpenCode
+(`~/.config/opencode/skill/speckit-orchestrate/`), and Claude Code
+(`~/.claude/skills/speckit-orchestrate/`); the Hermes parent
 references the same graph via `personalAgent` dispatch rather than copying
 it — all link `feature-loop.md`. Workers are stage-dumb in every runtime
 (host Task, Pi via `pi-harness`, or Antigravity CLI via `antigravity-harness`
@@ -17,9 +18,9 @@ SKILL.md Model resolution).
 
 ## When to use
 
-- User invokes `/speckit-orchestrate` (Cursor) / skill `speckit-orchestrate`
-  (OpenCode) or asks to run the full Spec Kit flow; Hermes references the
-  same graph for dispatch.
+- User invokes `/speckit-orchestrate` (Cursor / Claude Code) / skill
+  `speckit-orchestrate` (OpenCode) or asks to run the full Spec Kit flow;
+  Hermes references the same graph for dispatch.
 
 ## Inputs
 

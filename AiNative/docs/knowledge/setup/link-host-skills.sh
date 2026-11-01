@@ -1,10 +1,11 @@
 #!/usr/bin/env bash
-# Link AiNative agents into host editor skill dirs (Cursor / OpenCode).
+# Link AiNative agents into host editor skill dirs (Cursor / OpenCode / Claude Code).
 # Canonical source is always AiNative/docs/agents/<name>/. Editors only symlink.
 #
 #   ./docs/knowledge/setup/link-host-skills.sh          # Cursor only
-#   ./docs/knowledge/setup/link-host-skills.sh --all    # Cursor + OpenCode
+#   ./docs/knowledge/setup/link-host-skills.sh --all    # Cursor + OpenCode + Claude
 #   ./docs/knowledge/setup/link-host-skills.sh --opencode
+#   ./docs/knowledge/setup/link-host-skills.sh --claude
 set -euo pipefail
 
 here=$(cd "$(dirname "$0")" && pwd)
@@ -14,16 +15,19 @@ cursor_skills="${CURSOR_SKILLS:-$HOME/.cursor/skills}"
 cursor_cmds="${CURSOR_COMMANDS:-$HOME/.cursor/commands}"
 opencode_skill="${OPENCODE_SKILL:-$HOME/.config/opencode/skill}"
 opencode_skills="${OPENCODE_SKILLS:-$HOME/.config/opencode/skills}"
+claude_skills="${CLAUDE_SKILLS:-$HOME/.claude/skills}"
 cmd_src="$ainative/.cursor/commands"
 
 do_cursor=1
 do_opencode=0
+do_claude=0
 for arg in "$@"; do
   case "$arg" in
-    --all) do_cursor=1; do_opencode=1 ;;
+    --all) do_cursor=1; do_opencode=1; do_claude=1 ;;
     --opencode) do_cursor=0; do_opencode=1 ;;
+    --claude) do_cursor=0; do_claude=1 ;;
     --cursor) do_cursor=1 ;;
-    -h|--help) sed -n '2,10p' "$0"; exit 0 ;;
+    -h|--help) sed -n '2,11p' "$0"; exit 0 ;;
     *) echo "unknown arg: $arg" >&2; exit 2 ;;
   esac
 done
@@ -104,7 +108,7 @@ Cursor slash entry for the AiNative **${name}** skill. Do not invent a parallel 
 2. Also read \`AGENTS.md\` and \`rule.md\` in that same folder when they exist.
 3. Pass \`\$ARGUMENTS\` as the user request.
 
-This file exists because Cursor slash commands are a separate surface from Agent Skills. OpenCode loads the same skill from \`~/.config/opencode/skill/${name}/\`.
+This file exists because Cursor slash commands are a separate surface from Agent Skills. OpenCode and Claude Code load the same skill from \`~/.config/opencode/skill/${name}/\` and \`~/.claude/skills/${name}/\`.
 EOF
   echo "wrote $out"
 }
@@ -175,4 +179,13 @@ if [ "$do_opencode" = 1 ]; then
     echo "== OpenCode skills ($opencode_skills) =="
     link_inventory "$opencode_skills"
   fi
+fi
+
+# Claude Code: personal skills at ~/.claude/skills/<name>/SKILL.md
+# (https://code.claude.com/docs/en/skills). Slash commands are merged into
+# skills — no separate commands dir. Do not use ~/.claude/agents/ here; that
+# is Claude's subagent format, not AiNative agent folders.
+if [ "$do_claude" = 1 ]; then
+  echo "== Claude skills ($claude_skills) =="
+  link_inventory "$claude_skills"
 fi

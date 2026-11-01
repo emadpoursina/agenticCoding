@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.5.1] - 2026-10-31
+### Added
+- Claude Code host skill linking: `link-host-skills.sh --claude` (and `--all`) symlinks AiNative agents into `~/.claude/skills/<name>` per [Claude Code skills](https://code.claude.com/docs/en/skills); readiness check notes missing Claude links.
+
 ## [0.5.0] - 2026-10-26
 
 ### Added

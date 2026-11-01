@@ -375,6 +375,17 @@ host_checks() {
     done
   fi
   if [ -z "$oc_missing" ]; then pass "opencode-skills" "all agents present (symlinks to AiNative)"; else note "opencode-skills" "missing:$oc_missing"; fi
+  local cl_missing=""
+  if [ -d "$agents_dir" ]; then
+    for name in "$agents_dir"/*; do
+      [ -d "$name" ] || continue
+      s=$(basename "$name")
+      case "$s" in template|_skills) continue ;; esac
+      [ -f "$name/SKILL.md" ] || continue
+      [ -r "$HOME/.claude/skills/$s/SKILL.md" ] || cl_missing="$cl_missing $s"
+    done
+  fi
+  if [ -z "$cl_missing" ]; then pass "claude-skills" "all agents present (symlinks to AiNative)"; else note "claude-skills" "missing:$cl_missing"; fi
 
   if curl -s -o /dev/null -w '%{http_code}' --max-time 3 http://localhost:9119/ 2>/dev/null | grep -qE '200|301|302'; then
     pass "dashboard" "localhost:9119 reachable"
