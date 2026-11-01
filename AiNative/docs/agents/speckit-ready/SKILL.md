@@ -19,6 +19,7 @@ content, `specs/`, `spec.md`, or `feature.json`.
 - `REPO_ROOT` — target git repository
 - `FLOW_ID` — opaque run id minted by the parent
 - `FEATURE_DESCRIPTION` — user args after `/speckit-orchestrate`
+- Worker backend — `SPECKIT_WORKER` or `git config speckit.worker` (`antigravity` default, `pi`, or `claude`)
 
 ## What to do
 
@@ -87,22 +88,24 @@ enrollment). The `ready-check.sh` script accepts any of the three layouts.
 
 ### Worker runtime (required)
 
-Check only the backend this run will use (do not require both):
+Check only the backend this run will use (do not require all):
 
 1. `SPECKIT_WORKER` for a one-run override.
 2. This repository's local Git setting `speckit.worker`
-   (`git -C <repo> config speckit.worker pi|antigravity`).
+   (`git -C <repo> config speckit.worker pi|antigravity|claude`).
 3. Default `antigravity`.
 
 Aliases for Antigravity: `antigravity`, `agy`, `google-antigravity`.
+Aliases for Claude: `claude`, `claude-code`, `anthropic`.
 
 - **pi** — `pi` is on PATH (`SPECKIT_PI_BIN` overrides the binary name).
 - **antigravity** — `agy` is on PATH and authenticated (`agy models` exits 0).
   SDK import is neither required nor sufficient. Do not require the `agy` TUI.
   FIXES tell the operator to install/put `agy` on PATH or authenticate the CLI
   (never `pip install google-antigravity`).
+- **claude** — `claude` is on PATH (`SPECKIT_CLAUDE_BIN` overrides the binary name) and unattended authentication evidence exists (`ANTHROPIC_API_KEY`, `CLAUDE_CODE_OAUTH_TOKEN`, `ANTHROPIC_AUTH_TOKEN`, `apiKeyHelper` in settings JSON, or non-empty `.credentials.json`). SDK packages are neither required nor sufficient. Do not invoke a model. FIXES tell the operator to install Claude Code CLI and put `claude` on PATH or authenticate the CLI (never `pip install claude-agent-sdk` / `npm install @anthropic-ai/claude-agent-sdk`).
 
-The compact report includes `WORKER: pi|antigravity` and a
+The compact report includes `WORKER: pi|antigravity|claude` and a
 `worker-runtime` check line.
 
 ### Project checks (optional file)
@@ -173,7 +176,7 @@ unresolved base branch). `tcp` /
 READY: ok | blocked
 FLOW_ID: <flow_id>
 BRANCH: <branch-name-created-or-reused>
-WORKER: pi | antigravity
+WORKER: pi | antigravity | claude
 WORKTREE: <absolute feature worktree path>
 CHECKS:
 - [required] git-branch-state: pass|fail — <note>

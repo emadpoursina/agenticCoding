@@ -28,7 +28,7 @@ Compact report (the parent parses it, never worker prose):
 - `READY: ok|blocked`
 - `FLOW_ID`
 - `BRANCH`
-- `WORKER` (`pi` or `antigravity`)
+- `WORKER` (`pi`, `antigravity`, or `claude`)
 - `WORKTREE` (absolute feature worktree path on `ok`; `REPO_ROOT` itself when already on the branch)
 - `CHECKS` (includes `worker-runtime` for the selected backend only; plus
   `worktree-copy` and `worktree-setup` when a feature worktree was selected)
