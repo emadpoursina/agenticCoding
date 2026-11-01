@@ -112,6 +112,7 @@ skills to teach them `flow_id`.
 | AiNative canonical | `<AINATIVE>/docs/agents/<name>/SKILL.md` |
 | Cursor host | `~/.cursor/skills/<name>/SKILL.md` → canonical (symlink) |
 | OpenCode host | `~/.config/opencode/skill/<name>/SKILL.md` → canonical (symlink) |
+| Claude Code host | `~/.claude/skills/<name>/SKILL.md` → canonical (symlink) |
 | Hermes worker | `/opt/data/mnt/AiNative/docs/agents/<name>/SKILL.md` (read-only mount) |
 
 AiNative-owned skills below are named by their canonical `<AINATIVE>` path;

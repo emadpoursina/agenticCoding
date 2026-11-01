@@ -9,6 +9,11 @@
 - Run directory and status: writes `.agent/claude/<job-name>/<run-id>/{status.json,report.json,events.jsonl,stderr.log}` plus `latest.json`; reconstructs worker `STATUS: ok|stuck|blocked` for `report.json` without requiring parent to parse `events.jsonl`.
 - Ready gate and selftest: Ready reports `WORKER: claude` and validates `claude` CLI on PATH and unattended auth evidence (`ANTHROPIC_API_KEY`, `CLAUDE_CODE_OAUTH_TOKEN`, `ANTHROPIC_AUTH_TOKEN`, `apiKeyHelper`, or `.credentials.json`) without invoking a model. Language Agent SDK packages are neither required nor checked.
 
+## [0.5.1] - 2026-10-31
+
+### Added
+- Claude Code host skill linking: `link-host-skills.sh --claude` (and `--all`) symlinks AiNative agents into `~/.claude/skills/<name>` per [Claude Code skills](https://code.claude.com/docs/en/skills); readiness check notes missing Claude links.
+
 ## [0.5.0] - 2026-10-26
 
 ### Added
