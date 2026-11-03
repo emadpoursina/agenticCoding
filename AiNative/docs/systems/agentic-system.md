@@ -78,9 +78,9 @@ Workflow State → Universal Profile → Harness Model Selection Config → Harn
 
 ### Harness Model Selection Config
 
-Each supported harness (Cursor, OpenCode, Hermes) has its own Harness Model
-Selection Config. The workflow stays independent of harnesses and concrete
-model names; only the config names them.
+Each supported harness (Cursor, OpenCode, Claude Code, Hermes) has its own
+Harness Model Selection Config. The workflow stays independent of harnesses
+and concrete model names; only the config names them.
 
 Per profile, the config contains:
 
@@ -110,9 +110,19 @@ permissions, or authentication.
 
 The stable configuration contract belongs to this methodology.
 Harness-specific syntax and concrete provider/model IDs belong in the
-appropriate runtime configuration (Hermes `config.yaml` / card profile,
-Cursor/OpenCode session defaults, per-run env or invocation keywords) —
-never in AiNative methodology, agent definitions, or project cards.
+appropriate runtime configuration — never in AiNative methodology, agent
+definitions, or project cards:
+
+- **Hermes:** `$HERMES_DATA_ROOT/state/config.yaml` and
+  `profiles/{reasoning,validation,worker}/config.yaml` (plus
+  `hermes kanban set-model` per card).
+- **Cursor / OpenCode / Claude Code:** operator file
+  `~/.config/ainative/harness-models.yaml` (override path:
+  `SPECKIT_HARNESS_MODELS`), sections `default`, `cursor`, `opencode`,
+  `claude`. Active section from `SPECKIT_HARNESS` (or host inference).
+  Per-run invocation keywords and optional `SPECKIT_*_MODEL` /
+  `SPECKIT_WORKER` env still override for one-offs — do not persist those
+  env vars in shell rc.
 
 ### Primary/fallback policy
 

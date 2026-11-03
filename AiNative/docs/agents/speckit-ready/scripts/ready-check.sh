@@ -678,8 +678,45 @@ fi
 
 # ---------------------------------------------------------------------------
 # Worker runtime (required for the backend this run will use)
-# Resolution: SPECKIT_WORKER, else git config speckit.worker, else antigravity.
+# Resolution: SPECKIT_WORKER, else git config speckit.worker, else
+# harness-models.yaml (SPECKIT_HARNESS section else default).worker.primary.provider,
+# else antigravity.
 # ---------------------------------------------------------------------------
+
+# Extract <section>.worker.primary.provider from a constrained harness-models.yaml.
+# Prints the provider on stdout; exit 1 if missing. No PyYAML dependency.
+harness_models_worker_provider() {
+  local file="$1"
+  local section="$2"
+  [ -f "$file" ] || return 1
+  [ -n "$section" ] || return 1
+  awk -v want="$section" '
+    /^[[:space:]]*#/ { next }
+    /^[^[:space:]#]/ {
+      top=$1
+      sub(/:.*/, "", top)
+      in_want=(top==want)
+      in_worker=0; in_primary=0
+      next
+    }
+    in_want && /^[[:space:]]{2}worker:[[:space:]]*$/ { in_worker=1; in_primary=0; next }
+    in_want && /^[[:space:]]{2}[a-zA-Z0-9_]+:/ {
+      if ($0 !~ /^[[:space:]]{2}worker:/) { in_worker=0; in_primary=0 }
+    }
+    in_want && in_worker && /^[[:space:]]{4}primary:[[:space:]]*$/ { in_primary=1; next }
+    in_want && in_worker && /^[[:space:]]{4}[a-zA-Z0-9_]+:/ {
+      if ($0 !~ /^[[:space:]]{4}primary:/) in_primary=0
+    }
+    in_want && in_primary && /^[[:space:]]{6}provider:[[:space:]]*/ {
+      val=$0
+      sub(/^[[:space:]]*provider:[[:space:]]*/, "", val)
+      gsub(/[[:space:]]+#.*$/, "", val)
+      gsub(/^["'\'']|["'\'']$/, "", val)
+      if (val != "") { print val; found=1; exit 0 }
+    }
+    END { if (!found) exit 1 }
+  ' "$file"
+}
 
 worker_fail=0
 worker_note=""
@@ -691,8 +728,32 @@ if [ -z "$worker_raw" ]; then
   if [ -n "$worker_raw" ]; then
     worker_source="git config speckit.worker"
   else
-    worker_raw="antigravity"
-    worker_source="default"
+    harness_models_file="${SPECKIT_HARNESS_MODELS:-$HOME/.config/ainative/harness-models.yaml}"
+    harness_name="$(printf '%s' "${SPECKIT_HARNESS:-}" | tr '[:upper:]' '[:lower:]')"
+    case "$harness_name" in
+      cursor|opencode|claude) ;;
+      hermes|"") harness_name="" ;;
+      *) harness_name="" ;;
+    esac
+    worker_from_file=""
+    if [ -n "$harness_name" ]; then
+      worker_from_file="$(harness_models_worker_provider "$harness_models_file" "$harness_name" 2>/dev/null || true)"
+      if [ -n "$worker_from_file" ]; then
+        worker_raw="$worker_from_file"
+        worker_source="harness-models.yaml:$harness_name"
+      fi
+    fi
+    if [ -z "$worker_raw" ]; then
+      worker_from_file="$(harness_models_worker_provider "$harness_models_file" "default" 2>/dev/null || true)"
+      if [ -n "$worker_from_file" ]; then
+        worker_raw="$worker_from_file"
+        worker_source="harness-models.yaml:default"
+      fi
+    fi
+    if [ -z "$worker_raw" ]; then
+      worker_raw="antigravity"
+      worker_source="default"
+    fi
   fi
 fi
 worker_lc="$(printf '%s' "$worker_raw" | tr '[:upper:]' '[:lower:]')"

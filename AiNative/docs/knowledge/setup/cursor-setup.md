@@ -55,6 +55,16 @@ command (or attach the skill) — `/speckit-orchestrate`, `/change`, `/critic`,
 `/tester`, `/pr-reviewer`, `/route-work`, `/pi-harness`, `/antigravity-harness`, `/claude-harness`,
 `/speckit-ready`.
 
+## Per-harness model defaults
+
+Editor hosts (Cursor, OpenCode, Claude Code) persist Reasoning / Validation /
+Worker defaults in `~/.config/ainative/harness-models.yaml` (sections
+`default`, `cursor`, `opencode`, `claude`). Set `SPECKIT_HARNESS` to the host
+name (terminal wrappers may export it). Do not export `SPECKIT_*_MODEL` or
+`SPECKIT_WORKER` in shell rc — those are one-off overrides only. Hermes does
+not use this file. See [agentic-system.md](../../systems/agentic-system.md)
+§2 Model and `speckit-orchestrate` Model resolution.
+
 ## After adding an agent
 
 1. Add the folder under `docs/agents/<name>/` and register it in

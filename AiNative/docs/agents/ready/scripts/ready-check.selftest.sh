@@ -376,11 +376,13 @@ expect_contains "READY: blocked" "case18"
 expect_contains "unknown worker backend" "case18"
 expect_contains "claude" "case18"
 
-# --- Case 19: unset SPECKIT_WORKER -> default antigravity --------------------
+# --- Case 19: unset SPECKIT_WORKER + no harness-models file -> antigravity ---
 REPO17="$TMP/repo17"
 make_fixture "$REPO17"
-OUT="$(env -u SPECKIT_WORKER -u GEMINI_API_KEY -u GOOGLE_API_KEY -u GOOGLE_GENAI_USE_VERTEXAI -u GOOGLE_GENAI_USE_ENTERPRISE -u GOOGLE_CLOUD_PROJECT -u GOOGLE_APPLICATION_CREDENTIALS "$CHECK" "$REPO17" flow_selftest_19 worker-default 2>&1)" && RC=0 || RC=$?
-expect_contains "WORKER: antigravity" "case19 (default antigravity)"
+CASE19_HOME="$TMP/home19"
+mkdir -p "$CASE19_HOME"
+OUT="$(env -u SPECKIT_WORKER -u SPECKIT_HARNESS -u SPECKIT_HARNESS_MODELS -u GEMINI_API_KEY -u GOOGLE_API_KEY -u GOOGLE_GENAI_USE_VERTEXAI -u GOOGLE_GENAI_USE_ENTERPRISE -u GOOGLE_CLOUD_PROJECT -u GOOGLE_APPLICATION_CREDENTIALS HOME="$CASE19_HOME" "$CHECK" "$REPO17" flow_selftest_19 worker-default 2>&1)" && RC=0 || RC=$?
+expect_contains "WORKER: antigravity" "case19 (hard default antigravity)"
 expect_contains "worker-runtime:" "case19"
 
 # --- Case 20: committed .worktreeinclude copies listed ignored files (FR-002/FR-013) ---
@@ -589,6 +591,31 @@ OUT="$(env ANTHROPIC_API_KEY="test-token" PATH="$CLAUDE_BIN_DIR:$STUB_BIN:/usr/b
 expect_rc 0 "case30b (anthropic alias)"
 expect_contains "WORKER: claude" "case30b"
 expect_contains "worker-runtime: pass" "case30b"
+
+# --- Case 31: SPECKIT_HARNESS + harness-models.yaml worker.primary.provider ---
+REPO30="$TMP/repo30"
+make_fixture "$REPO30"
+CASE31_HOME="$TMP/home31"
+mkdir -p "$CASE31_HOME/.config/ainative"
+cat > "$CASE31_HOME/.config/ainative/harness-models.yaml" <<'YAML'
+default:
+  worker:
+    primary:
+      executionMode: SDK
+      provider: antigravity
+      modelId: unused-default
+opencode:
+  worker:
+    primary:
+      executionMode: SDK
+      provider: pi
+      modelId: unused-opencode
+YAML
+OUT="$(env -u SPECKIT_WORKER HOME="$CASE31_HOME" SPECKIT_HARNESS=opencode PATH="$STUB_BIN:/usr/bin:/bin" "$CHECK" "$REPO30" flow_selftest_31 worker-harness-models 2>&1)" && RC=0 || RC=$?
+expect_rc 0 "case31 (harness-models opencode -> pi)"
+expect_contains "WORKER: pi" "case31"
+expect_contains "worker-runtime: pass" "case31"
+expect_contains "harness-models.yaml:opencode" "case31"
 
 echo "SELFTEST: ok"
 exit 0

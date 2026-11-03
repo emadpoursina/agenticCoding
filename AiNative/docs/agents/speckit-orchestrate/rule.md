@@ -27,11 +27,11 @@
 - Job path: after named skill `STATUS: ok` → ship (or declined); MUST NOT run pr-reviewer; UAT is not a job-path stage.
 - Feature `keep-local`: critic and tester still run; skip ship, automatic pr-review, and UAT; emit `SHIP: declined`.
 - No model slugs are pinned in this skill; resolve each of the three profiles
-  (Reasoning, Worker, Validation) per run from the runtime (user override
-  else runtime default — Hermes `config.yaml` / card profile,
-  Cursor/OpenCode session default). Never invent nearby slugs, never
-  cross-apply one profile's model to another, never inherit one profile's model
-  into another.
+  (Reasoning, Worker, Validation) per run from keywords → env → active
+  harness config (Hermes profiles, or `~/.config/ainative/harness-models.yaml`
+  for cursor/opencode/claude with `default` fallback) via `SPECKIT_HARNESS`.
+  Never invent nearby slugs, never cross-apply one profile's model to another,
+  never inherit one profile's model into another.
 - Reasoning stages (`ready`, `route`, `specify`, `clarify`, `plan`, `tasks`,
   `analyze`) use the resolved Reasoning-profile model then the configured
   fallback if one exists; if both are unavailable the run stops. Profile

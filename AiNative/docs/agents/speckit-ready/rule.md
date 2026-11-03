@@ -6,5 +6,8 @@
 - A stable `READY: blocked` is never retried; report the fix in `FIXES` and stop.
 - Pi enrollment (`.pi/prompts/`) is canonical; Cursor/Opencode layouts are
   legacy fallbacks only.
-- Check only the selected worker backend (`pi` or `antigravity`). Do not
-  require both runtimes.
+- Check only the selected worker backend (`pi`, `antigravity`, or `claude`).
+  Do not require every runtime. Resolve backend via `SPECKIT_WORKER`, then
+  `git config speckit.worker`, then
+  `~/.config/ainative/harness-models.yaml` (`SPECKIT_HARNESS` section else
+  `default`), else `antigravity`.

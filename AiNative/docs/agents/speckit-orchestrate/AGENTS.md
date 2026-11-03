@@ -15,7 +15,9 @@ it — all link `feature-loop.md`. Workers are stage-dumb in every runtime
 or Claude Code CLI via `claude-harness`
 here; the same worker backends under Hermes there).
 Model values are never pinned here; each runtime resolves them per run (see
-SKILL.md Model resolution).
+SKILL.md Model resolution). Editor hosts persist defaults in
+`~/.config/ainative/harness-models.yaml` selected by `SPECKIT_HARNESS`;
+Hermes keeps its own profile configs.
 
 ## When to use
 

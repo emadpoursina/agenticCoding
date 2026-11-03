@@ -143,6 +143,28 @@ Profiles (stage kinds, not model IDs):
 Which profile fits which job is the authority of `docs/systems/agentic-system.md`
 §2 Model; this skill only resolves concrete values per profile.
 
+### Active harness
+
+Resolve which editor/control-plane host is running **before** reading model
+defaults:
+
+1. `SPECKIT_HARNESS` (`cursor` | `opencode` | `claude` | `hermes`) when set.
+2. Otherwise infer from the host (Cursor session → `cursor`; OpenCode →
+   `opencode`; Claude Code → `claude`; Hermes parent → `hermes`).
+3. If still unknown, use the `default` section of the harness-models file
+   (editors) — do not invent a harness name.
+
+### Harness models file (editor hosts)
+
+Path: `$SPECKIT_HARNESS_MODELS` if set, else
+`~/.config/ainative/harness-models.yaml`.
+
+Sections: `default`, `cursor`, `opencode`, `claude`. Each section maps the
+three profiles to `primary` (required) and optional `fallback`, each with
+`executionMode` (`HOST`|`SDK`), `provider`, and `modelId`. Hermes does **not**
+use this file (see runtime default below). Do not put concrete model IDs in
+this skill — read them from the file or Hermes.
+
 Resolution order for each profile, per run (each keyword/env affects only its own
 profile — `worker:` never affects Reasoning or Validation stages, `reasoning:`
 and `validation:` never affect Worker stages):
@@ -156,22 +178,26 @@ and `validation:` never affect Worker stages):
 2. **Env override** — `SPECKIT_WORKER_MODEL` (Pi flags or `provider/model[:thinking]`,
    worker only), `SPECKIT_REASONING_MODEL` (Task slug, reasoning only),
    `SPECKIT_VALIDATION_MODEL` (Task slug, validation only). Same validation
-   as keywords. Env beats runtime defaults but loses to invocation keywords.
-3. **Runtime default** — otherwise use the runtime's configured default **per profile**:
-   - Hermes: per-profile `config.yaml` model + card profile (`hermes kanban set-model`,
-     `default` profile fallback). Keys live in Hermes
-     (`$HERMES_DATA_ROOT/state/config.yaml`); this skill never invents them —
-     read what `hermes config get model.*` / `hermes profile list` reports.
-   - Cursor: reasoning = session default Task model (must be in the allowed Task
-     model list); validation = a different allowed Task model for the session
-     (fresh session for critic/tester); worker = operator-confirmed Pi provider/model (env or last
-     working Pi flags). Set them independently in the session before invoking.
-   - OpenCode: reasoning/validation = the configured subagent model for this
-     session (validation distinct from reasoning);
-     worker = same Pi provider/model mechanism as Cursor (Pi is external to
-     both editors).
-   Pass `--thinking` only when that profile's resolved source specifies it;
-   never invent it.
+   as keywords. Env beats file/Hermes defaults but loses to invocation keywords.
+   Use env for one-off runs only — do not export these in shell rc; persist in
+   the harness-models file (editors) or Hermes profiles instead.
+3. **Harness Model Selection Config** — otherwise use the configured default
+   **per profile** for the active harness:
+   - **Hermes** (`SPECKIT_HARNESS=hermes` or Hermes parent): per-profile
+     `config.yaml` model + card profile (`hermes kanban set-model`, `default`
+     profile fallback). Keys live in Hermes (`$HERMES_DATA_ROOT/state` /
+     `profiles/{reasoning,validation,worker}/config.yaml`); this skill never
+     invents them — read what `hermes config get model.*` /
+     `hermes profile list` reports. Skip the editor harness-models file.
+   - **Editor hosts** (`cursor` / `opencode` / `claude`): read
+     `harness-models.yaml` → section named by the active harness → that
+     profile's `primary` (`modelId`, and for Worker also `provider` as the
+     SDK backend). If the harness section or profile is missing, use the
+     file's `default` section for that profile only. Optional `fallback` on
+     the same profile follows the primary/fallback policy in
+     `docs/systems/agentic-system.md` §2 Model.
+   Pass `--thinking` / `--effort` only when that profile's resolved source
+   specifies it; never invent it.
 4. **Unresolved** — if a profile has no usable value from 1–3, STOP before
    launching that profile and ask the operator for that profile's value only. Never
    invent a nearby slug, never reuse another profile's model.
@@ -181,11 +207,14 @@ and `validation:` never affect Worker stages):
 Worker stages run in an external coding agent. The backend is the Worker
 execution's `provider` (`SDK pi`, `SDK antigravity`, or `SDK claude`) — not a separate
 decision. Resolve **one** provider per run (do not require all to be
-installed). For Cursor/OpenCode that provider value lives in:
+installed). For Cursor / OpenCode / Claude Code that provider value lives in:
 
 1. `SPECKIT_WORKER` (`pi`, `antigravity`, or `claude`; aliases `agy`, `google-antigravity`, `claude-code`, `anthropic`).
 2. `git config speckit.worker` in the target repo.
-3. Default `antigravity`.
+3. `harness-models.yaml` → active harness → `worker.primary.provider`, else
+   `default.worker.primary.provider`.
+4. Hard default `antigravity` only when the file is missing or has no worker
+   provider.
 
 Ready already reports `WORKER:` and `worker-runtime` as the echo of the
 resolved provider. Honor that value for every later Worker-profile stage in

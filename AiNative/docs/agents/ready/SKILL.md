@@ -93,7 +93,11 @@ Check only the backend this run will use (do not require all):
 1. `SPECKIT_WORKER` for a one-run override.
 2. This repository's local Git setting `speckit.worker`
    (`git -C <repo> config speckit.worker pi|antigravity|claude`).
-3. Default `antigravity`.
+3. Active harness models file
+   (`$SPECKIT_HARNESS_MODELS` or `~/.config/ainative/harness-models.yaml`):
+   section from `SPECKIT_HARNESS` (`cursor`|`opencode`|`claude`), else
+   `default` → `worker.primary.provider`.
+4. Hard default `antigravity` when the file is missing or has no provider.
 
 Aliases for Antigravity: `antigravity`, `agy`, `google-antigravity`.
 Aliases for Claude: `claude`, `claude-code`, `anthropic`.

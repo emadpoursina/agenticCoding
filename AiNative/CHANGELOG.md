@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.7.0] - 2026-11-02
+
+### Added
+- Per-harness persistent model config for editor hosts: operator file `~/.config/ainative/harness-models.yaml` with sections `default`, `cursor`, `opencode`, and `claude` (primary + optional fallback per Reasoning / Validation / Worker).
+- `SPECKIT_HARNESS` (`cursor`|`opencode`|`claude`|`hermes`) selects the active section; path override `SPECKIT_HARNESS_MODELS`. Hermes keeps its own profile `config.yaml` trees and does not read this file.
+
+### Changed
+- Spec Kit model resolution for Cursor / OpenCode / Claude Code: keywords → optional one-off `SPECKIT_*` env → harness-models section → `default` section → stop.
+- Ready worker-backend resolution: after `SPECKIT_WORKER` and `git config speckit.worker`, read `worker.primary.provider` from the harness-models file before the hard `antigravity` default.
+- Cursor Spec Kit rule no longer hard-pins Reasoning/Validation to a Task slug; it points at the `cursor` (then `default`) file section.
+
 ## [0.6.0] - 2026-10-31
 
 ### Added
