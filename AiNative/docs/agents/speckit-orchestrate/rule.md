@@ -4,7 +4,7 @@
 - Validators never write or append `tasks.md`. Workers are stage-dumb: they report a
   compact verdict and exit; they do not dispatch the next stage, write `tasks.md`,
   ship, or implement.
-- Auto-merge MUST NOT be introduced; merge stays human and outside the loop.
+- Auto-merge MUST NOT be introduced. Merge is a parent-owned step on feature and change paths, taken only after the operator's UAT pass on the open PR; the UAT pass is the single merge approval.
 - `keep-local` MUST NOT be inferred from `SHIP: blocked`.
 - Downstream stages MUST use `FEATURE_DIR` / `.specify/feature.json` and MUST NOT
   infer the spec directory from git `BRANCH`.

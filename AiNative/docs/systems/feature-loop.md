@@ -136,8 +136,8 @@ Downstream stages MUST use `FEATURE_DIR` / `.specify/feature.json` (basename e.g
 No worker on any path ships. Every path ends the same way: once validation
 passes, the parent commits, pushes the branch, and opens a PR automatically,
 with no confirmation prompt. The PR is the review surface; on feature and
-change paths, the operator's gates are UAT on the open PR and merge (outside the
-loop; job path skips pr-review and UAT). `keep-local` opts a run out of
+change paths, the operator's UAT pass on the open PR is the single merge approval,
+and the parent then merges (job path skips pr-review, UAT, and merge). `keep-local` opts a run out of
 shipping.
 
 PR CI independently re-proves validation and evidence stays out of git —
@@ -192,8 +192,9 @@ Graph string: `ready → route → specify → clarify → plan → tasks → [a
 
 **End-of-path rule (all paths):** workers never commit, push, or open PRs.
 The parent does that in `ship` automatically once validation passes; on feature
-and change paths, the operator then reviews the PR (UAT) and merges (job path
-skips pr-review and UAT). Merge is never done by this loop.
+and change paths, the operator then reviews the PR (UAT). A UAT pass makes the
+parent merge it (merge commit, after checking mergeability, required checks, and
+that the head matches the validated head). Job path skips pr-review, UAT, and merge.
 
 ## PIVS mapping
 
@@ -202,12 +203,12 @@ The loop above is the detailed form of PIVS:
 * **Plan** = `ready → route → specify → clarify → plan → tasks → [analyze]`
 * **Implementation** = `implement ↔ converge`
 * **Validation** = `critic → tester`
-* **Ship** = `ship → pr-review → uat` (pr-review is an automatic loop state after Ship on feature and change paths; job path skips pr-review and UAT) → human merge (outside the loop)
+* **Ship** = `ship → pr-review → uat` (pr-review is an automatic loop state after Ship on feature and change paths; job path skips pr-review and UAT) → merge (parent step, after UAT pass; feature and change paths only)
 
 **Default ship order** (until explicitly changed): critic PASS then tester PASS, then parent
 ships the **branch** (commit, push, open PR with walkthrough) automatically,
 with no confirmation prompt; `keep-local` opts out. After `SHIP: ok`, pr-reviewer runs automatically. Do not open a PR and then
-treat the walkthrough as optional. Merge stays human and outside the loop.
+treat the walkthrough as optional. Merge is a parent step taken only after the operator's UAT pass.
 
 `skip` is an **operator flag**, not a skipped specify/clarify state.
 Workers self-answer; the parent still shows the choice report and goes

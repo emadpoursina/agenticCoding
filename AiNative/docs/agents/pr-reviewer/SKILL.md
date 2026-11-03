@@ -184,7 +184,7 @@ One consolidated report:
 
 Every listed problem must include both scores.
 
-Phase 6 stays with the human. APPROVE means "merge recommended," not auto-merge.
+Phase 6 stays with the human. APPROVE means "ready for operator UAT," not merge approval. The reviewer never merges; the parent merges only after the operator's UAT pass (see speckit-orchestrate Ship / UAT).
 
 ## Re-review (second run or later on the same PR)
 

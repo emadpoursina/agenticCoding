@@ -21,8 +21,8 @@ ready → route-work ─┬─ feature → specify … converge → critic → t
 
 Graph string: `ready → route → specify → clarify → plan → tasks → [analyze] → implement ↔ converge → critic → tester → ship → pr-review → uat`
 
-\* `ship` is automatic once validation passes; `keep-local` (alias `no-ship`) opts out. Merge is
-manual and outside this loop.
+\* `ship` is automatic once validation passes; `keep-local` (alias `no-ship`) opts out. Merge is a
+parent step taken only after the operator's UAT pass on the open PR (feature and change paths; job has no UAT or merge gate).
 
 Only **feature** uses the heavy Spec Kit machinery. **change** and **job** are
 thin.
@@ -297,7 +297,7 @@ parse reports, honor the keywords, relay a worker's queued questions to the
 user one at a time (relay only; do not score or write the answer into files),
 show the clarify choice report, run the pre-push guards, execute the automatic
 ship (commit, push, PR) once validation passes unless the operator passed
-`keep-local`, park feature/change runs for UAT, enforce stuck policy, and write
+`keep-local`, park feature/change runs for UAT, merge after a UAT pass, enforce stuck policy, and write
 the finish report. Ship and UAT are parent-only
 operations; workers remain ship-dumb on every path. It MAY read
 worker reports, `git diff --stat`, and `quickstart.md` for that report. It MUST NOT read the
@@ -546,7 +546,7 @@ flowchart TD
     Parent routes on the compact header:
     - `VERDICT: APPROVE`, or `VERDICT: REQUEST CHANGES` with `CRITICAL_COUNT: 0` →
       route as APPROVE for the loop; park for operator UAT pass/fail (does not
-      complete the run; merge stays human).
+      complete the run; merge follows a UAT pass).
     - `VERDICT: REQUEST CHANGES` with `CRITICAL_COUNT ≥ 1` → parent feeds Criticals
       to converge as `$ARGUMENTS = VALIDATOR_CRITICALS` (parent MUST NOT feed validator
       Criticals directly to implement). Converge appends tasks →
@@ -555,7 +555,7 @@ flowchart TD
     - `VERDICT: BLOCKED` (Phase 1.5 architecture block) → park (not a REQUEST CHANGES retry).
     Worker MUST NOT ship, merge, write `tasks.md`, or dispatch converge/implement.
 13. **UAT** — after PR review APPROVE (or zero Criticals), park for operator UAT.
-    - UAT pass: complete the run.
+    - UAT pass: the parent runs the merge step (see **Merge**); the run completes only when the PR is merged.
     - UAT fail: halt with findings (v1 does not auto-loop UAT).
 
 ### Change path
@@ -580,7 +580,7 @@ flowchart TD
    - `VERDICT: APPROVE` or `REQUEST CHANGES` with `CRITICAL_COUNT: 0` → UAT park.
    - `REQUEST CHANGES` with `CRITICAL_COUNT ≥ 1` → retry change worker with FINDINGS (no `tasks.md`, no converge) → tester → same-PR ship → re-review.
    - `BLOCKED` → park.
-7. **UAT** — operator exercises the PR: UAT pass completes; UAT failure halts with findings.
+7. **UAT** — operator exercises the PR: UAT pass triggers the parent merge step (see **Merge**); UAT failure halts with findings. The run completes only after the PR is merged.
 
 ### Job path
 
@@ -596,7 +596,7 @@ flowchart TD
    paths on your own.
 4. **Ship** — after named skill `STATUS: ok`, run the shared **Ship / UAT** procedure
    below automatically (no confirmation prompt), unless the operator passed
-   `keep-local` (alias `no-ship`). For jobs, after named skill `STATUS: ok` → ship (or declined); MUST NOT run pr-reviewer; UAT is not a job-path stage.
+   `keep-local` (alias `no-ship`). For jobs, after named skill `STATUS: ok` → ship (or declined); MUST NOT run pr-reviewer; UAT is not a job-path stage and there is no merge gate.
 5. **Complete** — report the skill used, the artifacts, and the PR URL when
    published.
 
@@ -608,9 +608,10 @@ enters after `TESTER: PASS`; job enters after `STATUS: ok`.
 **Ship is automatic and asks no confirmation.** Once the path's validation
 gate passes, the parent commits, pushes, and opens a PR. The PR *is* the
 review surface: the operator reviews the concrete diff and walkthrough, not the
-intent beforehand. Merge is never part of this loop — the parent never merges
-anything, on any path. Human judgment keeps exactly two gates: UAT on the open
-PR, and merge (outside the loop).
+intent beforehand. Merge is a parent step on feature and change paths only, taken
+after the operator's UAT pass on the open PR. The UAT pass is the single human
+merge approval; there is no separate merge gate. The job path has no UAT and no
+merge gate. Workers never merge.
 
 Opt out with the `keep-local` keyword (alias `no-ship`, see **Keywords**): when present, skip
 ship, emit `SHIP: declined`, skip automatic pr-review and UAT, and finish.
@@ -678,7 +679,7 @@ After `SHIP: ok`, for feature and change paths, the parent launches `pr-reviewer
 automatically as a loop state. After PR review completes with APPROVE
 (or zero Criticals), the parent parks for operator UAT:
 
-- **A — UAT pass:** complete the pipeline.
+- **A — UAT pass:** run the **Merge** procedure below; the run completes once the PR is merged.
 - **B — UAT fail:** halt with the findings. In v1, do not loop back to
   implement.
 
@@ -687,6 +688,28 @@ A ship failure is `SHIP: blocked`, not an implicit keep-local decision; report
 the blocker and stop (MUST NOT infer `keep-local` from blocked ship). `SHIP: declined` means only the `keep-local` (alias `no-ship`) opt-out.
 Workers do not commit, push, create PRs, write walkthroughs, or perform UAT on
 any path.
+
+## Merge (parent only; feature and change paths)
+
+Runs only after the operator's UAT pass on the open PR. The UAT pass is the
+single merge approval. The job path never reaches this section.
+
+Before merging, the parent verifies, and halts with the blocker if any check fails:
+
+- the PR is open and mergeable (`gh pr view <PR> --json state,mergeable,mergeStateStatus`)
+- required checks are green on the PR head
+- the PR head SHA equals the validated head (the SHA the tester evidence and pr-reviewer ran against)
+
+Then it merges with a merge commit (not squash or rebase), pinned to the validated head:
+
+```text
+gh pr merge <PR> --merge --match-head-commit <validated-sha>
+```
+
+After the merge, the parent syncs the base (`git -C <REPO_ROOT> fetch origin`,
+then fast-forward the base branch) and releases any successor cards that depend
+on this parent. A parent is done only when its PR is merged. Never mark a parent
+complete at fan-out.
 
 ## Worker launches
 
