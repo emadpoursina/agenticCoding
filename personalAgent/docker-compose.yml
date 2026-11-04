@@ -18,6 +18,8 @@ services:
       - "${HERMES_DATA_ROOT}/state:/opt/data"
       - "${HERMES_DATA_ROOT}/workspace:/opt/data/mnt/workspace"
       - "${AINATIVE_HOST_PATH}:/opt/data/mnt/AiNative:ro"
+      # Host Docker socket (resolved real path; /var/run/docker.sock is a symlink on Desktop)
+      - "/Users/emad/.docker/run/docker.sock:/var/run/docker.sock"
     env_file:
       - .env
     environment:
