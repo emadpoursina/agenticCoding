@@ -74,6 +74,8 @@ During evaluation the runner is **shadow only**: outcomes are logged and never a
 
 The smoke test checks that the pipeline works and shows what real outputs look like. It does not measure accuracy. Run it in two phases.
 
+To hand Phase 1 to another agent, give it [smoke-test-prompt.md](./smoke-test-prompt.md). That file is self-contained and needs no other context.
+
 ### Phase 1: pipeline check (no project data)
 
 Run the spec over the draft cases in `cases.yaml`. These are synthetic, so no project content is sent.
