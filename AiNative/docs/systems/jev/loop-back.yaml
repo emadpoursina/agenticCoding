@@ -1,0 +1,43 @@
+# Jev decision spec: loop-back
+# Format and rules: docs/systems/jev/README.md
+# Wording, thresholds, and the truth table are methodology. The harness reads this
+# file, makes the API call, and owns connections and keys.
+#
+# Values high/low are used instead of yes/no because YAML 1.1 parsers read
+# unquoted yes/no as booleans.
+
+id: loop-back
+version: 1
+status: draft            # draft | evaluating | adopted | retired
+model: jev-1.14.0        # pinned; change only with a new evaluation record
+replaces: "LOOP_BACK judgment in critic/SKILL.md and tester/SKILL.md"
+unit: finding            # one request per finding; questions share the same state
+
+state:
+  - flow_id
+  - report_type          # critic | tester
+  - acceptance_criteria  # acceptance criteria and test flows from the plan, for the flow the finding cites
+  - finding              # ID | severity | file:line | summary
+  - code_excerpt         # only when the finding cites code; empty string when none
+
+judgments:
+  - id: plan_defect
+    type: noul
+    instructions: "The `finding` names a specific criterion or test flow from `acceptance_criteria` that is wrong, missing, or untestable. A general concern that names no criterion or flow does not count."
+  - id: code_defect
+    type: noul
+    instructions: "The `finding`, or the code in `code_excerpt`, shows code or a test that does not do what `acceptance_criteria` specifies."
+
+bands:
+  high: 0.7              # probability at or above this counts as high
+  low: 0.3               # probability at or below this counts as low; between is unsettled
+
+truth_table:             # first matching row wins; code makes the decision
+  - when: {plan_defect: high}
+    outcome: plan        # mixed or plan-level findings go to plan
+  - when: {plan_defect: low, code_defect: high}
+    outcome: implement
+  - when: otherwise      # neither judgment fires, or a judgment is unsettled
+    outcome: park
+
+outcomes: [implement, plan, park]

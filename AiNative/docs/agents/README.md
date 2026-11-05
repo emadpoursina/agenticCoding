@@ -54,6 +54,7 @@ Reusable [Agent Skills](https://agentskills.io/home) in [`_skills/`](./_skills/)
 | [verification](./_skills/verification/SKILL.md) | Post-implementation review passes (critic) |
 | [test-execution](./_skills/test-execution/SKILL.md) | Unit and system test execution (tester) |
 | [doc-update-after-work](./_skills/doc-update-after-work/SKILL.md) | Docs, changelog, comments after shipping |
+| [typesafe-ai](./_skills/typesafe-ai/SKILL.md) | TypeSafe Jev integration craft: judgments in questions, decisions in code, state design, live testing (official TypeSafe skill, MIT, unmodified) |
 
 ## External agent libraries
 

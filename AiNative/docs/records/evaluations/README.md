@@ -13,6 +13,7 @@ Candidates with potential — new models, tools, MCP servers, agent patterns, ha
 | Queued | codebase-memory-mcp | tool | [2026-07-codebase-memory-mcp.md](./2026-07-codebase-memory-mcp.md) |
 | Queued | 9Router | tool | [2026-08-9router.md](./2026-08-9router.md) |
 | Queued | RTK | tool | [2026-08-rtk.md](./2026-08-rtk.md) |
+| Queued | Jev for LOOP_BACK | model | [2026-11-jev-loop-back.md](./2026-11-jev-loop-back.md) |
 
 ## When to add an entry
 

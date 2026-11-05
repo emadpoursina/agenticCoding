@@ -1,0 +1,287 @@
+# Labeled cases for the loop-back decision spec (docs/systems/jev/loop-back.yaml).
+# Status: DRAFT. Synthetic cases written from the critic and tester report formats.
+# Labels are PROPOSED by the drafter. A human reviewer must confirm or change each one
+# before the set is used as ground truth. Set reviewed_by when done.
+#
+# Label meanings (match the truth table in loop-back.yaml):
+#   plan       a specific criterion or flow is wrong, missing, untestable, or contradictory
+#              (includes mixed findings: plan wins)
+#   implement  the plan is fine and the code or a test does not match it
+#   park       neither applies (a general concern, flakiness, environment), or a person must decide
+#
+# Fields: id, flow_id, report_type (critic | tester), finding, acceptance_criteria,
+# code_excerpt (empty string when none), label, reason. Field names match the spec's state.
+
+reviewed_by: null
+dataset_version: 1
+
+cases:
+  - id: LB-01
+    flow_id: 003-refunds
+    report_type: tester
+    finding: "T2 | high | src/refunds/service.ts:41 | refund for already-refunded order returns 200"
+    acceptance_criteria: "AC-2: A refund request for an order that is already refunded returns 409."
+    code_excerpt: "if (order.status === 'refunded') return ok({ refunded: true });"
+    label: implement
+    reason: "Plan says 409; code returns 200. Code defect."
+
+  - id: LB-02
+    flow_id: 001-checkout
+    report_type: critic
+    finding: "C1 | critical | src/checkout/checkout.ts:18 | empty cart creates an order; no check"
+    acceptance_criteria: "AC-1: Checkout with an empty cart returns 400 and creates no order."
+    code_excerpt: "const order = await orders.create({ items: cart.items });"
+    label: implement
+    reason: "Missing guard the plan requires."
+
+  - id: LB-03
+    flow_id: 003-refunds
+    report_type: tester
+    finding: "T3 | high | flow T-3 | expects 422 for a partial refund at day 31; plan does not say whether partial refunds are in scope"
+    acceptance_criteria: "AC-3: A full refund succeeds within 30 days of purchase."
+    code_excerpt: ""
+    label: plan
+    reason: "Plan is silent on partial refunds, so the test has no defined expectation."
+
+  - id: LB-04
+    flow_id: 002-search
+    report_type: critic
+    finding: "C4 | high | plan AC-4 | 'loads quickly' has no measurable threshold"
+    acceptance_criteria: "AC-4: The search page loads quickly."
+    code_excerpt: ""
+    label: plan
+    reason: "Untestable criterion."
+
+  - id: LB-05
+    flow_id: 001-checkout
+    report_type: tester
+    finding: "T4 | high | flow T-6 | AC-6 (guest checkout) has no test flow"
+    acceptance_criteria: "AC-6: Guests can check out without an account. Test flows: T-1 to T-5."
+    code_excerpt: ""
+    label: plan
+    reason: "Orphan acceptance criterion; the plan's flow list is incomplete."
+
+  - id: LB-06
+    flow_id: 004-pricing
+    report_type: tester
+    finding: "T1 | medium | src/pricing/round.ts:88 | -0.005 rounds to -0.00 instead of -0.01"
+    acceptance_criteria: "AC-1: Currency rounds half away from zero to 2 decimals."
+    code_excerpt: "return Math.round(value * 100) / 100;"
+    label: implement
+    reason: "Plan specifies half away from zero; code does not do it for negatives."
+
+  - id: LB-07
+    flow_id: 005-payments-webhook
+    report_type: critic
+    finding: "C2 | high | src/webhooks/handler.ts:55 | exception caught and logged; no retry"
+    acceptance_criteria: "AC-5: Failed webhook processing retries up to 3 times before dead-lettering."
+    code_excerpt: "try { await process(event); } catch (e) { log.error(e); }"
+    label: implement
+    reason: "Plan requires 3 retries; code has none."
+
+  - id: LB-08
+    flow_id: 001-checkout
+    report_type: critic
+    finding: "C3 | suggestion | src/api/routes.ts:12 | consider renaming handler to clarify intent"
+    acceptance_criteria: "AC-1: Checkout endpoint behaves as specified."
+    code_excerpt: "export const handler = ..."
+    label: park
+    reason: "Not a defect against plan or code. A person decides whether to act."
+
+  - id: LB-09
+    flow_id: 002-search
+    report_type: tester
+    finding: "T5 | medium | flow T-3 | passed on retry; timing-dependent"
+    acceptance_criteria: "AC-3: Search returns results within the page-load window."
+    code_excerpt: ""
+    label: park
+    reason: "Flakiness. Could be test or code; the state does not settle it."
+
+  - id: LB-10
+    flow_id: 003-refunds
+    report_type: tester
+    finding: "T6 | high | tests/refund.spec.ts:30 | asserts 200 but endpoint returns 201"
+    acceptance_criteria: "AC-1: Creating a refund returns 201 with the refund id."
+    code_excerpt: "expect(res.status).toBe(200);"
+    label: implement
+    reason: "Boundary case. The test asserts the wrong value; the fix is in the test, which is implementation work."
+
+  - id: LB-11
+    flow_id: 006-coupons
+    report_type: critic
+    finding: "C4 | high | plan AC-2 | 'valid coupon' is undefined; two implementations would differ"
+    acceptance_criteria: "AC-2: A valid coupon applies a discount."
+    code_excerpt: ""
+    label: plan
+    reason: "Plan leaves a term undefined."
+
+  - id: LB-12
+    flow_id: 002-search
+    report_type: critic
+    finding: "C6 | critical | src/search/query.ts:33 | SQL built by string concatenation"
+    acceptance_criteria: "AC-7: All search queries use parameterized SQL."
+    code_excerpt: "db.query(`SELECT * FROM items WHERE name LIKE '%${term}%'`);"
+    label: implement
+    reason: "Plan requires parameterized queries; code does not."
+
+  - id: LB-13
+    flow_id: 004-pricing
+    report_type: critic
+    finding: "C5 | warning | src/pricing/cache.ts:9 | TTL of 300s may be too long for prices"
+    acceptance_criteria: "AC-3: Prices shown are current."
+    code_excerpt: "const TTL_SECONDS = 300;"
+    label: park
+    reason: "A concern, not a defect. It does not point at a criterion or flow the plan gets wrong (contrast LB-03, where the test flow itself has no defined expectation). A person decides."
+
+  - id: LB-14
+    flow_id: 007-auth
+    report_type: tester
+    finding: "T7 | high | flow T-2 | expects 401 for an expired token; AC-2 says 403"
+    acceptance_criteria: "AC-2: An expired token returns 401 (test) / 403 (plan text)."
+    code_excerpt: ""
+    label: plan
+    reason: "The plan contradicts itself (AC-2 says 403 in its text, 401 in the test). The plan must settle which status is correct, so the loop goes back to plan."
+
+  - id: LB-15
+    flow_id: 003-refunds
+    report_type: tester
+    finding: "T8 | low | src/notify/email.ts:70 | subject missing order id"
+    acceptance_criteria: "AC-4: Refund emails include the order id in the subject, per the template."
+    code_excerpt: "subject: 'Your refund is processed'"
+    label: implement
+    reason: "Template requires the order id; code omits it."
+
+  - id: LB-16
+    flow_id: 005-payments-webhook
+    report_type: critic
+    finding: "C6 | critical | plan commit plan | blast radius lists 2 files; change touches shared auth middleware"
+    acceptance_criteria: "Commit plan lists src/webhooks/* only."
+    code_excerpt: ""
+    label: plan
+    reason: "Plan's blast radius is wrong."
+
+  - id: LB-17
+    flow_id: 002-search
+    report_type: tester
+    finding: "T9 | high | src/api/orders.ts:102 | page 2 skips item 20 (off-by-one)"
+    acceptance_criteria: "AC-5: Paging returns every item exactly once."
+    code_excerpt: "const offset = page * pageSize;"
+    label: implement
+    reason: "Plan requires each item once; code skips item 20."
+
+  - id: LB-18
+    flow_id: 001-checkout
+    report_type: critic
+    finding: "C7 | warning | src/api/orders.ts:200 | function is 180 lines; hard to maintain"
+    acceptance_criteria: "AC-1: Checkout behaves as specified."
+    code_excerpt: ""
+    label: park
+    reason: "Maintainability concern with no plan or spec violation. A person decides."
+
+  - id: LB-19
+    flow_id: 003-refunds
+    report_type: critic
+    finding: "C8 | high | src/refunds/audit.ts:14 | refund event logged with user email, not user id"
+    acceptance_criteria: "AC-6: Refund events log the user id, not personal data."
+    code_excerpt: "log.info({ refund, email: user.email });"
+    label: implement
+    reason: "Plan requires user id; code logs email (PII)."
+
+  - id: LB-20
+    flow_id: 008-admin
+    report_type: tester
+    finding: "T10 | high | flow T-5 | needs admin login; plan's test environment has no admin fixture"
+    acceptance_criteria: "AC-8: Admins can disable a coupon. Test env: standard users only."
+    code_excerpt: ""
+    label: plan
+    reason: "Test flow is untestable with the plan's environment."
+
+  - id: LB-21
+    flow_id: 003-refunds
+    report_type: tester
+    finding: "T11 | medium | src/refunds/service.ts:77 | partial refund rounds to the wrong cent"
+    acceptance_criteria: "AC-3: Partial refunds are exact to the cent."
+    code_excerpt: "const amount = Math.floor(total * ratio);"
+    label: implement
+    reason: "Plan requires exact cents; code truncates."
+
+  - id: LB-22
+    flow_id: 009-integrations
+    report_type: tester
+    finding: "T12 | high | flow T-4 | timeout waiting for third-party sandbox"
+    acceptance_criteria: "AC-9: Shipping quotes come from the provider sandbox."
+    code_excerpt: ""
+    label: park
+    reason: "Environment issue. Neither plan nor code is the cause."
+
+  - id: LB-23
+    flow_id: 005-payments-webhook
+    report_type: critic
+    finding: "C9 | high | src/auth/token.ts:14 | JWT expiry is not checked"
+    acceptance_criteria: "AC-10: Expired tokens are rejected."
+    code_excerpt: "const payload = jwt.decode(token);"
+    label: implement
+    reason: "Plan requires expiry check; code decodes without verifying expiry."
+
+  - id: LB-24
+    flow_id: 001-checkout
+    report_type: critic
+    finding: "C10 | high | plan Execution plan step 3 | writes directly to the orders table; spec says billing owns orders"
+    acceptance_criteria: "Execution plan step 3: write order rows directly."
+    code_excerpt: ""
+    label: plan
+    reason: "Plan contradicts the spec."
+
+  - id: LB-25
+    flow_id: 003-refunds
+    report_type: tester
+    finding: "T13 | medium | src/ui/refund-button.tsx:44 | button label 'Refund now', plan says 'Confirm refund'"
+    acceptance_criteria: "AC-2: The refund button is labelled 'Confirm refund'."
+    code_excerpt: "<button>Refund now</button>"
+    label: implement
+    reason: "Plan specifies the label; code differs."
+
+  - id: LB-26
+    flow_id: 002-search
+    report_type: critic
+    finding: "C11 | warning | src/search/index.ts | code style differs from other modules"
+    acceptance_criteria: "AC-1: Search behaves as specified."
+    code_excerpt: ""
+    label: park
+    reason: "Style-only concern. A person decides whether to act."
+
+  - id: LB-27
+    flow_id: 005-payments-webhook
+    report_type: tester
+    finding: "T14 | high | src/webhooks/handler.ts:33 | duplicate event causes double refund; plan requires idempotency key"
+    acceptance_criteria: "AC-7: Duplicate webhook events are idempotent (use an idempotency key)."
+    code_excerpt: "await refunds.create(event.data);"
+    label: implement
+    reason: "Plan requires idempotency; code has none."
+
+  - id: LB-28
+    flow_id: 006-coupons
+    report_type: tester
+    finding: "T15 | medium | flow T-7 | AC-8 requires an email confirmation; no flow verifies the email is sent"
+    acceptance_criteria: "AC-8: Applying a coupon sends a confirmation email. Test flows: T-1 to T-6."
+    code_excerpt: ""
+    label: plan
+    reason: "Orphan acceptance criterion."
+
+  - id: LB-29
+    flow_id: 004-pricing
+    report_type: tester
+    finding: "T16 | low | flow T-1 | passes locally, fails in CI on the Node version"
+    acceptance_criteria: "AC-1: Rounding works on the pinned runtime."
+    code_excerpt: ""
+    label: park
+    reason: "Environment mismatch. Not a plan or code defect in the state."
+
+  - id: LB-30
+    flow_id: 003-refunds
+    report_type: critic
+    finding: "C11 | high | src/refunds/service.ts:50 | skips the partial-refund branch; AC-3 contradicts itself on partial refunds"
+    acceptance_criteria: "AC-3: Full refunds within 30 days. AC-3b: Partial refunds are refused. AC-3c: Partial refunds are allowed."
+    code_excerpt: "if (isPartial) return refuse();"
+    label: plan
+    reason: "Mixed finding: the plan contradicts itself and the code also differs. Mixed goes to plan."
