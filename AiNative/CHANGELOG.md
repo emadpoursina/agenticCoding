@@ -12,6 +12,7 @@
 - Onboarding Spec Kit layout heading changed from "required for `feature` cards, skipped for `change`/`job`" to "required for all projects" — the layout is required with no path condition, and `ready` runs before `route`.
 - Onboarding "After onboarding" now states that a card is done only after its PR is merged: `job` on merge, `feature` and `change` after UAT pass and merge.
 - `speckit-orchestrate` aligned with the same rule: graph, job path sequence, Ship / UAT paragraph, Merge section, mermaid flow, and `rule.md` now park a job run at its open PR and complete only after the human merges, the parent verifies `MERGED`, syncs the base, and removes the worktree and branches.
+- `speckit-orchestrate` UAT fail now loops back instead of halting: the parent records the findings and loops back on the same worktree, branch, and PR. Feature runs return to converge and change runs return to the change worker. The work then ships to the same PR, goes through pr-reviewer re-review, and returns to UAT. Each UAT round is numbered with a `ROUND` field. Applied to the mermaid flow (feature and change UAT-fail edges), the feature and change path UAT steps, and Ship / UAT outcome B.
 
 ## [0.7.0] - 2026-11-02
 

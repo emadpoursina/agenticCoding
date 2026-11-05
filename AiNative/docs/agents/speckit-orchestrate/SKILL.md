@@ -373,7 +373,7 @@ flowchart TD
   featureReview -->|REQUEST CHANGES: Criticals| conv
   featureReview -->|BLOCKED| haltReview[park: Phase 1.5 blocked]
   featureUat -->|pass| featureDone
-  featureUat -->|fail| featureHalt[halt with findings]
+  featureUat -->|fail: record findings, ROUND+1| conv
 
   change -->|SCOPE feature| haltScope[stop: needs feature path]
   change --> changeTester[tester]
@@ -386,7 +386,7 @@ flowchart TD
   changeReview -->|REQUEST CHANGES: Criticals| change
   changeReview -->|BLOCKED| haltChangeReview[park: Phase 1.5 blocked]
   changeUat -->|pass| changeDone
-  changeUat -->|fail| changeHalt[halt with findings]
+  changeUat -->|fail: record findings, ROUND+1| change
 
   job -->|questions| job
   job --> publish[ship: commit, push, PR]
@@ -561,7 +561,9 @@ flowchart TD
     Worker MUST NOT ship, merge, write `tasks.md`, or dispatch converge/implement.
 13. **UAT** — after PR review APPROVE (or zero Criticals), park for operator UAT.
     - UAT pass: the parent runs the merge step (see **Merge**); the run completes only when the PR is merged.
-    - UAT fail: halt with findings (v1 does not auto-loop UAT).
+    - UAT fail: record the findings and loop back on the same `WORKTREE`, `BRANCH`, and PR:
+      feed the findings to converge as `$ARGUMENTS` with the next `ROUND` → `implement ↔ converge`
+      → `critic` → `tester` → same-PR ship → `pr-reviewer` → UAT again (see **Ship / UAT**).
 
 ### Change path
 
@@ -585,7 +587,7 @@ flowchart TD
    - `VERDICT: APPROVE` or `REQUEST CHANGES` with `CRITICAL_COUNT: 0` → UAT park.
    - `REQUEST CHANGES` with `CRITICAL_COUNT ≥ 1` → retry change worker with FINDINGS (no `tasks.md`, no converge) → tester → same-PR ship → re-review.
    - `BLOCKED` → park.
-7. **UAT** — operator exercises the PR: UAT pass triggers the parent merge step (see **Merge**); UAT failure halts with findings. The run completes only after the PR is merged.
+7. **UAT** — operator exercises the PR: UAT pass triggers the parent merge step (see **Merge**); UAT failure records the findings and loops back on the same `WORKTREE`, `BRANCH`, and PR — a new change worker gets the findings and the next `ROUND` (no `tasks.md`, no converge) → tester → same-PR ship → re-review → UAT again (see **Ship / UAT**). The run completes only after the PR is merged.
 
 ### Job path
 
@@ -694,8 +696,15 @@ automatically as a loop state. After PR review completes with APPROVE
 (or zero Criticals), the parent parks for operator UAT:
 
 - **A — UAT pass:** run the **Merge** procedure below; the run completes once the PR is merged.
-- **B — UAT fail:** halt with the findings. In v1, do not loop back to
-  implement.
+- **B — UAT fail:** record the operator's findings and loop back on the same
+  `WORKTREE`, `BRANCH`, and PR (never a new worktree, branch, or PR). Feature
+  runs return to converge (findings as `$ARGUMENTS`); change runs return to a new
+  change worker (findings as `FINDINGS`). The work then re-runs validation, ships
+  to the same PR, goes through `pr-reviewer` re-review, and returns to UAT.
+  Each UAT round is numbered with a `ROUND` field: the first UAT is `ROUND: 1`,
+  and each UAT fail increments it. The parent passes `ROUND` to the loop-back
+  worker and records it with the findings, so every round's findings stay
+  traceable on the PR.
 
 Do not run UAT or pr-reviewer after a job ship, nor after `SHIP: blocked` or `SHIP: declined`.
 A job ship parks at the open PR; the run completes only after the human merges and the
