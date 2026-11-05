@@ -129,7 +129,7 @@ means a default — it means machine-infer by `route-work`.
 |---|---|---|
 | `feature` | A desired product outcome that needs a spec, plan, and review | The graph below (`ready → route → specify → clarify → plan → tasks → [analyze] → implement ↔ converge → critic → tester → ship → pr-review → uat`); planning creates child Task Cards |
 | `change` | A small code edit already specified by the card | `ready` → `route` → one worker → `tester` → `ship` → `pr-review` → `uat` (no critic, no converge, no `tasks.md`) |
-| `job` | Work that is not a code change (write a PRD, bootstrap from a PRD) | `ready` → `route` → one worker for the named skill. It may park for a human. Workers never ship. After the named skill reports `STATUS: ok` the parent automatically ships (commit, push branch, open PR; `keep-local` opts out); after named skill `STATUS: ok` → ship (or declined); MUST NOT run pr-reviewer; UAT is not a job-path stage. It does not enter the feature graph |
+| `job` | Work that is not a code change (write a PRD, bootstrap from a PRD) | `ready` → `route` → one worker for the named skill. It may park for a human. Workers never ship. After the named skill reports `STATUS: ok` the parent automatically ships (commit, push branch, open PR; `keep-local` opts out); after named skill `STATUS: ok` → ship (or declined); MUST NOT run pr-reviewer; UAT is not a job-path stage. The job path skips **pr-review and UAT only**: after ship the card stays open until the human merges its PR; the parent then verifies `MERGED`, syncs the base branch, removes the worktree and branches, and only then completes, so cards with `parents=[job card]` release on merge. It does not enter the feature graph |
 
 Downstream stages MUST use `FEATURE_DIR` / `.specify/feature.json` (basename e.g. `002-agentic-validation`) and MUST NOT infer the spec directory from git `BRANCH` (`agentic-validation` may differ).
 
@@ -137,8 +137,10 @@ No worker on any path ships. Every path ends the same way: once validation
 passes, the parent commits, pushes the branch, and opens a PR automatically,
 with no confirmation prompt. The PR is the review surface; on feature and
 change paths, the operator's UAT pass on the open PR is the single merge approval,
-and the parent then merges (job path skips pr-review, UAT, and merge). `keep-local` opts a run out of
-shipping.
+and the parent then merges. The job path skips pr-review and UAT only: after
+ship the card stays open until the human merges its PR; the parent completes
+only after verifying `MERGED`, syncing the base branch, and removing the
+worktree and branches. `keep-local` opts a run out of shipping.
 
 PR CI independently re-proves validation and evidence stays out of git —
 see the CI re-proof and evidence-hygiene guidance in
@@ -151,6 +153,21 @@ and reports that. It does not promote itself onto the feature graph.
 implement/converge, or critic. `tester` runs the
 project `validation_commands`. `ready` on a `change` is branch preflight
 only.
+
+### Phased PRD
+
+A PRD with N phases becomes N `feature` **parent** cards, one per phase, in
+order. Phase 1 takes the normal parent (the PRD job card); every later phase
+sets `parents=[previous phase card]`, so a phase cannot start before the
+previous one is done.
+
+- A phase card body cites **only its PRD phase section** — the requirements for
+  that phase — and never implementation details. `plan.md` / `tasks.md` own the
+  how; a design copied into the card body goes stale the moment implement
+  diverges from it, and then two sources of truth disagree.
+- A phase is done only when **its PR is merged** — not at `ship`, not at a UAT
+  pass, not when its child cards complete. The same rule as every other card
+  (see [After onboarding](../knowledge/setup/new-project.md#after-onboarding)).
 
 ## Canonical state graph
 
@@ -194,7 +211,12 @@ Graph string: `ready → route → specify → clarify → plan → tasks → [a
 The parent does that in `ship` automatically once validation passes; on feature
 and change paths, the operator then reviews the PR (UAT). A UAT pass makes the
 parent merge it (merge commit, after checking mergeability, required checks, and
-that the head matches the validated head). Job path skips pr-review, UAT, and merge.
+that the head matches the validated head).
+
+**Job path:** it skips pr-review and UAT only. After ship the card stays open
+until the human merges its PR; the parent then verifies `MERGED`, syncs the base
+branch, removes the worktree and branches, and only then completes — so cards
+with `parents=[job card]` release on merge, never on an open PR.
 
 ## PIVS mapping
 
@@ -203,12 +225,14 @@ The loop above is the detailed form of PIVS:
 * **Plan** = `ready → route → specify → clarify → plan → tasks → [analyze]`
 * **Implementation** = `implement ↔ converge`
 * **Validation** = `critic → tester`
-* **Ship** = `ship → pr-review → uat` (pr-review is an automatic loop state after Ship on feature and change paths; job path skips pr-review and UAT) → merge (parent step, after UAT pass; feature and change paths only)
+* **Ship** = `ship → pr-review → uat` (pr-review is an automatic loop state after Ship on feature and change paths; the job path skips pr-review and UAT only) → merge (parent step, after UAT pass on feature and change; on the job path the card completes after the human merges and the parent verifies `MERGED`, syncs the base branch, and removes the worktree and branches)
 
 **Default ship order** (until explicitly changed): critic PASS then tester PASS, then parent
 ships the **branch** (commit, push, open PR with walkthrough) automatically,
 with no confirmation prompt; `keep-local` opts out. After `SHIP: ok`, pr-reviewer runs automatically. Do not open a PR and then
-treat the walkthrough as optional. Merge is a parent step taken only after the operator's UAT pass.
+treat the walkthrough as optional. Merge is a parent step taken after the operator's UAT pass on
+feature and change paths; on the job path the human merges the open PR and the parent completes on
+`MERGED`.
 
 `skip` is an **operator flag**, not a skipped specify/clarify state.
 Workers self-answer; the parent still shows the choice report and goes

@@ -16,13 +16,16 @@ project's Spec Kit skills and the global skills it names.
 ```text
 ready → route-work ─┬─ feature → specify … converge → critic → tester → ship* → pr-review → UAT
                     ├─ change  → change → tester → ship* → pr-review → UAT
-                    └─ job     → named skill → ship* (no pr-review, no UAT)
+                    └─ job     → named skill → ship* (no pr-review, no UAT) → human merge
 ```
 
 Graph string: `ready → route → specify → clarify → plan → tasks → [analyze] → implement ↔ converge → critic → tester → ship → pr-review → uat`
 
 \* `ship` is automatic once validation passes; `keep-local` (alias `no-ship`) opts out. Merge is a
-parent step taken only after the operator's UAT pass on the open PR (feature and change paths; job has no UAT or merge gate).
+parent step taken after the operator's UAT pass on the open PR (feature and change paths).
+The job path skips pr-review and UAT only, not merge: the human merges the job PR, and the
+parent then verifies `MERGED`, syncs the base, removes the worktree and branches, and only then
+completes.
 
 Only **feature** uses the heavy Spec Kit machinery. **change** and **job** are
 thin.
@@ -297,7 +300,8 @@ parse reports, honor the keywords, relay a worker's queued questions to the
 user one at a time (relay only; do not score or write the answer into files),
 show the clarify choice report, run the pre-push guards, execute the automatic
 ship (commit, push, PR) once validation passes unless the operator passed
-`keep-local`, park feature/change runs for UAT, merge after a UAT pass, enforce stuck policy, and write
+`keep-local`, park feature/change runs for UAT, merge after a UAT pass, keep a job run
+open until the human merges its PR, enforce stuck policy, and write
 the finish report. Ship and UAT are parent-only
 operations; workers remain ship-dumb on every path. It MAY read
 worker reports, `git diff --stat`, and `quickstart.md` for that report. It MUST NOT read the
@@ -386,7 +390,8 @@ flowchart TD
 
   job -->|questions| job
   job --> publish[ship: commit, push, PR]
-  publish -->|ok| jobDone[job report]
+  publish -->|ok| jobMerge[await human merge]
+  jobMerge -->|MERGED: verify, sync base, remove worktree + branches| jobDone[job report]
   publish -->|keep-local / declined| jobDone
   publish -->|blocked| jobShipHalt[halt: ship blocked]
 ```
@@ -596,9 +601,16 @@ flowchart TD
    paths on your own.
 4. **Ship** — after named skill `STATUS: ok`, run the shared **Ship / UAT** procedure
    below automatically (no confirmation prompt), unless the operator passed
-   `keep-local` (alias `no-ship`). For jobs, after named skill `STATUS: ok` → ship (or declined); MUST NOT run pr-reviewer; UAT is not a job-path stage and there is no merge gate.
+   `keep-local` (alias `no-ship`). For jobs, after named skill `STATUS: ok` → ship
+   (or declined); MUST NOT run pr-reviewer; UAT is not a job-path stage. The job
+   path skips **pr-review and UAT only, not merge**: after `SHIP: ok` it parks at
+   the open PR.
 5. **Complete** — report the skill used, the artifacts, and the PR URL when
-   published.
+   published. A job run does not complete at an open PR: park there, and once the
+   human merges it, verify `MERGED` (`gh pr view <PR> --json state`), sync the
+   base (see **Merge**), remove the worktree and its branches, and only then
+   report the run complete. Cards with `parents=[job card]` release on that
+   completion — never on an open PR.
 
 ## Ship / UAT (parent only; job skips UAT)
 
@@ -608,10 +620,12 @@ enters after `TESTER: PASS`; job enters after `STATUS: ok`.
 **Ship is automatic and asks no confirmation.** Once the path's validation
 gate passes, the parent commits, pushes, and opens a PR. The PR *is* the
 review surface: the operator reviews the concrete diff and walkthrough, not the
-intent beforehand. Merge is a parent step on feature and change paths only, taken
-after the operator's UAT pass on the open PR. The UAT pass is the single human
-merge approval; there is no separate merge gate. The job path has no UAT and no
-merge gate. Workers never merge.
+intent beforehand. Merge is a parent step, taken after the operator's UAT pass
+on the open PR (feature and change paths). The UAT pass is the single human
+merge approval; there is no separate merge gate. The job path skips pr-review
+and UAT only: the human merges the job PR, and the parent then verifies
+`MERGED`, syncs the base, and removes the worktree and branches before
+completing. Workers never merge.
 
 Opt out with the `keep-local` keyword (alias `no-ship`, see **Keywords**): when present, skip
 ship, emit `SHIP: declined`, skip automatic pr-review and UAT, and finish.
@@ -684,6 +698,8 @@ automatically as a loop state. After PR review completes with APPROVE
   implement.
 
 Do not run UAT or pr-reviewer after a job ship, nor after `SHIP: blocked` or `SHIP: declined`.
+A job ship parks at the open PR; the run completes only after the human merges and the
+parent verifies `MERGED`.
 A ship failure is `SHIP: blocked`, not an implicit keep-local decision; report
 the blocker and stop (MUST NOT infer `keep-local` from blocked ship). `SHIP: declined` means only the `keep-local` (alias `no-ship`) opt-out.
 Workers do not commit, push, create PRs, write walkthroughs, or perform UAT on
@@ -692,7 +708,10 @@ any path.
 ## Merge (parent only; feature and change paths)
 
 Runs only after the operator's UAT pass on the open PR. The UAT pass is the
-single merge approval. The job path never reaches this section.
+single merge approval. The job path never reaches the merge itself: the human
+merges the job PR directly, and the parent then runs the shared post-merge
+follow-up (verify `MERGED`, sync the base, remove the worktree and branches)
+before completing the run.
 
 Before merging, the parent verifies, and halts with the blocker if any check fails:
 

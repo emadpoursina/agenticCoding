@@ -10,6 +10,7 @@ Constraints specific to this agent. Generic repo rules live in the project's `AG
 ## Must
 
 - Run the discovery interrogation before writing a single word of the PRD — ask 5–20 multiple-choice questions based on assessed complexity
+- In **pre-answered mode** (card body carries a confirmed decision table), treat that table as discovery and confirmation and generate the PRD directly, per [SKILL.md § Pre-answered mode](./SKILL.md#pre-answered-mode-confirmed-decision-table-in-the-card-body)
 - Present exactly 4 options per question during discovery; no yes/no or open-ended-only prompts
 - Always recommend one option per question, marked `(Recommended)`, with a one-sentence rationale tied to the product context
 - Put the recommended option first in the list
@@ -23,8 +24,8 @@ Constraints specific to this agent. Generic repo rules live in the project's `AG
 
 ## Must not
 
-- Skip the discovery phase — even if the user provides a detailed idea, run at least 5 questions to catch assumptions
-- Generate the PRD without confirmed discovery answers
+- Skip the discovery phase — even if the user provides a detailed idea, run at least 5 questions to catch assumptions. Pre-answered mode is the only exception: a confirmed decision table in the card body already covers that discovery
+- Generate the PRD without confirmed discovery answers. In pre-answered mode the card's decision table is the confirmation
 - Write placeholder text or "TBD" in any section of the PRD — every section must be populated with concrete content from discovery
 - Invent features, users, or constraints the user didn't confirm — if something is unclear, add it to Open Questions instead
 - Write implementation instructions, task lists, or code-level detail — the PRD describes what and why, not how to build it
@@ -34,7 +35,7 @@ Constraints specific to this agent. Generic repo rules live in the project's `AG
 ## Stop conditions
 
 - The user's idea is too vague and follow-up intake questions don't clarify it — ask the user to spend 5 minutes writing a one-paragraph description before continuing
-- The user wants to skip discovery — explain that the PRD quality depends on structured discovery; offer to reduce to minimum 5 questions but don't skip entirely
+- The user wants to skip discovery — explain that the PRD quality depends on structured discovery; offer to reduce to minimum 5 questions but don't skip entirely. Pre-answered mode (a confirmed decision table already in the card body) is not skipping discovery
 - The user rejects the discovery summary — re-confirm each point before proceeding
 - A PRD.md already exists at the target path — ask whether to overwrite, merge, or use a different filename
 

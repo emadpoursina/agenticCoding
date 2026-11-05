@@ -11,7 +11,25 @@ Procedural instructions for generating a Product Requirements Document through s
 
 ## Discovery interrogation (before writing anything)
 
-The discovery phase is mandatory. Do not write a single section of the PRD until discovery is complete and confirmed.
+The discovery phase is mandatory **except in pre-answered mode** (below): when the card body already carries a confirmed decision table, skip discovery and the confirmation wait and generate `PRD.md` directly.
+
+### Pre-answered mode (confirmed decision table in the card body)
+
+A card may arrive after the interview already happened — the discovery outcome was pasted into the card body as the Step 6 summary table:
+
+| Domain | Decision |
+|--------|----------|
+| Problem | ... |
+| Audience | ... |
+| Platform | ... |
+
+Treat that table as discovery **and** confirmation:
+
+- Skip Steps 1–5 entirely. Do not re-ask a question the table answers.
+- Skip the Step 6 wait. A confirmed decision table in the card body **is** the confirmation; there is no operator to wait for.
+- Generate `PRD.md` directly from the table, filling every mandatory section in [PRD structure](#prd-structure). Set `Author:` to `PRD Writer Agent, from the card's confirmed decisions`.
+- If a mandatory section has no matching decision, record the assumption under **Risks and Assumptions** rather than silently inventing a requirement. Park one question only when the gap blocks a functional requirement.
+- Everything else (EARS requirements, INCOSE checks, quality checklist, commit message) is unchanged.
 
 ### Step 1: Intake
 
@@ -84,13 +102,13 @@ After all questions are answered, summarize every confirmed decision in a compac
 
 Ask: "Does this summary capture your intent correctly? I'll generate the full PRD once confirmed."
 
-Wait for explicit confirmation before proceeding.
+Wait for explicit confirmation before proceeding. Exception: in pre-answered mode the table already exists in the card body — do not re-summarize or re-ask; go straight to generation (see [Pre-answered mode](#pre-answered-mode-confirmed-decision-table-in-the-card-body)).
 
 ---
 
 ## PRD generation
 
-Generate the PRD only after confirmation. Write it to a markdown file.
+Generate the PRD only after confirmation (in pre-answered mode, immediately: the card's confirmed decision table is the confirmation). Write it to a markdown file.
 
 ### File location
 

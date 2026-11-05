@@ -48,7 +48,7 @@ Same checklist for empty and non-empty repos. Never overwrite existing content.
      cards until bootstrap replaces it with real commands).
    - `scratch/` + gitignored.
    - `.gitignore` covers scratch, env, build output.
-4. **Spec Kit layout (required for `feature` cards, skipped for `change`/`job`):**
+4. **Spec Kit layout (required for all projects):**
    Source is always the official Spec Kit — never copy `.specify/` or
    `.pi/` from a sibling project repo (those contain that project's
    version, integration settings, and possibly a filled `constitution.md`).
@@ -67,9 +67,26 @@ Same checklist for empty and non-empty repos. Never overwrite existing content.
    `taskstoissues`) — a superset is fine. Pi has built-in MCP support since
    1.0, so `taskstoissues` and other tool-using prompts work without an
    adapter. If missing, note it — the per-card
-   `ready` gate will block `feature` cards until it is added.
+   `ready` gate runs before `route` and will block the card until it is added.
 5. **Local services (if the project needs a DB):** one database per project per
    [local-shared-services.md](./local-shared-services.md).
+6. **Commit and push the onboarding.** Onboarding is operator work, not a
+   card, so it lands directly on the base branch — no PR, no worker. Commit
+   the files from steps 3–4 (`.specify/` and `.pi/prompts/` are uncommitted
+   after `specify init`) and push:
+   ```bash
+   git add -A && git commit -m "docs: onboard project"
+   git push origin <base>
+   ```
+   Then pin the base so the `ready` gate does not have to infer it:
+   ```bash
+   git config speckit.baseBranch <base>
+   git remote set-head origin -a
+   ```
+   `ready` resolves the base from `speckit.baseBranch` first, then
+   `refs/remotes/origin/HEAD`; with neither set on a freshly created repo it
+   refuses to guess. Both setters are local to this clone — run them once per
+   clone, right after the onboarding commit.
 
 Stop here. Do not write a PRD, scaffold the app, declare dependencies, or open
 cards during onboarding.
@@ -86,6 +103,12 @@ cards during onboarding.
 * Every card ends the same way: workers never ship; once validation passes the
   parent commits, pushes the branch, and opens a PR automatically (no
   confirmation prompt; `keep-local` opts out). Merge stays human.
+* A card is **done only after its PR is merged** — an open PR is not a
+  finished card. On the `job` path the card stays open after ship until the
+  human merges; the parent then verifies `MERGED` and completes. On `feature`
+  and `change` paths the card is done after the operator's UAT pass and the
+  parent's merge. Cards whose `parents=[job card]` (e.g. bootstrap from a
+  PRD) release only when that merge is confirmed.
 
 ## Development (unchanged)
 

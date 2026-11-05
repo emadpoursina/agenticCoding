@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.7.1] - 2026-11-05
+
+### Added
+- `prd-writer` **pre-answered mode**: when the card body already carries a confirmed decision table, skip discovery and the confirmation wait and generate `PRD.md` directly (`SKILL.md` + `rule.md`).
+- Feature loop card paths: **Phased PRD** rule — a PRD with N phases becomes N `feature` parent cards, each with `parents=[previous phase card]`; each body cites only its PRD phase section (not implementation details, which go stale); a phase is done only when its PR is merged.
+
+### Changed
+- `job` path skips **pr-review and UAT only** — no longer merge. After ship the card stays open until the human merges its PR; the parent then verifies `MERGED`, syncs the base branch, removes the worktree and branches, and only then completes, so cards with `parents=[job card]` release on merge. Applied to the card-paths job row, the end-of-path rule, the shipping paragraph, and the PIVS mapping line.
+- Onboarding checklist now ends with a commit: onboarding files are committed and pushed to the base branch as `docs: onboard project`, then `git config speckit.baseBranch <base>` and `git remote set-head origin -a` pin the base so `ready` resolves it instead of guessing on a repo with no `origin/HEAD`.
+- Onboarding Spec Kit layout heading changed from "required for `feature` cards, skipped for `change`/`job`" to "required for all projects" — the layout is required with no path condition, and `ready` runs before `route`.
+- Onboarding "After onboarding" now states that a card is done only after its PR is merged: `job` on merge, `feature` and `change` after UAT pass and merge.
+- `speckit-orchestrate` aligned with the same rule: graph, job path sequence, Ship / UAT paragraph, Merge section, mermaid flow, and `rule.md` now park a job run at its open PR and complete only after the human merges, the parent verifies `MERGED`, syncs the base, and removes the worktree and branches.
+
 ## [0.7.0] - 2026-11-02
 
 ### Added

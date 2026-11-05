@@ -4,7 +4,7 @@
 - Validators never write or append `tasks.md`. Workers are stage-dumb: they report a
   compact verdict and exit; they do not dispatch the next stage, write `tasks.md`,
   ship, or implement.
-- Auto-merge MUST NOT be introduced. Merge is a parent-owned step on feature and change paths, taken only after the operator's UAT pass on the open PR; the UAT pass is the single merge approval.
+- Auto-merge MUST NOT be introduced. Merge is a parent-owned step on feature and change paths, taken only after the operator's UAT pass on the open PR; the UAT pass is the single merge approval. On the job path the human merges the PR, and the parent only verifies `MERGED`, syncs the base, removes the worktree and branches, and then completes.
 - `keep-local` MUST NOT be inferred from `SHIP: blocked`.
 - Downstream stages MUST use `FEATURE_DIR` / `.specify/feature.json` and MUST NOT
   infer the spec directory from git `BRANCH`.
@@ -24,7 +24,7 @@
   - `plan` or mixed FAIL → park.
   - Missing `LOOP_BACK` on FAIL → tester assertion/code as `implement`, explicit spec/plan contradiction as `plan`, else park.
   - `CONVERGE_OUTCOME: converged` while a validator FAIL is still open → park; do not re-run critic/tester/pr-review.
-- Job path: after named skill `STATUS: ok` → ship (or declined); MUST NOT run pr-reviewer; UAT is not a job-path stage.
+- Job path: after named skill `STATUS: ok` → ship (or declined); MUST NOT run pr-reviewer; UAT is not a job-path stage. It skips pr-review and UAT only, not merge: park at the open PR, and complete only after the human merges and the parent verifies `MERGED`.
 - Feature `keep-local`: critic and tester still run; skip ship, automatic pr-review, and UAT; emit `SHIP: declined`.
 - No model slugs are pinned in this skill; resolve each of the three profiles
   (Reasoning, Worker, Validation) per run from keywords → env → active
