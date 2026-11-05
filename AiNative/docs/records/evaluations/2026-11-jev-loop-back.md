@@ -85,11 +85,23 @@ _Fill after testing._
 
 | Run | Date | Model | Cases | Agreement (Jev) | Agreement (baseline) | Park rate | Notes |
 |-----|------|-------|-------|-----------------|----------------------|-----------|-------|
-| 1 | | jev-1.14.0 | | | | | |
+| 1 | 2026-11-05 | jev-1.14.0 | 30 synthetic | 13/30 (43%) | not run | 53% (16/30) | Pipeline PASS: 30/30 accepted, 0 errors, model echoed as jev-1.14.0, 60/60 probabilities. Labels unreviewed (`reviewed_by: null`), so agreement is informational. `plan_defect` does not discriminate (6 of 13 code defects score ≥0.7), so the `implement` row was unreachable for them. Park rate misses the ≤33% limit. Median latency 1,185 ms exceeds 500 ms. Details: [jev/loop-back/phase1-run1.md](./jev/loop-back/phase1-run1.md). |
 
 ### Summary
 
-What worked, what did not, surprises.
+**Run 1 (Phase 1 smoke test, 2026-11-05, spec v1 draft, `jev-1.14.0`, 30 synthetic cases).**
+
+- **Pipeline: pass.** All 30 requests were accepted with 0 errors, every response echoed `jev-1.14.0`, and all 60 judgments returned a probability.
+- **Decision quality: weak.** Agreement with the unreviewed draft labels was 13/30 (43%), and the park rate was 53%.
+- **Cause:** `plan_defect` doesn't separate code defects from plan defects. 6 of 13 code defects score ≥0.7 and go to `plan`. No code defect scores ≤0.3, so the `implement` row was almost unreachable. `code_defect` works as intended.
+- The 0.7/0.3 bands and the truth table stay unchanged. The problem is the judgment, not the table.
+
+**Next steps, in order:**
+
+1. A human reviews the 30 labels and sets `reviewed_by` in [cases.yaml](./jev/loop-back/cases.yaml).
+2. The operator decides whether to reword `plan_defect`. If so, bump [loop-back.yaml](../../systems/jev/loop-back.yaml) to v2 and rerun Phase 1.
+3. Build a baseline harness for the current LOOP_BACK rule and run it on the same cases.
+4. Phase 2: 3–5 real findings, with content approved by the operator and expectations written before any call. `breuer` and `zharfa` have no critic or tester reports yet, so those must be collected first.
 
 ## Verdict
 
