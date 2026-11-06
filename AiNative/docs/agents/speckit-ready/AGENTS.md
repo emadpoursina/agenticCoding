@@ -15,11 +15,12 @@ skill body and script; see [`../ready/`](../ready/).
 
 ## Inputs
 
-- `REPO_ROOT`, `FLOW_ID`, `FEATURE_DESCRIPTION`
+- `REPO_ROOT`, `FLOW_ID`, `FEATURE_DESCRIPTION`, `PHASE_REF` (`<plan-path>#<N>`
+  for one phase of a phased PRD, else `none`)
 
 ## Outputs
 
-- `READY: ok|blocked`, `FLOW_ID`, `BRANCH`, `WORKER` (`pi`, `antigravity`, or `claude`), `WORKTREE`, `CHECKS` (includes `worker-runtime`, plus `worktree-copy` and `worktree-setup` when a feature worktree was selected), `FIXES`
+- `READY: ok|blocked`, `FLOW_ID`, `BRANCH`, `WORKER` (`pi`, `antigravity`, or `claude`), `WORKTREE`, `CHECKS` (includes `worker-runtime`; `phase-order` when `PHASE_REF` is set; plus `worktree-copy` and `worktree-setup` when a feature worktree was selected), `FIXES`
 
 ## Worktree local files (optional)
 

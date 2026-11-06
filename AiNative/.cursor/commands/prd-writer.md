@@ -1,5 +1,5 @@
 ---
-description: Interviews the user through structured discovery (5–20 multiple-choice questions with recommendations), then generates a comprehensive Product Requirements Document as a markdown file. Use when starting a new product or 
+description: Interviews the user through structured discovery (5–20 multiple-choice questions with recommendations), then generates a comprehensive Product Requirements Document as a markdown file, plus a delivery phase plan when the
 ---
 
 # /prd-writer

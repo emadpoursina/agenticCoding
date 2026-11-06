@@ -20,6 +20,8 @@ starts `specs/`, and never ships.
   worktree)
 - `FLOW_ID` — opaque run id minted by the parent
 - `FEATURE_DESCRIPTION` — the task's feature description
+- `PHASE_REF` — `<plan-path>#<N>` for one phase of a phased PRD, else `none`
+  ([feature-loop.md § Phased PRD](../../systems/feature-loop.md#phased-prd))
 
 ## Output
 
@@ -30,8 +32,9 @@ Compact report (the parent parses it, never worker prose):
 - `BRANCH`
 - `WORKER` (`pi`, `antigravity`, or `claude`)
 - `WORKTREE` (absolute feature worktree path on `ok`; `REPO_ROOT` itself when already on the branch)
-- `CHECKS` (includes `worker-runtime` for the selected backend only; plus
-  `worktree-copy` and `worktree-setup` when a feature worktree was selected)
+- `CHECKS` (includes `worker-runtime` for the selected backend only;
+  `phase-order` when `PHASE_REF` is set; plus `worktree-copy` and
+  `worktree-setup` when a feature worktree was selected)
 - `FIXES`
 
 ## Worktree local files (optional)
@@ -59,6 +62,8 @@ failed, copy and setup are skipped.
 - Derive a 2–4 word kebab branch slug from the feature description.
 - Confirm git state (no detached HEAD, no merge in progress) and the Spec
   Kit skill layout.
+- For a phase run, confirm the previous phase is merged into the base branch
+  before adding any worktree.
 - Report exactly the compact report fields. No narrative.
 
 ## Boundary

@@ -96,6 +96,10 @@ cards during onboarding.
 * Empty repo: file a `job` card (`## Skill: prd-writer`) to write the PRD, then
   a `job` card (`## Skill: project-bootstrapper`) to scaffold from it. See
   [project-bootstrapper](../../agents/project-bootstrapper/).
+* A PRD too big for one feature run (from `prd-writer` or any other tool) gets
+  a phase plan from `prd-writer`, then one feature run per phase, in order,
+  each starting only after the previous phase's PR is merged. See
+  [Phased PRD](../../systems/feature-loop.md#phased-prd).
 * Non-empty repo: file cards directly. If the repo needs understanding first,
   Hermes may call `scout` (read-only brief / Repo Q&A) or the standalone
   `legacy-system-assessment-agent` as on-hand tools — neither is a loop stage

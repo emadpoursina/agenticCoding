@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.8.0] - 2026-11-06
+
+### Added
+- **Phase plans** for PRDs too big for one feature run: a separate `<prd-name>.phases.md` next to the PRD (`PRD.md` → `PRD.phases.md`). The PRD itself is never restructured, so a PRD written with any tool can be phased. Each phase has a goal, scope (PRD items by the PRD's own ID or heading, whole or by named part), testable exit criteria, out of scope, and a `**Spec:**` line; the plan also names the phase that completes the MVP and lists Deferred items with reasons.
+- `prd-writer` **phase-plan mode**: reads an existing PRD from any tool, proposes a split, waits for confirmation (or uses a confirmed phase table from the card body), and writes the plan without running discovery or editing the PRD. After writing its own PRD, `prd-writer` also writes the plan in the same run when discovery decided on N phases (new `Phases` row in the Step 6 table). Splitting rules: every PRD item (or named part) in exactly one phase or in Deferred; end-to-end slices, not technical layers; each merged phase works on its own; no phase depends on a later one. Commit message `docs: add phase plan for [product name]` in phase-plan mode.
+- `ready` **`phase-order` check** (`ready-check.sh` optional 4th argument `<plan-path>#<N>`; same script mirrored in `speckit-ready`): blocks Phase N unless the plan is on the base branch and Phase N−1's `**Spec:**` line there names a spec directory whose `spec.md` is also there. Also blocks a phase that is already merged. Runs before any worktree or branch is added, so a blocked phase never branches from a stale base. Phase runs get a fixed slug (`PRD.phases.md#2` → `prd-phase-2`). Selftest cases 32–40.
+- `speckit-orchestrate` `phase: <plan-path>#<N>` keyword: passes `PHASE_REF` to ready and specify and forces the feature path. The specify worker specs only that phase's scope, turns its exit criteria into acceptance scenarios, and fills the phase's `**Spec:**` line, which ships in the phase's own PR.
+- `route-work`: a task with a `phase:` line is always `feature`; a phase plan for an existing PRD routes to `prd-writer`.
+- `task-groomer`: a phase plan becomes one card per phase in plan order (no 2–4 card limit), each citing `phase: <plan-path>#<N>` and depending on the previous phase's card.
+
+### Changed
+- Feature loop **Phased PRD** rule rewritten in harness-neutral terms: one `feature` run per phase, named by `phase: <plan-path>#<N>`; the order is proven from the base branch by `ready`, and how a harness sequences runs is up to the harness. Phase 1 starts after the phase plan is merged (and, in an empty repo, after the bootstrap PR), no longer "after the PRD job card". A merged phase is not a releasable product; the plan's `MVP complete after:` line marks that.
+
 ## [0.7.1] - 2026-11-05
 
 ### Added
