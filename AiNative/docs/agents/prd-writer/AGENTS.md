@@ -10,10 +10,12 @@ This file is the agent's instruction surface in the open [AGENTS.md](https://age
 - You need a structured PRD before running the project-bootstrapper or filing a spec
 - You want a thorough discovery process that surfaces assumptions, edge cases, and tradeoffs before writing a single line of code
 - Stakeholders need an artifact to align on before implementation starts
+- A PRD (written here or with any other tool) is too big for one feature run and needs a phase plan
 
 ## Inputs
 
 - A product idea, concept, or rough description from the user (can be a few sentences, a paragraph, or a bullet list)
+- Or, in phase-plan mode: an existing PRD file in the repo, from any tool
 
 ## Outputs
 
@@ -31,10 +33,11 @@ This file is the agent's instruction surface in the open [AGENTS.md](https://age
   - **Success metrics** — measurable outcomes (adoption, engagement, revenue, performance)
   - **Risks and assumptions** — known unknowns, dependencies, constraints
   - **Open questions** — items deferred for later discovery or stakeholder input
+- Optional **phase plan** `<prd-name>.phases.md` next to the PRD, when the PRD is too big for one feature run: ordered end-to-end phases, each with a goal, scope (PRD items by ID or heading), testable exit criteria, out of scope, and a `**Spec:**` line; plus the MVP phase and a Deferred list (per [SKILL.md § Phase plan](./SKILL.md#phase-plan))
 
 ## Supporting files
 
 | File | Purpose |
 |------|---------|
-| [SKILL.md](./SKILL.md) | Discovery interrogation protocol, PRD sections and templates, quality checklist |
-| [rule.md](./rule.md) | Constraints — question minimum, no writing before discovery, PRD must be complete |
+| [SKILL.md](./SKILL.md) | Discovery interrogation protocol, PRD sections and templates, quality checklist, phase plan format and splitting rules |
+| [rule.md](./rule.md) | Constraints — question minimum, no writing before discovery, PRD must be complete, phase plan coverage and slicing |

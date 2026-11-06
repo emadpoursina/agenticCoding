@@ -52,6 +52,12 @@ arguments or in a later reply during specify or clarify. Match case-insensitivel
   as `REQUESTED_PATH`; route-work must honor it.
 - **skill: <name>** — the skill a job must use. Pass it to route-work as
   `REQUESTED_SKILL`.
+- **phase: <plan-path>#<N>** — this run is Phase N of a phased PRD (e.g.
+  `phase: PRD.phases.md#2`; see
+  [feature-loop.md § Phased PRD](../../systems/feature-loop.md#phased-prd)).
+  Keep `PHASE_REF=<plan-path>#<N>` (`none` when absent) and pass it to ready
+  and specify. A phase run is always `feature`: pass `REQUESTED_PATH=feature`
+  to route-work. If the user also named a different path, stop and ask.
 - **worker: <pi-model>** — per-profile override for the Worker profile only
   (`implement`, `converge`, `change`, `job`). Accepts `provider/model`,
   `provider/model:thinking`, or full Pi flags (`--provider <p> --model <m>
@@ -401,7 +407,9 @@ flowchart TD
 1. **Ready** — launch a `generalPurpose` worker with the resolved Reasoning-profile
    model. Tell it to follow the AiNative
    `<AINATIVE>/docs/agents/speckit-ready/SKILL.md` (not a project copy). Pass
-   `REPO_ROOT`, `FLOW_ID`, and `FEATURE_DESCRIPTION` (user args verbatim).
+   `REPO_ROOT`, `FLOW_ID`, `FEATURE_DESCRIPTION` (user args verbatim), and
+   `PHASE_REF` (`none` when absent). For a phase run, ready blocks until the
+   previous phase is merged into the base branch (`phase-order`).
    Ready runs against the original `REPO_ROOT` and never checks out the
    feature branch in the current worktree. Instead, it creates or reuses a
    dedicated git worktree for the feature branch (or reuses the current
@@ -448,6 +456,18 @@ flowchart TD
    If the specify worker still presents questions, the parent MUST NOT wait on
    the user for those: answer them as assumptions and tell the worker to
    finish. The parent MUST NOT write `spec.md`.
+
+   **Phase run** (`PHASE_REF` is not `none`): also pass `PHASE_REF` and tell
+   the worker to:
+   - read the phase plan, its `## Phase <N>` section, and the PRD items that
+     section names, and spec **only** Phase N's scope. Later phases and
+     Deferred items go under out of scope; phases with a filled `**Spec:**`
+     line are existing behavior (read their `spec.md` for context);
+   - turn Phase N's exit criteria into acceptance scenarios in `spec.md`;
+   - after creating `FEATURE_DIR`, set Phase N's `**Spec:**` line in the plan
+     to `FEATURE_DIR` as a repo-relative path (e.g. `specs/004-dashboard`) and
+     change nothing else in the plan or the PRD. That edit ships in the
+     phase's own PR and is what lets the next phase start once it merges.
 4. **Clarify** — launch a `generalPurpose` worker with the resolved Reasoning-profile
    model, same rules as specify. Tell it to follow the
    project's `REPO_ROOT/.pi/prompts/speckit.clarify.md` exactly (legacy fallback:

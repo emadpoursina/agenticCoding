@@ -156,18 +156,41 @@ only.
 
 ### Phased PRD
 
-A PRD with N phases becomes N `feature` **parent** cards, one per phase, in
-order. Phase 1 takes the normal parent (the PRD job card); every later phase
-sets `parents=[previous phase card]`, so a phase cannot start before the
-previous one is done.
+A PRD too big for one `feature` run gets a **phase plan**: a separate file
+next to the PRD, named `<prd-name>.phases.md` (`PRD.md` → `PRD.phases.md`).
+The PRD itself is never restructured, so a PRD written with any tool can be
+phased, as long as it is a file in the repo. `prd-writer` writes the plan,
+either right after writing the PRD or in phase-plan mode for an existing PRD.
+Format and rules:
+[prd-writer § Phase plan](../agents/prd-writer/SKILL.md#phase-plan).
 
-- A phase card body cites **only its PRD phase section** — the requirements for
-  that phase — and never implementation details. `plan.md` / `tasks.md` own the
-  how; a design copied into the card body goes stale the moment implement
-  diverges from it, and then two sources of truth disagree.
-- A phase is done only when **its PR is merged** — not at `ship`, not at a UAT
-  pass, not when its child cards complete. The same rule as every other card
-  (see [After onboarding](../knowledge/setup/new-project.md#after-onboarding)).
+Each phase is one `feature` run through the graph below, in plan order:
+
+- **Naming the phase.** A phase run's task input carries
+  `phase: <plan-path>#<N>` (e.g. `phase: PRD.phases.md#2`) and nothing about
+  how to build it. The plan and the PRD own the *what*; `plan.md` / `tasks.md`
+  own the *how*. A design copied into the task input goes stale the moment
+  implement diverges from it, and then two sources of truth disagree. A task
+  input with a `phase:` line is always a `feature`.
+- **Scope.** `specify` specs only Phase N's scope. Later phases and deferred
+  items are out of scope; earlier phases are existing behavior. Phase N's exit
+  criteria become acceptance scenarios in `spec.md`.
+- **Order.** Phase N starts only after Phase N−1's PR is merged into the base
+  branch. Phase 1 starts only after the phase plan is merged (in an empty
+  repo, after the bootstrap PR too). The proof lives on the base branch: each
+  phase's `specify` step writes its spec directory into that phase's
+  `**Spec:**` line on the phase branch, so the line reaches the base branch
+  only when the phase's PR merges. `ready` reads it there and blocks a phase
+  whose predecessor is not merged (`phase-order` check,
+  [ready](../agents/ready/SKILL.md#phase-order-required-when-phase_ref-is-set)).
+  How a harness sequences phase runs is the harness's business; the `ready`
+  check holds either way.
+- **Done.** A phase is done only when **its PR is merged**, not at `ship` and
+  not at a UAT pass. The same rule as every other unit of work (see
+  [After onboarding](../knowledge/setup/new-project.md#after-onboarding)).
+- **MVP.** A merged phase is not a releasable product. The plan's
+  `MVP complete after:` line names the phase that completes the MVP; an MVP
+  usually spans several phases.
 
 ## Canonical state graph
 
@@ -192,9 +215,9 @@ Graph string: `ready → route → specify → clarify → plan → tasks → [a
 
 | State | Kind | Worker? | Notes |
 |---|---|---|---|
-| `ready` | AiNative [`docs/agents/ready/`](../agents/ready/) (promoted; the single Ready definition; Cursor stage name `speckit-ready`) | yes | Git/worktree/layout preflight. Not scout. `READY: blocked` stops the run. Returns `WORKTREE` on `ok`. |
+| `ready` | AiNative [`docs/agents/ready/`](../agents/ready/) (promoted; the single Ready definition; Cursor stage name `speckit-ready`) | yes | Git/worktree/layout preflight. Not scout. `READY: blocked` stops the run. Returns `WORKTREE` on `ok`. Phase run: also blocks until the previous phase is merged ([Phased PRD](#phased-prd)). |
 | `route` | AiNative [`docs/agents/route-work/`](../agents/route-work/) (same as `speckit-orchestrate` route stage) | yes | Decides `feature \| change \| job`. Honors card `path` when present; infers from the task when absent. `ROUTE: job` with no usable skill stops. |
-| `specify` | Spec Kit | yes | |
+| `specify` | Spec Kit | yes | Phase run: specs only that phase's scope and fills its `**Spec:**` line in the phase plan ([Phased PRD](#phased-prd)). |
 | `clarify` | Spec Kit | yes | Questions return to the parent. Parent asks the operator. A **new** worker encodes answers. |
 | `plan` | Spec Kit | yes | No extra plan-approval gate. |
 | `tasks` | Spec Kit | yes | |

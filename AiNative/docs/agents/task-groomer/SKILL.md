@@ -52,6 +52,19 @@ OUTPUT:
 
 1. Check whether the task is small enough to be one card. If not, propose
    2–4 smaller cards and stop for operator selection.
+   Exception: a phased PRD
+   ([feature-loop.md § Phased PRD](../../systems/feature-loop.md#phased-prd)).
+   When the request is to implement a phase plan (`<prd-name>.phases.md`),
+   propose one card per phase in plan order, with no 2–4 limit, and stop for
+   operator confirmation. Skip phases whose `**Spec:**` line is already filled
+   (merged). For each phase card:
+   - Technical Notes: `phase: <plan-path>#<N>` and nothing about how to build it.
+   - Acceptance Criteria: `- [ ] Phase <N> exit criteria in <plan-path> pass`.
+     Cite the plan; do not copy it.
+   - Dependencies: the previous phase's card. Phase 1 depends on the card that
+     merges the phase plan, and in an empty repo on the bootstrap card too.
+   If the PRD is too big for one card and has no phase plan yet, propose a
+   `prd-writer` job to write one first.
 
 2. For software tasks, require a project name. Resolve it against
    `hermes project list` by exact name or slug. If there are multiple matches,

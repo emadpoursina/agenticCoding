@@ -1,7 +1,10 @@
 #!/usr/bin/env bash
 # ready-check.sh -- speckit ready-stage gate.
 #
-# Usage: ready-check.sh <repo_root> <flow_id> <slug>
+# Usage: ready-check.sh <repo_root> <flow_id> <slug> [<phase_ref>]
+#
+# <phase_ref> is optional: <plan-path>#<N> for a phased-PRD run (plan path
+# relative to the repo root). When given, the phase-order check is required.
 #
 # Prints the compact READY report to stdout.
 # Exit 0 when READY: ok, 1 when READY: blocked, 2 on usage/environment errors.
@@ -11,9 +14,13 @@ set -euo pipefail
 REPO_ROOT="${1:-}"
 FLOW_ID="${2:-}"
 SLUG="${3:-}"
+PHASE_REF="${4:-}"
+if [ "$PHASE_REF" = "none" ]; then
+  PHASE_REF=""
+fi
 
 if [ -z "$REPO_ROOT" ] || [ -z "$FLOW_ID" ] || [ -z "$SLUG" ]; then
-  echo "Usage: ready-check.sh <repo_root> <flow_id> <slug>" >&2
+  echo "Usage: ready-check.sh <repo_root> <flow_id> <slug> [<phase_ref>]" >&2
   exit 2
 fi
 
@@ -208,10 +215,121 @@ if [ "$branch_fail" -eq 0 ] && ! git check-ref-format --branch "$SLUG" >/dev/nul
   branch_fix="choose a feature description that produces a valid Git branch name, then re-run."
 fi
 
+# ---------------------------------------------------------------------------
+# Phase order (required only when a phase reference is given)
+#
+# Phase N may start only after Phase N-1 is merged into the base branch. The
+# proof is on the base branch itself: the phase plan is there, and Phase N-1's
+# "**Spec:**" line names a spec directory whose spec.md is also there. Each
+# phase's own specify step fills that line on the phase branch, so it reaches
+# the base branch only when the phase's PR merges. Runs before any worktree is
+# added, so a blocked phase never branches from a stale base.
+# ---------------------------------------------------------------------------
+
+phase_fail=0
+phase_note=""
+phase_fix=""
+
+# phase_spec_value <plan-text> <n> -> prints the Spec: value of "## Phase <n>"
+# ("none" until merged, "__nospec__" when the section has no Spec: line).
+# Returns 1 when the "## Phase <n>" heading is absent.
+phase_spec_value() {
+  printf '%s\n' "$1" | awk -v n="$2" '
+    BEGIN { found = 0; in_sec = 0; spec = "__nospec__" }
+    /^## / {
+      in_sec = 0
+      if (!found && $0 ~ ("^## Phase " n "([^0-9]|$)")) { found = 1; in_sec = 1 }
+      next
+    }
+    in_sec && /^\*\*Spec:\*\*/ {
+      v = $0
+      sub(/^\*\*Spec:\*\*[ \t]*/, "", v)
+      gsub(/`/, "", v)
+      sub(/[ \t]+$/, "", v)
+      sub(/\/$/, "", v)
+      if (v == "") v = "none"
+      spec = v
+      in_sec = 0
+    }
+    END {
+      if (!found) exit 1
+      print spec
+    }'
+}
+
+if [ -n "$PHASE_REF" ]; then
+  phase_plan="${PHASE_REF%#*}"
+  phase_plan="${phase_plan#./}"
+  phase_num="${PHASE_REF##*#}"
+  phase_ref_ok=1
+  if [ "$phase_plan" = "$PHASE_REF" ] || [ -z "$phase_plan" ]; then
+    phase_ref_ok=0
+  fi
+  case "$phase_plan" in
+    /*|..|../*|*/../*|*/..) phase_ref_ok=0 ;;
+  esac
+  case "$phase_num" in
+    ''|*[!0-9]*) phase_ref_ok=0 ;;
+    *) phase_num=$((10#$phase_num)) ;;
+  esac
+  if [ "$phase_ref_ok" -eq 1 ] && [ "$phase_num" -lt 1 ]; then
+    phase_ref_ok=0
+  fi
+
+  if [ "$phase_ref_ok" -eq 0 ]; then
+    phase_fail=1
+    phase_note="invalid phase reference '$PHASE_REF'"
+    phase_fix="name the phase as <plan-path>#<N> (plan path relative to the repo root, N a phase number from 1), e.g. PRD.phases.md#2, then re-run."
+  elif [ -z "$default_ref" ]; then
+    phase_fail=1
+    phase_note="phase order needs the base branch, which could not be resolved"
+    phase_fix="set SPECKIT_BASE_BRANCH for this run or run 'git config speckit.baseBranch <branch>' in this repository, then re-run."
+  elif ! plan_text="$(git show "${default_ref}:${phase_plan}" 2>/dev/null)"; then
+    phase_fail=1
+    phase_note="phase plan '$phase_plan' is not on base '$default_branch'"
+    phase_fix="merge the PR that adds '${phase_plan}' into '${default_branch}' (or fix the plan path); if it is already merged, update the local '${default_branch}' (git fetch / git pull), then re-run."
+  elif ! this_spec="$(phase_spec_value "$plan_text" "$phase_num")"; then
+    phase_fail=1
+    phase_note="'$phase_plan' on '$default_branch' has no '## Phase ${phase_num}' section"
+    phase_fix="add Phase ${phase_num} to '${phase_plan}' on '${default_branch}', or name an existing phase, then re-run."
+  elif [ "$this_spec" = "__nospec__" ]; then
+    phase_fail=1
+    phase_note="Phase ${phase_num} in '$phase_plan' has no **Spec:** line"
+    phase_fix="add '**Spec:** none' to Phase ${phase_num} in '${phase_plan}' on '${default_branch}', then re-run."
+  elif [ "$this_spec" != "none" ]; then
+    phase_fail=1
+    phase_note="Phase ${phase_num} is already merged into '$default_branch' (Spec: ${this_spec})"
+    phase_fix="Phase ${phase_num} of '${phase_plan}' is already merged; start the next phase, or file a change for fixes to it."
+  elif [ "$phase_num" -eq 1 ]; then
+    phase_note="Phase 1 of '$phase_plan'; plan is on base '$default_branch'"
+  else
+    prev_num=$((phase_num - 1))
+    if ! prev_spec="$(phase_spec_value "$plan_text" "$prev_num")"; then
+      phase_fail=1
+      phase_note="'$phase_plan' on '$default_branch' has no '## Phase ${prev_num}' section"
+      phase_fix="phases run in order; add Phase ${prev_num} to '${phase_plan}', or name the right phase, then re-run."
+    elif [ "$prev_spec" = "none" ] || [ "$prev_spec" = "__nospec__" ]; then
+      phase_fail=1
+      phase_note="Phase ${prev_num} is not merged into '$default_branch' yet (its Spec: line is not filled)"
+      phase_fix="merge Phase ${prev_num}'s PR into '${default_branch}' before starting Phase ${phase_num}; if it is already merged, update the local '${default_branch}' (git fetch / git pull), then re-run."
+    elif ! git cat-file -e "${default_ref}:${prev_spec}/spec.md" 2>/dev/null; then
+      phase_fail=1
+      phase_note="Phase ${prev_num} Spec: '${prev_spec}' has no spec.md on '$default_branch'"
+      phase_fix="merge Phase ${prev_num}'s PR into '${default_branch}', or correct its Spec: line in '${phase_plan}', then re-run."
+    else
+      phase_note="Phase ${phase_num} of '$phase_plan'; Phase ${prev_num} merged into '$default_branch' (${prev_spec})"
+    fi
+  fi
+fi
+
 worktree_path=""
 worktree_added_this_run=0
 
-if [ "$branch_fail" -eq 0 ]; then
+if [ "$branch_fail" -eq 0 ] && [ "$phase_fail" -ne 0 ]; then
+  branch_note="worktree not prepared (phase-order failed)"
+fi
+
+if [ "$branch_fail" -eq 0 ] && [ "$phase_fail" -eq 0 ]; then
   protected_branch=0
   case "$current_branch" in
     main|master|develop|development) protected_branch=1 ;;
@@ -989,7 +1107,7 @@ else
 fi
 
 ready="ok"
-if [ "$branch_fail" -ne 0 ] || [ "$layout_fail" -ne 0 ] || [ "$project_required_fail" -ne 0 ] || [ "$worker_fail" -ne 0 ] || [ "$copy_fail" -ne 0 ] || [ "$setup_fail" -ne 0 ]; then
+if [ "$branch_fail" -ne 0 ] || [ "$layout_fail" -ne 0 ] || [ "$project_required_fail" -ne 0 ] || [ "$worker_fail" -ne 0 ] || [ "$copy_fail" -ne 0 ] || [ "$setup_fail" -ne 0 ] || [ "$phase_fail" -ne 0 ]; then
   ready="blocked"
 fi
 
@@ -1004,6 +1122,14 @@ printf 'CHECKS:\n'
 printf -- '- [required] git-branch-state: %s — %s\n' "$bstat" "$branch_note"
 printf -- '- [required] speckit-layout: %s — %s\n' "$lstat" "$layout_note"
 printf -- '- [required] worker-runtime: %s — %s\n' "$wstat" "$worker_note"
+if [ -n "$PHASE_REF" ]; then
+  if [ "$phase_fail" -eq 0 ]; then
+    pstat="pass"
+  else
+    pstat="fail"
+  fi
+  printf -- '- [required] phase-order: %s — %s\n' "$pstat" "$phase_note"
+fi
 if [ -n "$copy_note" ]; then
   printf -- '- [required] worktree-copy: %s — %s\n' "$copy_stat" "$copy_note"
 fi
@@ -1024,6 +1150,9 @@ if [ "$ready" = "blocked" ]; then
   fi
   if [ "$worker_fail" -ne 0 ] && [ -n "$worker_fix" ]; then
     printf -- '- %s\n' "$worker_fix"
+  fi
+  if [ "$phase_fail" -ne 0 ] && [ -n "$phase_fix" ]; then
+    printf -- '- %s\n' "$phase_fix"
   fi
   if [ -n "$copy_fix" ]; then
     printf -- '- %s\n' "$copy_fix"

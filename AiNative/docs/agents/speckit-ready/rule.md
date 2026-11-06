@@ -11,3 +11,6 @@
   `git config speckit.worker`, then
   `~/.config/ainative/harness-models.yaml` (`SPECKIT_HARNESS` section else
   `default`), else `antigravity`.
+- With a `PHASE_REF`, `phase-order` is required: block unless the previous
+  phase is merged into the base branch, and add no worktree or branch when
+  it fails. Never fill or edit a phase plan's `**Spec:**` line.

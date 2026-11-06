@@ -617,5 +617,119 @@ expect_contains "WORKER: pi" "case31"
 expect_contains "worker-runtime: pass" "case31"
 expect_contains "harness-models.yaml:opencode" "case31"
 
+# --- Phased PRD: phase-order check (optional 4th argument) -------------------
+
+# run_check_phase <repo> <flow_id> <slug> <phase_ref> -> sets OUT and RC
+run_check_phase() {
+  OUT="$("$CHECK" "$1" "$2" "$3" "$4" 2>&1)" && RC=0 || RC=$?
+}
+
+commit_all() {
+  git -C "$1" add -A
+  git -C "$1" -c user.email=selftest@example.com -c user.name=selftest commit -qm "$2"
+}
+
+# write_plan <repo> <phase-1 Spec value> <phase-2 Spec value>
+write_plan() {
+  cat > "$1/PRD.phases.md" <<PLAN
+# Phase plan: Selftest
+
+**PRD:** [PRD.md](./PRD.md)
+**MVP complete after:** Phase 2
+
+## Phase 1: Login
+
+**Goal:** A user can sign up and log in.
+**Spec:** $2
+
+## Phase 2: Dashboard
+
+**Goal:** A user sees the dashboard.
+**Spec:** $3
+
+## Deferred
+
+None.
+PLAN
+}
+
+# --- Case 32: phase plan not on base -> blocked, no worktree -----------------
+REPO32="$TMP/repo32"
+make_fixture "$REPO32"
+run_check_phase "$REPO32" flow_selftest_32 prd-phase-1 "PRD.phases.md#1"
+expect_rc 1 "case32 (plan not on base)"
+expect_contains "READY: blocked" "case32"
+expect_contains "phase-order: fail" "case32"
+expect_contains "is not on base 'main'" "case32"
+expect_contains "worktree not prepared (phase-order failed)" "case32"
+expect_not_contains "WORKTREE: " "case32"
+[ ! -d "$(wt_path "$REPO32" prd-phase-1)" ] || fail "case32: worktree was added for a blocked phase"
+
+# --- Case 33: Phase 1 with the plan on base -> READY ok ----------------------
+write_plan "$REPO32" none none
+commit_all "$REPO32" "add phase plan"
+run_check_phase "$REPO32" flow_selftest_33 prd-phase-1 "./PRD.phases.md#1"
+expect_rc 0 "case33 (phase 1, plan on base)"
+expect_contains "phase-order: pass" "case33"
+expect_contains "Phase 1 of 'PRD.phases.md'" "case33"
+assert_worktree_ok "$REPO32" prd-phase-1 "case33"
+
+# --- Case 34: Phase 2 before Phase 1 is merged -> blocked, no branch ---------
+# Phase 1's branch fills its Spec: line, but base still says none.
+write_plan "$(wt_path "$REPO32" prd-phase-1)" "specs/001-login" none
+run_check_phase "$REPO32" flow_selftest_34 prd-phase-2 "PRD.phases.md#2"
+expect_rc 1 "case34 (phase 2 before phase 1 merged)"
+expect_contains "phase-order: fail" "case34"
+expect_contains "Phase 1 is not merged into 'main' yet" "case34"
+expect_contains "merge Phase 1's PR" "case34"
+if git -C "$REPO32" show-ref --verify --quiet refs/heads/prd-phase-2; then
+  fail "case34: branch prd-phase-2 was created from a stale base"
+fi
+[ ! -d "$(wt_path "$REPO32" prd-phase-2)" ] || fail "case34: worktree was added for a blocked phase"
+
+# --- Case 35: Phase 2 after Phase 1 merged -> READY ok -----------------------
+mkdir -p "$REPO32/specs/001-login"
+printf '# Login spec\n' > "$REPO32/specs/001-login/spec.md"
+write_plan "$REPO32" '`specs/001-login/`' none
+commit_all "$REPO32" "merge phase 1"
+run_check_phase "$REPO32" flow_selftest_35 prd-phase-2 "PRD.phases.md#2"
+expect_rc 0 "case35 (phase 2 after phase 1 merged)"
+expect_contains "phase-order: pass" "case35"
+expect_contains "Phase 1 merged into 'main' (specs/001-login)" "case35"
+assert_worktree_ok "$REPO32" prd-phase-2 "case35"
+
+# --- Case 36: re-running an already merged phase -> blocked ------------------
+run_check_phase "$REPO32" flow_selftest_36 prd-phase-1b "PRD.phases.md#1"
+expect_rc 1 "case36 (phase already merged)"
+expect_contains "Phase 1 is already merged into 'main'" "case36"
+
+# --- Case 37: previous Spec: points at a missing spec.md -> blocked ----------
+REPO37="$TMP/repo37"
+make_fixture "$REPO37"
+write_plan "$REPO37" "specs/009-missing" none
+commit_all "$REPO37" "plan with a bad spec path"
+run_check_phase "$REPO37" flow_selftest_37 prd-phase-2 "PRD.phases.md#2"
+expect_rc 1 "case37 (missing spec.md on base)"
+expect_contains "has no spec.md on 'main'" "case37"
+
+# --- Case 38: invalid phase references -> blocked ----------------------------
+for bad_ref in "PRD.phases.md" "PRD.phases.md#0" "PRD.phases.md#two" "/abs/PRD.phases.md#1" "../PRD.phases.md#1"; do
+  run_check_phase "$REPO37" flow_selftest_38 prd-phase-bad "$bad_ref"
+  expect_rc 1 "case38 (invalid ref '$bad_ref')"
+  expect_contains "invalid phase reference" "case38 ($bad_ref)"
+done
+
+# --- Case 39: unknown phase number -> blocked --------------------------------
+run_check_phase "$REPO37" flow_selftest_39 prd-phase-9 "PRD.phases.md#9"
+expect_rc 1 "case39 (unknown phase)"
+expect_contains "has no '## Phase 9' section" "case39"
+
+# --- Case 40: no phase reference ("none") -> no phase-order line -------------
+REPO40="$TMP/repo40"
+make_fixture "$REPO40"
+run_check_phase "$REPO40" flow_selftest_40 no-phase none
+expect_rc 0 "case40 (no phase)"
+expect_not_contains "phase-order" "case40"
+
 echo "SELFTEST: ok"
 exit 0

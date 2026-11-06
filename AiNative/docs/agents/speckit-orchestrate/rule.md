@@ -8,6 +8,10 @@
 - `keep-local` MUST NOT be inferred from `SHIP: blocked`.
 - Downstream stages MUST use `FEATURE_DIR` / `.specify/feature.json` and MUST NOT
   infer the spec directory from git `BRANCH`.
+- Phase run (`phase: <plan-path>#<N>`): always the feature path; pass `PHASE_REF`
+  to ready and specify. Only the specify worker fills Phase N's `**Spec:**` line;
+  the parent never edits the phase plan or the PRD, and never starts a phase that
+  ready blocked on `phase-order`.
 - Every stage runs in a worker (Pi via `pi-harness`, Antigravity CLI via
   `antigravity-harness`, or Claude Code CLI via `claude-harness` for Worker-profile stages, per the Worker execution's
   `provider` (`SPECKIT_WORKER` / `speckit.worker` holds that value); host Task for Reasoning- and Validation-profile stages — Cursor

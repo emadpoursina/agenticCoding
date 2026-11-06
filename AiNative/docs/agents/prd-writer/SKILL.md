@@ -1,6 +1,6 @@
 ---
 name: prd-writer
-description: Interviews the user through structured discovery (5–20 multiple-choice questions with recommendations), then generates a comprehensive Product Requirements Document as a markdown file. Use when starting a new product or feature that needs a written spec before implementation.
+description: Interviews the user through structured discovery (5–20 multiple-choice questions with recommendations), then generates a comprehensive Product Requirements Document as a markdown file, plus a delivery phase plan when the PRD is too big for one feature run. Also writes a phase plan for an existing PRD from any tool. Use when starting a new product or feature that needs a written spec before implementation, or when a PRD needs splitting into phases.
 ---
 
 # PRD writer
@@ -50,7 +50,7 @@ Default to medium (10–12) unless the idea is clearly trivial or clearly enterp
 Cover these domains across the question set. Order matters — start broad, narrow to specifics:
 
 1. **Problem and audience** — who, what problem, why now
-2. **Scope and MVP** — what must ship first, what can wait
+2. **Scope and MVP** — what must ship first, what can wait, and whether delivery needs more than one phase (see [Phase plan](#phase-plan))
 3. **User personas** — primary users, secondary users, their goals
 4. **Key user journeys** — the critical path(s) through the product
 5. **Feature prioritization** — must-have vs. should-have vs. nice-to-have
@@ -99,6 +99,7 @@ After all questions are answered, summarize every confirmed decision in a compac
 | Problem | ... |
 | Audience | ... |
 | Platform | ... |
+| Phases | One feature run, or N phases with a one-line goal each |
 
 Ask: "Does this summary capture your intent correctly? I'll generate the full PRD once confirmed."
 
@@ -314,6 +315,129 @@ Before writing the file, verify:
 
 ---
 
+## Phase plan
+
+A phase plan splits a PRD into ordered `feature` runs when the PRD is too big
+for one. It is a **separate file**, never a PRD section, so the PRD structure
+above stays exact and a PRD written with any tool can be phased. Methodology:
+[feature-loop.md § Phased PRD](../../systems/feature-loop.md#phased-prd).
+
+One feature run is the unit. If the PRD fits one run, do not write a plan.
+
+### When to write one
+
+- **After writing a PRD**, when the `Phases` row of the Step 6 table says N
+  phases. Write the plan in the same run, right after the PRD.
+- **Phase-plan mode**: the request names an existing PRD file and asks to
+  phase it (split it, plan its phases). The PRD may come from any tool. Do not
+  run discovery and do not edit the PRD: the PRD is the input.
+
+### Phase-plan mode
+
+1. **Read the whole PRD** before proposing anything. It must be a file in the
+   repo (any readable text format; markdown preferred). If it is not, stop and
+   ask the user to add it.
+2. **List the PRD's items**: its requirements by the PRD's own IDs (`F1`,
+   `US-3`, `FR-012`) or, when it has none, by its headings. The plan must
+   account for every item.
+3. **Propose the split in one message**: a table of phases (goal, scope,
+   exit criteria), the Deferred list with reasons, the `MVP complete after:`
+   line, and one sentence on why the cut points fall where they do. Mark it
+   `(Recommended)` and add up to three one-line alternatives (for example,
+   fewer and bigger phases).
+4. **Wait for explicit confirmation**, then write the file. Pre-answered: when
+   the card body already carries a confirmed phase table, write the plan
+   directly without waiting.
+5. If an item has no testable outcome in the PRD, do not invent one: ask one
+   question for it (in pre-answered mode, park the question).
+
+### File
+
+- Next to the PRD, named `<prd-name>.phases.md`: `PRD.md` → `PRD.phases.md`;
+  `docs/prd/billing.md` → `docs/prd/billing.phases.md`. One plan per PRD, so
+  several PRDs can live in one repo.
+- If the plan already exists, ask whether to overwrite it or write a new
+  file. Never drop or renumber a phase whose `**Spec:**` line is filled: that
+  phase is merged.
+
+### Format
+
+```markdown
+# Phase plan: [Product or feature name]
+
+**PRD:** [Path to the PRD, relative to this file, e.g. ./PRD.md]
+**Date:** [Today's date]
+**MVP complete after:** Phase [N]
+
+## Phase 1: [Short outcome name]
+
+**Goal:** [One sentence in user terms: what someone can do after this phase that they could not before]
+**Scope:**
+- [PRD item ID or heading] — all
+- [PRD item ID or heading] — part: [named part, e.g. AC1–AC2, or "charts and filters"]
+**Exit criteria:**
+- [ ] [Testable end-to-end outcome a person can check in UAT]
+**Out of scope:** [What this phase deliberately leaves to later phases]
+**Spec:** none
+
+## Phase 2: [Short outcome name]
+
+[Same fields]
+
+## Deferred
+
+| Item | Reason |
+|------|--------|
+| [PRD item ID or heading] | [Why it is in no phase] |
+```
+
+Field rules:
+
+- `## Phase <N>: <name>` headings, numbered from 1 with no gaps. Phases run
+  strictly in this order, one at a time.
+- **Scope** names PRD items by the PRD's own ID or heading, `— all` or
+  `— part: <named part>`. Never restate a requirement: the PRD owns it.
+- **Exit criteria** become acceptance scenarios in the phase's `spec.md`.
+- **Spec** is always `none` when written. Only the phase's own `specify` step
+  fills it, with the phase's spec directory as a repo-relative path (e.g.
+  `specs/004-dashboard`). A filled line on the base branch means that
+  phase is merged, and `ready` relies on it to order phases.
+- **MVP complete after** names the phase whose merge completes the MVP, or
+  says `none` when the PRD draws no MVP line.
+- **Deferred** lists every PRD item that is in no phase, each with a reason.
+  Write `None.` when empty.
+
+### Splitting rules
+
+- **Coverage.** Every PRD item, or every named part of one, is in exactly one
+  phase or in Deferred. Nothing is lost, and nothing is built twice.
+- **Slices, not layers.** Each phase delivers a thin end-to-end slice a person
+  can try. "Phase 1: all tables, Phase 2: all APIs, Phase 3: all screens"
+  breaks this rule: Phase 1 has nothing to check in UAT.
+- **The base branch keeps working.** Each merged phase works on its own;
+  nothing is left half-built for a later phase to finish.
+- **Order.** A phase builds only on earlier phases, never on a later one.
+- **Size.** Each phase fits one feature run (spec → plan → implement →
+  validate → PR). There is no fixed phase count. Priority tiers do not decide
+  phases: the must-have tier usually spans several phases, and one big
+  feature may span phases by named parts.
+- **What, not how.** No file names, schemas, or task lists: `plan.md` and
+  `tasks.md` own the how.
+
+### Phase-plan checklist
+
+Before writing the file, verify:
+
+- [ ] Every PRD item (or named part) is in exactly one phase or in Deferred
+- [ ] Every phase has a user-terms goal and at least one testable exit criterion
+- [ ] No phase is a technical layer with nothing to check in UAT
+- [ ] No phase depends on a later phase
+- [ ] Every `**Spec:**` line is `none` (except merged phases kept from an existing plan)
+- [ ] `MVP complete after:` names a phase or says `none`
+- [ ] No implementation detail
+
+---
+
 ## Research first
 
 <!-- source: _skills/research-first/SKILL.md -->
@@ -328,7 +452,9 @@ Read the user's entire idea description before asking any questions. Extract wha
 
 Workers never commit, push, or open PRs. The parent ships a `job`
 automatically after `STATUS: ok` (no operator approval prompt; `keep-local`
-opts out): single commit, type `docs`, message `docs: add PRD for [product name]`.
+opts out): single commit, type `docs`, message `docs: add PRD for [product name]`
+(the phase plan, when written in the same run, goes in that commit). Phase-plan
+mode: `docs: add phase plan for [product name]`.
 
 ---
 
@@ -337,6 +463,8 @@ opts out): single commit, type `docs`, message `docs: add PRD for [product name]
 Post-onboarding `job` through the [feature loop](../../systems/feature-loop.md#pivs-mapping).
 This agent runs before Plan (structured discovery and PRD generation); the PRD
 is then consumed by a `project-bootstrapper` job or by feature cards
-(`ready → specify → …`). Validation for the built work is `critic → tester`
+(`ready → specify → …`). With a phase plan, each phase is one feature run, in
+order: task input `phase: <plan-path>#1`, then `#2` once Phase 1's PR is merged
+([Phased PRD](../../systems/feature-loop.md#phased-prd)). Validation for the built work is `critic → tester`
 ([feature loop](../../systems/feature-loop.md#pivs-mapping)); `pr-reviewer` is
 an on-demand tool after Ship, not a loop state.

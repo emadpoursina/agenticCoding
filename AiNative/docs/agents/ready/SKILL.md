@@ -19,6 +19,10 @@ content, `specs/`, `spec.md`, or `feature.json`.
 - `REPO_ROOT` — target git repository
 - `FLOW_ID` — opaque run id minted by the parent
 - `FEATURE_DESCRIPTION` — user args after `/speckit-orchestrate`
+- `PHASE_REF` — `<plan-path>#<N>` when the task names a phase of a phased PRD
+  (`phase: <plan-path>#<N>`), else `none`. If the parent does not pass it,
+  take it from a `phase:` line in `FEATURE_DESCRIPTION`. See
+  [feature-loop.md § Phased PRD](../../systems/feature-loop.md#phased-prd).
 - Worker backend — `SPECKIT_WORKER` or `git config speckit.worker` (`antigravity` default, `pi`, or `claude`)
 
 ## What to do
@@ -30,11 +34,18 @@ content, `specs/`, `spec.md`, or `feature.json`.
      - "Implement OAuth2 integration for the API" → `oauth2-api-integration`
      - "Create a dashboard for analytics" → `analytics-dashboard`
      - "Fix payment processing timeout bug" → `fix-payment-timeout`
+   - With a `PHASE_REF`, the slug is fixed so a re-run reuses the same branch:
+     the plan file name without `.phases.md` (or `.md`), kebab-cased, then
+     `-phase-<N>`.
+     Examples: `PRD.phases.md#2` → `prd-phase-2`;
+     `docs/billing.phases.md#1` → `billing-phase-1`.
 2. Run this skill's script (do not reimplement checks in ad-hoc shell):
 
-   `<AINATIVE>/docs/agents/speckit-ready/scripts/ready-check.sh <REPO_ROOT> <FLOW_ID> <slug>`
+   `<AINATIVE>/docs/agents/speckit-ready/scripts/ready-check.sh <REPO_ROOT> <FLOW_ID> <slug> [<PHASE_REF>]`
    (host symlink: `$HOME/.cursor/skills/speckit-ready/scripts/ready-check.sh`;
    Hermes mount: `/opt/data/mnt/AiNative/docs/agents/speckit-ready/scripts/ready-check.sh`)
+
+   Pass `PHASE_REF` as the fourth argument only when it is not `none`.
 
 3. Return the script's stdout as the compact report. Do not wrap it.
 
@@ -112,6 +123,28 @@ Aliases for Claude: `claude`, `claude-code`, `anthropic`.
 The compact report includes `WORKER: pi|antigravity|claude` and a
 `worker-runtime` check line.
 
+### Phase order (required when `PHASE_REF` is set)
+
+A phase may start only after the previous phase's PR is merged into the base
+branch ([feature-loop.md § Phased PRD](../../systems/feature-loop.md#phased-prd)).
+The script proves it from the base branch alone; no board or status file is
+read:
+
+- The phase plan exists on the base branch and has a `## Phase <N>` section.
+- Phase N's `**Spec:**` line on the base branch is still `none`. A filled line
+  means Phase N is already merged: block and point to the next phase or a
+  `change`.
+- For N > 1, Phase N−1's `**Spec:**` line on the base branch names a spec
+  directory whose `spec.md` is also on the base branch. Each phase's own
+  `specify` step fills that line on the phase branch, so it reaches the base
+  only when the phase's PR merges.
+- The check runs **before** any worktree or branch is added, so a blocked
+  phase never branches from a stale base. Ready reads the local base ref and
+  never fetches; a FIX says to update the local base when a merge has not been
+  pulled yet.
+
+No `PHASE_REF` → no `phase-order` line and no phase rules.
+
 ### Project checks (optional file)
 
 If `.specify/ready.yml` is absent, skip (not a failure). If present, only:
@@ -186,6 +219,7 @@ CHECKS:
 - [required] git-branch-state: pass|fail — <note>
 - [required] speckit-layout: pass|fail — <note>
 - [required] worker-runtime: pass|fail — <note>
+- [required] phase-order: pass|fail — <note; only when PHASE_REF is set>
 - [required] worktree-copy: pass|fail — <outcome; "copied N files" when copied, never paths>
 - [required] worktree-setup: pass|fail — <outcome; never command stdout/stderr>
 FIXES:
