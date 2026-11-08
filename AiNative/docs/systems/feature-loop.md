@@ -222,7 +222,7 @@ Graph string: `ready → route → specify → clarify → plan → tasks → [a
 | `plan` | Spec Kit | yes | No extra plan-approval gate. |
 | `tasks` | Spec Kit | yes | |
 | `analyze` | Spec Kit | yes | Only if plan returned `ANALYZE: yes`. Read-only. Critical finding = park. |
-| `implement` | Spec Kit | yes | Parent loops with converge. Fresh worker each pass. |
+| `implement` | Spec Kit | yes | Parent loops with converge. Fresh worker each pass. Size-gated before the build stage is created: see [Build size gate](#build-size-gate). |
 | `converge` | Spec Kit | yes | `tasks_appended` (new work) → implement again. Unchanged fingerprint → stuck. Only `converged` exits the loop. |
 | `critic` | AiNative | yes | Adversarial review of spec/plan/implementation. Required. After converge; not a “finish” report. |
 | `tester` | AiNative | yes | Prove the flows. Project `validation_commands` run **here**, not as a parallel parent phase. Required. |
@@ -306,6 +306,32 @@ Worker MUST NOT ship, merge, write `tasks.md`, or dispatch converge/implement.
 Ship: `SHIP: ok|blocked|declined`, `PR: <PR URL, or none>`, `WALKTHROUGH: <included|none|blocked>`,
 `EVIDENCE: included|none`, `SUMMARY`. After a first `SHIP: ok`, later passes on the same run MUST reuse `PR`
 (same URL). `SHIP: declined` only for `keep-local`. `SHIP: blocked` does not launch pr-reviewer.
+
+## Build size gate
+
+Runs before a build stage (`implement ↔ converge`) is created for a feature.
+A build stage has a fixed iteration budget. A feature that exceeds it fails
+mid-run, and retrying does not recover, because the remaining work no longer
+fits in one stage.
+
+1. **Count.** Count the open tasks (`- [ ]`) in the feature's `tasks.md` and
+   note the user story each one belongs to. Tasks that belong to no story
+   (setup, foundational) are their own group.
+2. **Split when** the open count is **more than 15**, or the open tasks span
+   **more than one user story**.
+3. **Multi-story phases never run as one stage.** A phase spanning more than
+   one user story is never dispatched as a single build stage. A
+   single-story phase at or under 15 open tasks may run as one stage.
+4. **Setup and foundational group.** Tasks with no story form their own stage,
+   placed before the first story stage. If that group exceeds 15 tasks, split
+   it by section.
+5. **Stage shape.** Each story stage covers one user story's exit criteria,
+   and names the previous stage as its prerequisite. Stages run in sequence.
+   The first stage has no prerequisite.
+6. **Restate inheritance.** Each stage restates in writing the shared decisions
+   from `plan.md` and the working tree it inherits (branch, worktree, and the
+   files earlier stages changed). A stage must not depend on context from the
+   stage before it that is not written down in those inputs.
 
 ## Stuck policy
 
