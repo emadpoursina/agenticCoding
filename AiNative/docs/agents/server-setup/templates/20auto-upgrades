@@ -1,0 +1,5 @@
+// APT periodic maintenance — install as /etc/apt/apt.conf.d/20auto-upgrades
+// Refresh package lists daily, apply unattended upgrades, clean old packages.
+APT::Periodic::Update-Package-Lists "1";
+APT::Periodic::Unattended-Upgrade "1";
+APT::Periodic::AutocleanInterval "7";

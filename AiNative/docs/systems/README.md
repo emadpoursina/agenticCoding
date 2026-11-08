@@ -25,6 +25,6 @@ Generic AI templates shared across agents — not task-specific.
 | [system-understanding-brief-template.md](./system-understanding-brief-template.md) | Brief the scout agent produces before PIV Plan interrogation |
 | [ai-rules-template.md](./ai-rules-template.md) | Project-specific `AGENTS.md` rules template used by bootstrapper |
 
-**Per-task agents** (scout, plan-reviewer, critic, tester, pr-reviewer, task-groomer, project-bootstrapper): [agents/](../agents/).
+**Per-task agents** (scout, plan-reviewer, critic, tester, pr-reviewer, task-groomer, project-bootstrapper, server-setup): [agents/](../agents/).
 
 Project-specific rules live in the managed project's `AGENTS.md`.

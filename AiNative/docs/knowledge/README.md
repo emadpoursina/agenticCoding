@@ -9,7 +9,7 @@ Evergreen technical knowledge — updated in place, no dates. Copy-paste code li
 | [new-project.md](./setup/new-project.md) | PRD and project-enrollment planning (enrollment flow is target, not wired) |
 | [cursor-setup.md](./setup/cursor-setup.md) | Host Cursor/OpenCode skill symlinks and Cursor slash-command wrappers |
 | [harness.md](./setup/harness.md) | Current Hermes runtime and target worker model |
-| [server-setup.md](./setup/server-setup.md) | SSH keys, users, remote access |
+| [server-setup.md](./setup/server-setup.md) | SSH access, admin user, firewall, and Ubuntu VPS baseline (agent: [server-setup](../agents/server-setup/)) |
 | [local-shared-services.md](./setup/local-shared-services.md) | Local Docker databases (MariaDB, MongoDB, Adminer) |
 
 ## Commands
@@ -46,6 +46,7 @@ Evergreen technical knowledge — updated in place, no dates. Copy-paste code li
 |------------------|----------|
 | A specific command | `commands/<tool>.md` |
 | Project setup | `setup/` |
+| Ubuntu VPS baseline (SSH, UFW, patching) | `setup/server-setup.md` |
 | Local databases (Docker) | `setup/local-shared-services.md` |
 | Architecture patterns | `architecture/` |
 | A working config or script | `snippets/<type>/` |

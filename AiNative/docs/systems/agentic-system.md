@@ -230,6 +230,7 @@ symlink is required.
 | [prd-writer](../agents/prd-writer/) | Post-onboarding `job` — writes the PRD as a card |
 | [task-groomer](../agents/task-groomer/) | Per-card helper — turns a rough request into a dispatch-ready Hermes kanban card |
 | [scout](../agents/scout/), [legacy-system-assessment-agent](../agents/legacy-system-assessment-agent/) | On-hand tools Hermes may call any time — not loop states, never automatic |
+| [server-setup](../agents/server-setup/) | On-hand tool — project-agnostic Ubuntu VPS baseline before deployment; not a loop state |
 | [plan-reviewer](../agents/plan-reviewer/) | Historical PIV methodology only; not a loop state |
 
 Agent library and file contract: [8. agents/README.md](../agents/README.md).

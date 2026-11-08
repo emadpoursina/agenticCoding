@@ -54,6 +54,7 @@ AiNative/
 │   │   ├── task-groomer/
 │   │   ├── prd-writer/
 │   │   ├── project-bootstrapper/
+│   │   ├── server-setup/
 │   │   └── legacy-system-assessment-agent/
 │   │
 │   ├── knowledge/                     # Evergreen knowledge — updated in place
@@ -255,6 +256,7 @@ The structure is designed so retrieval requires no search. The folder names are 
 | PR review prompts | `agents/pr-reviewer/` |
 | Task grooming (Hermes kanban cards) | `agents/task-groomer/` |
 | New-project scaffolding | `agents/project-bootstrapper/` |
+| Ubuntu VPS baseline before deployment | `agents/server-setup/` |
 | Legacy assessment (strategies, estimates) | `agents/legacy-system-assessment-agent/` |
 | Reusable agent skills | `agents/_skills/` |
 | A bug you have seen before | `records/debugging/<domain>/` |

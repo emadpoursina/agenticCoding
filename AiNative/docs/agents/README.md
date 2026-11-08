@@ -40,6 +40,7 @@ Each agent is a folder with three core files tuned for one job.
 | [task-groomer](./task-groomer/) | Per-card helper | Turns a rough request into a dispatch-ready Hermes kanban card; not a dispatched worker |
 | [scout](./scout/) | On-hand tool | Read-only brief / Repo Q&A Hermes may call any time; not a loop state |
 | [legacy-system-assessment-agent](./legacy-system-assessment-agent/) | On-hand tool | Standalone evidence-backed assessment Hermes may call any time; not a loop state |
+| [server-setup](./server-setup/) | On-hand tool | Project-agnostic Ubuntu VPS baseline before deployment: SSH, UFW, patching, fail2ban, time/swap/logging, generic tools, read-only audit; stops at `baseline-ready` |
 | [plan-reviewer](./plan-reviewer/) | Historical only | Old PIV plan gate; not on the live graph |
 
 ## Skill library

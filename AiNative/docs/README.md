@@ -25,6 +25,7 @@ Four layers, one decision each: **systems** (how you work), **agents** (AI partn
 | PR review prompts | [agents/pr-reviewer/](./agents/pr-reviewer/) |
 | Hermes kanban card grooming | [agents/task-groomer/](./agents/task-groomer/) |
 | New-project scaffolding | [agents/project-bootstrapper/](./agents/project-bootstrapper/) |
+| Ubuntu VPS baseline before deployment | [agents/server-setup/](./agents/server-setup/) |
 | Legacy assessment (strategies, estimates) | [agents/legacy-system-assessment-agent/](./agents/legacy-system-assessment-agent/) |
 | Reusable agent skills | [agents/_skills/](./agents/_skills/) |
 | Agent handoff between AI passes | [systems/agent-handoff-template.md](./systems/agent-handoff-template.md) |

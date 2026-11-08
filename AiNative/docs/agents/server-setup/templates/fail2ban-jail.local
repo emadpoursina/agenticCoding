@@ -1,0 +1,29 @@
+# fail2ban — install as /etc/fail2ban/jail.local
+#
+# Ubuntu 24.04+ logs SSH to the journal, so use the systemd backend.
+# Add admin IPs and VPN ranges to ignoreip before enabling:
+#   ignoreip = 127.0.0.1/8 ::1 203.0.113.10 100.64.0.0/10
+#
+# Validate and apply:
+#   fail2ban-client -t
+#   systemctl enable --now fail2ban
+#   fail2ban-client status sshd
+
+[DEFAULT]
+bantime = 1h
+findtime = 10m
+maxretry = 5
+backend = systemd
+
+# Keep localhost and add the operator's addresses here.
+ignoreip = 127.0.0.1/8 ::1
+
+[sshd]
+enabled = true
+mode = normal
+maxretry = 5
+
+# Optional: enable only when admin/VPN ranges are whitelisted above.
+# SYN probes can be spoofed and may ban legitimate clients.
+# [ufw-probes]
+# enabled = false

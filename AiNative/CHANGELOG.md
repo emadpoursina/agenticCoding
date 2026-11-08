@@ -1,5 +1,11 @@
 # Changelog
 
+## [Unreleased]
+
+### Added
+- `server-setup` agent for a project-agnostic Ubuntu VPS baseline: phased SSH, UFW, patching, fail2ban, time/swap/logging, and generic-tools workflow; a read-only `server-audit.sh`; and reviewed templates for `du_setup`, `sshd`, fail2ban, auto-upgrades, sysctl, and UFW.
+- `SERVER-READINESS.md` report contract with evidence, open ports, rollback, and a project-layer handoff checklist; the setup knowledge page and retrieval indexes link the new agent.
+
 ## [0.8.0] - 2026-11-06
 
 ### Added
