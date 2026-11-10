@@ -128,3 +128,6 @@
 ### Changed
 
 - Model selection: three roles (reasoning, worker, validation) replace Tier 0–3; one model per role; validation is first-class.
+- `antigravity-harness` browser-less sign-in runbook (`setup-headless-signin.md`): install, OAuth mode selection, headless verification, and troubleshooting for hosts without a browser or keyring.
+- `antigravity-harness` `scripts/agy-auth-pty.py`: drives the interactive login in a pty, captures the authorization URL, and submits a code returned through a file so the credential never enters a chat transcript.
+
