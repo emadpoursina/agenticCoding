@@ -32,6 +32,18 @@ Do not use the community npm `antigravity-sdk` (VS Code extensions) or the
 `agy` TUI from this harness. Never launch bare `agy` and never mix `-p` with
 `--input-format stream-json`.
 
+## Provisioning without a browser
+
+`agy models` answering "Please sign in" means the CLI is installed but not
+authenticated. That is provisioning, not a job: do not dispatch and do not
+paste keys. Run the browser-less sign-in with `scripts/agy-auth-pty.py` and
+follow [setup-headless-signin.md](./setup-headless-signin.md). The operator
+opens the URL in their own browser and returns the code through a file, never
+through chat.
+
+`agy models` is also the authority for `--model` values; the Flash variants
+carry `-high` / `-medium` / `-low` suffixes.
+
 ## Prompt you hand the worker
 
 One job per spawn. Include:

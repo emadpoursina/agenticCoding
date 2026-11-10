@@ -35,3 +35,5 @@ PATH and successful `agy models`.
 | [worker-contract.md](./worker-contract.md) | Contract prepended to the prompt |
 | [agy-spawn.py](./agy-spawn.py) | CLI spawn wrapper (`status.json` / `report.json` on disk) |
 | [rule.md](./rule.md) | Constraints and stop conditions |
+| [setup-headless-signin.md](./setup-headless-signin.md) | Provisioning a browser-less host: install, OAuth sign-in, verification, troubleshooting |
+| [scripts/agy-auth-pty.py](./scripts/agy-auth-pty.py) | pty driver that completes the browser-less OAuth sign-in |
