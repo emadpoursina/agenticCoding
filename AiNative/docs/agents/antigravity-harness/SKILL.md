@@ -109,20 +109,52 @@ The wrapper:
 - Runs in `--cwd` so file tools stay in the job tree.
 - Prepends `worker-contract.md` plus a blank line to the job prompt as the single `-p` argument.
 - Always passes `--disable-slash-commands`.
-- Sets `--mode accept-edits --dangerously-skip-permissions` for default (edit) jobs.
-- Sets `--mode plan` for `--scout` (no skip-permissions).
+- Sets `--mode accept-edits` for default (edit) jobs, with no blanket permission bypass.
+- Grants shell access narrowly via `--allow-command <target>`; `--dangerously-skip-permissions` only behind explicit `--allow-bypass`.
+- Sets `--mode plan` for `--scout` (never bypass, never `--settings`).
 - Uses `--conversation <id>` when `--conversation-id` is passed (isolated default; no `--continue`).
 
 ### Edit jobs (default)
 
-Edit jobs auto-approve tool execution via `--mode accept-edits --dangerously-skip-permissions`
-so `edit_file` / `run_command` do not wait for a human.
+Edit jobs pass `--mode accept-edits` only. File edits run unattended; shell commands do **not**
+by default — headless mode cannot prompt, so an unlisted command is auto-denied.
 
 ```bash
 python3 "$HOME/.cursor/skills/antigravity-harness/agy-spawn.py" \
   --name "<job>" --cwd "$PWD" --model <id> \
   -- "<prompt>"
 ```
+
+### Scoped shell access: `--allow-command`
+
+Grant shell access per job, narrowly, instead of blanket approval. Repeatable; each value becomes
+a `command(<target>)` entry in `permissions.allow`, passed as inline `--settings` JSON.
+
+```bash
+python3 "$HOME/.cursor/skills/antigravity-harness/agy-spawn.py" \
+  --name "<job>" --cwd "$PWD" --model <id> \
+  --allow-command node --allow-command git \
+  -- "<prompt>"
+```
+
+Emits `--settings '{"permissions":{"allow":["command(node)","command(git)"]}}'`. Duplicates
+collapse, first-seen order is kept. When no `--allow-command` is given, `--settings` is omitted
+entirely, so existing settings behaviour is untouched.
+
+**Coverage limit (verified, not theoretical):** a rule matches a **direct** invocation. `command(node)`
+permits `node --version`, but `node --version > out.txt` is auto-denied because the redirect needs a
+shell. Any command using redirects, pipes, `&&`, `bash -c`, or a wrapper falls outside the rule and
+needs `--allow-bypass`. Plan jobs around direct commands, or accept the bypass.
+
+If you pass neither `--allow-command` nor `--allow-bypass`, `report.json` carries a
+`permissionWarning` explaining that shell will be auto-denied. If the CLI actually denies a tool,
+`report.json` sets `autoDenied: true` — add the narrow rule, do not reach for the bypass.
+
+### `--allow-bypass` (explicit opt-in only)
+
+Passes `--dangerously-skip-permissions`, restoring the old blanket behaviour. Throwaway worktrees
+or isolated containers only. Passing it together with `--allow-command` warns that the allow-list
+is moot.
 
 ### Scout (read-only)
 
@@ -132,7 +164,7 @@ python3 "$HOME/.cursor/skills/antigravity-harness/agy-spawn.py" \
   -- "<prompt>"
 ```
 
-`--scout` sets `--mode plan` and omits `--dangerously-skip-permissions`.
+`--scout` sets `--mode plan` and never grants bypass or `--settings`.
 Do not broaden scout access.
 
 ### Short jobs
@@ -170,7 +202,7 @@ Do not pass MCP servers unless the user asked.
 | `--tools read,grep,find,ls` | `--scout` → `--mode plan` |
 | `--no-session` | fresh conversation (default; `--conversation <id>` when passed) |
 | `--append-system-prompt` | contract prepended to prompt before job text |
-| default tools include writes | edit jobs pass `--mode accept-edits --dangerously-skip-permissions` |
+| default tools include writes | edit jobs pass `--mode accept-edits`; shell only via `--allow-command`, bypass only via `--allow-bypass` |
 
 Pass `--vertex` only if needed for enterprise routing; authenticate via `agy models`.
 Do not put keys on the command line.

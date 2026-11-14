@@ -24,7 +24,7 @@ PATH and unattended authentication evidence (no model invocation).
 
 ## Outputs
 
-- `report.json` (`lifecycle` + `workerStatus`/`reportValid`), diff review,
+- `report.json` (`lifecycle` + `workerStatus`/`reportValid` + `totalCostUsd`/`numTurns`/`sessionId`, schemaVersion 3), diff review,
   follow-up decision. See [SKILL.md](./SKILL.md).
 
 ## Supporting files

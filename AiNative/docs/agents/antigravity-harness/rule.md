@@ -2,7 +2,12 @@
 - Spawn through `agy-spawn.py` using official headless `agy -p`. Never launch the `agy` TUI, and never call `agy -p` directly from the parent.
 - Always pass `--model`. There is no harness default.
 - Never pass `--prompt-interactive`, `-i`, or attach `ask_user` policies. Child stdin is ignored.
-- Default edit jobs pass `--mode accept-edits --dangerously-skip-permissions`. Scout jobs use `--mode plan`.
+- Default edit jobs pass `--mode accept-edits` only. Shell access is granted narrowly with `--allow-command <target>` (scoped `permissions.allow` rules sent as inline `--settings`). `--dangerously-skip-permissions` is available only behind explicit `--allow-bypass`, for throwaway worktrees. Scout jobs use `--mode plan`.
+- `--allow-command <target>` matches **direct** command invocations only. Verified behaviour: `command(node)` permits `node --version`, but `node --version > out.txt` is auto-denied because the redirect needs a shell. Commands using redirects, pipes, `&&`, or wrappers need `--allow-bypass`. Do not assume a scoped rule covers a compound command.
+- Never grant blanket approval by default. A job with neither `--allow-command` nor `--allow-bypass` gets no shell: `report.json` carries `permissionWarning` saying so.
+- `autoDenied=true` in `report.json` means the CLI auto-denied a tool for lack of an allow-rule, so the job produced nothing for that reason. Add the narrow rule; do not reach for the bypass.
+- These have no `agy` CLI equivalent and must not be ported from `claude-harness`: `--allowedTools`/`--disallowedTools`, `--max-budget-usd`, `--fork-session`, `--fallback-model`.
+- This matches `claude-harness` doctrine: no permission bypass by default, least privilege per job.
 - Scope file ops with `--cwd`. Do not add MCP servers or subagents unless the prompt asked for them.
 - Do not copy Cursor user rules into the prompt. The wrapper prepends `worker-contract.md` to the prompt.
 - After exit, read `report.json`. Process `lifecycle=completed` is not worker success; require `reportValid` and `workerStatus`.

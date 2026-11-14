@@ -33,6 +33,37 @@ SUMMARY_MAX = 100_000
 STDERR_TAIL_MAX = 2000
 GRACEFUL_KILL_S = 2.0
 WORKER_STATUS_RE = re.compile(r"\bSTATUS\s*[:=]?\s*(ok|stuck|blocked)\b", re.I)
+AUTO_DENY_PATTERNS = (
+    "auto-denied",
+    "permission that headless mode cannot prompt",
+)
+
+
+def check_auto_denied(*outputs: Any) -> bool:
+    for out in outputs:
+        if not out:
+            continue
+        s = str(out).lower()
+        for pat in AUTO_DENY_PATTERNS:
+            if pat in s:
+                return True
+    return False
+
+
+def get_permission_warning(ns: argparse.Namespace) -> str | None:
+    if getattr(ns, "scout", False):
+        return None
+    has_bypass = bool(getattr(ns, "allow_bypass", False))
+    commands = getattr(ns, "allow_commands", []) or []
+    has_commands = bool(commands)
+    if has_bypass and has_commands:
+        return "warning: --allow-bypass makes --allow-command moot (all permissions will be skipped)"
+    if has_bypass or has_commands:
+        return None
+    return (
+        "warning: without allow-rules or bypass, shell commands will be auto-denied in headless mode. "
+        "Use --allow-command <target> to grant access."
+    )
 
 
 def now_iso() -> str:
@@ -213,6 +244,22 @@ def build_report(state: dict[str, Any], extra: dict[str, Any]) -> dict[str, Any]
     if not report_valid and state.get("lifecycle") == "completed":
         missing = "missing worker STATUS (ok|stuck|blocked)"
         error_message = f"{error_message}; {missing}" if error_message else missing
+
+    auto_denied = extra.get("autoDenied")
+    if auto_denied is None:
+        auto_denied = state.get("autoDenied", False)
+    if not auto_denied:
+        auto_denied = check_auto_denied(
+            summary,
+            extra.get("stderrTail"),
+            extra.get("stderr"),
+            extra.get("events"),
+        )
+
+    perm_warning = extra.get("permissionWarning")
+    if perm_warning is None:
+        perm_warning = state.get("permissionWarning")
+
     return {
         "schemaVersion": SCHEMA_VERSION,
         "jobName": state["jobName"],
@@ -228,6 +275,8 @@ def build_report(state: dict[str, Any], extra: dict[str, Any]) -> dict[str, Any]
         "summary": clip(summary, SUMMARY_MAX) if extracted else None,
         "workerStatus": worker_status,
         "reportValid": report_valid,
+        "autoDenied": bool(auto_denied),
+        "permissionWarning": perm_warning,
         "errorMessage": clip(error_message, ERROR_MAX),
         "stderrTail": clip(extra.get("stderrTail"), STDERR_TAIL_MAX),
     }
@@ -248,12 +297,16 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     p.add_argument("--conversation-id")
     p.add_argument("--print", "-p", dest="print_mode", action="store_true")
     p.add_argument("--scout", action="store_true")
+    p.add_argument("--allow-command", dest="allow_commands", action="append", default=[], metavar="TARGET")
+    p.add_argument("--allow-bypass", dest="allow_bypass", action="store_true")
     p.add_argument("--vertex", action="store_true")
     p.add_argument("--self-test", action="store_true")
     p.add_argument("prompt_words", nargs="*", default=[])
     ns = p.parse_args(pre)
     ns.prompt_parts = list(ns.prompt_words) + post
     ns.timeout_ms = parse_timeout_ms(ns.timeout)
+    ns.allow_command = ns.allow_commands
+    ns.permission_warning = get_permission_warning(ns)
     return ns
 
 
@@ -266,7 +319,27 @@ def build_agy_argv(ns: argparse.Namespace) -> list[str]:
     if ns.scout:
         cmd.extend(["--mode", "plan"])
     else:
-        cmd.extend(["--mode", "accept-edits", "--dangerously-skip-permissions"])
+        cmd.extend(["--mode", "accept-edits"])
+        if getattr(ns, "allow_bypass", False):
+            cmd.append("--dangerously-skip-permissions")
+        allow_commands = getattr(ns, "allow_commands", []) or []
+        if allow_commands:
+            deduped: list[str] = []
+            seen: set[str] = set()
+            for cmd_target in allow_commands:
+                t = str(cmd_target).strip()
+                if not t:
+                    continue
+                if t not in seen:
+                    seen.add(t)
+                    deduped.append(t)
+            if deduped:
+                rules = [
+                    t if (t.startswith("command(") and t.endswith(")")) else f"command({t})"
+                    for t in deduped
+                ]
+                settings_obj = {"permissions": {"allow": rules}}
+                cmd.extend(["--settings", json.dumps(settings_obj, separators=(",", ":"))])
 
     cmd.append("--disable-slash-commands")
     if ns.model:
@@ -330,6 +403,10 @@ def run_job(ns: argparse.Namespace) -> int:
         },
     )
 
+    perm_warn = get_permission_warning(ns)
+    if perm_warn:
+        print(perm_warn, file=sys.stderr)
+
     state = empty_state(
         {
             "jobName": job_name,
@@ -338,6 +415,8 @@ def run_job(ns: argparse.Namespace) -> int:
             "timeoutMs": ns.timeout_ms,
         }
     )
+    state["permissionWarning"] = perm_warn
+    state["autoDenied"] = False
     if ns.conversation_id:
         state["sessionId"] = ns.conversation_id
     write_atomic(paths["status"], public_status(state))
@@ -375,7 +454,15 @@ def run_job(ns: argparse.Namespace) -> int:
     if child is None:
         state["processAlive"] = False
         write_atomic(paths["status"], public_status(state))
-        report = build_report(state, {"spawnError": spawn_error, "stderrTail": ""})
+        report = build_report(
+            state,
+            {
+                "spawnError": spawn_error,
+                "stderrTail": "",
+                "permissionWarning": perm_warn,
+                "autoDenied": False,
+            },
+        )
         write_atomic(paths["report"], report)
         sys.stdout.write(f"LIFECYCLE={state['lifecycle']}\nREPORT_FILE={paths['report']}\n")
         sys.stdout.flush()
@@ -529,12 +616,38 @@ def run_job(ns: argparse.Namespace) -> int:
     else:
         stdout_text = reconstruct_assistant_text(paths["events"])
 
+    raw_stderr = ""
+    if paths["stderr"].exists():
+        try:
+            raw_stderr = paths["stderr"].read_text(encoding="utf-8", errors="ignore")
+        except Exception:
+            pass
+    raw_events = ""
+    if paths["events"].exists():
+        try:
+            raw_events = paths["events"].read_text(encoding="utf-8", errors="ignore")
+        except Exception:
+            pass
+    raw_stdout = "".join(stdout_text_chunks) if ns.print_mode else ""
+
+    auto_denied = check_auto_denied(
+        stderr_tail,
+        raw_stderr,
+        stdout_text,
+        raw_events,
+        raw_stdout,
+    )
+    if auto_denied:
+        state["autoDenied"] = True
+
     report = build_report(
         state,
         {
             "stdoutText": stdout_text,
             "spawnError": spawn_error,
             "stderrTail": stderr_tail,
+            "autoDenied": auto_denied,
+            "permissionWarning": perm_warn,
         },
     )
     write_atomic(paths["status"], public_status(state))
@@ -568,9 +681,103 @@ def self_test() -> int:
     assert "-p" in argv1
     assert "--disable-slash-commands" in argv1
     assert "--mode" in argv1 and argv1[argv1.index("--mode") + 1] == "accept-edits"
-    assert "--dangerously-skip-permissions" in argv1
+    assert "--dangerously-skip-permissions" not in argv1
+    assert "--settings" not in argv1
     assert "--output-format" not in argv1
     assert "--input-format" not in argv1
+    assert "--prompt-interactive" not in argv1 and "-i" not in argv1
+    contract_text = load_contract()
+    p1 = argv1[argv1.index("-p") + 1]
+    assert p1.startswith(contract_text)
+    assert p1.endswith("hello")
+
+    # Decision 1 Option E: assertions
+    # 1. Default edit-job argv contains neither --dangerously-skip-permissions nor --settings
+    ns_def = parse_args(["--model", "gemini-2.5", "--name", "job_def", "--", "edit job"])
+    argv_def = build_agy_argv(ns_def)
+    assert "--mode" in argv_def and argv_def[argv_def.index("--mode") + 1] == "accept-edits"
+    assert "--dangerously-skip-permissions" not in argv_def
+    assert "--settings" not in argv_def
+
+    # 2. Default edit job sets a non-null permissionWarning
+    assert ns_def.permission_warning is not None
+    st_def = empty_state({"jobName": "def", "runId": "r", "runDir": "/tmp"})
+    st_def["permissionWarning"] = ns_def.permission_warning
+    rep_def = build_report(st_def, {})
+    assert rep_def["permissionWarning"] is not None
+
+    # 3. --allow-command node produces --settings whose value parses as JSON with permissions.allow == ["command(node)"]
+    ns_cmd1 = parse_args(["--model", "gemini-2.5", "--name", "job_c1", "--allow-command", "node", "--", "hello"])
+    argv_cmd1 = build_agy_argv(ns_cmd1)
+    assert "--mode" in argv_cmd1 and argv_cmd1[argv_cmd1.index("--mode") + 1] == "accept-edits"
+    assert "--dangerously-skip-permissions" not in argv_cmd1
+    assert "--settings" in argv_cmd1
+    raw_s1 = argv_cmd1[argv_cmd1.index("--settings") + 1]
+    parsed_s1 = json.loads(raw_s1)
+    assert parsed_s1.get("permissions", {}).get("allow") == ["command(node)"]
+    assert ns_cmd1.permission_warning is None
+    rep_cmd1 = build_report(empty_state({"jobName": "c1", "runId": "r", "runDir": "/tmp"}), {"permissionWarning": ns_cmd1.permission_warning})
+    assert rep_cmd1["permissionWarning"] is None
+
+    # 4. --allow-command node --allow-command git produces two entries in that order, and duplicates collapse
+    ns_cmd2 = parse_args([
+        "--model", "gemini-2.5", "--name", "job_c2",
+        "--allow-command", "node",
+        "--allow-command", "git",
+        "--allow-command", "node",
+        "--", "hello",
+    ])
+    argv_cmd2 = build_agy_argv(ns_cmd2)
+    assert "--mode" in argv_cmd2 and argv_cmd2[argv_cmd2.index("--mode") + 1] == "accept-edits"
+    assert "--dangerously-skip-permissions" not in argv_cmd2
+    assert "--settings" in argv_cmd2
+    raw_s2 = argv_cmd2[argv_cmd2.index("--settings") + 1]
+    parsed_s2 = json.loads(raw_s2)
+    assert parsed_s2.get("permissions", {}).get("allow") == ["command(node)", "command(git)"]
+
+    # 5. --allow-bypass puts --dangerously-skip-permissions in the argv
+    ns_byp = parse_args(["--model", "gemini-2.5", "--name", "job_byp", "--allow-bypass", "--", "hello"])
+    argv_byp = build_agy_argv(ns_byp)
+    assert "--mode" in argv_byp and argv_byp[argv_byp.index("--mode") + 1] == "accept-edits"
+    assert "--dangerously-skip-permissions" in argv_byp
+    assert "--settings" not in argv_byp
+    assert ns_byp.permission_warning is None
+
+    # 6. Both --allow-command and --allow-bypass: emit both and warn
+    ns_both = parse_args([
+        "--model", "gemini-2.5", "--name", "job_both",
+        "--allow-command", "node",
+        "--allow-bypass",
+        "--", "hello",
+    ])
+    argv_both = build_agy_argv(ns_both)
+    assert "--dangerously-skip-permissions" in argv_both
+    assert "--settings" in argv_both
+    assert ns_both.permission_warning is not None
+    assert "moot" in ns_both.permission_warning
+
+    # 7. A scout argv contains neither bypass nor --settings
+    ns_scout_assert = parse_args([
+        "--model", "gemini-2.5", "--name", "job_scout_assert",
+        "--scout",
+        "--allow-command", "node",
+        "--allow-bypass",
+        "--", "plan job",
+    ])
+    argv_scout_assert = build_agy_argv(ns_scout_assert)
+    assert "--mode" in argv_scout_assert and argv_scout_assert[argv_scout_assert.index("--mode") + 1] == "plan"
+    assert "--dangerously-skip-permissions" not in argv_scout_assert
+    assert "--settings" not in argv_scout_assert
+    assert ns_scout_assert.permission_warning is None
+
+    # 8. autoDenied detection in build_report
+    st_ad = empty_state({"jobName": "ad", "runId": "r", "runDir": "/tmp"})
+    rep_ad1 = build_report(st_ad, {"stderrTail": 'tool required the "command" permission that headless mode cannot prompt for, so it was auto-denied.'})
+    assert rep_ad1["autoDenied"] is True
+    rep_ad2 = build_report(st_ad, {"stdoutText": "permission that headless mode cannot prompt"})
+    assert rep_ad2["autoDenied"] is True
+    rep_ad3 = build_report(st_ad, {"stdoutText": "STATUS: ok"})
+    assert rep_ad3["autoDenied"] is False
     assert "--prompt-interactive" not in argv1 and "-i" not in argv1
     contract_text = load_contract()
     p1 = argv1[argv1.index("-p") + 1]

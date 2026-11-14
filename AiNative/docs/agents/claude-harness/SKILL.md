@@ -154,3 +154,83 @@ Wrapper stdout is a few lines (`RUN_DIR=`, `STATUS_FILE=`, then `LIFECYCLE=` /
 unless status is not enough.
 
 Do not pass MCP servers unless the user asked.
+
+
+## Opt-in flags
+
+All flags below are **additive and opt-in**. Nothing that works today changes behaviour when these flags are absent. All have fail-closed error handling when requested but the installed CLI does not support them.
+
+### `--allowed-tools <list>` / `--disallowed-tools <list>`
+
+Restrict or deny specific tools by name (comma-separated, e.g. `"Read,Edit"`).
+
+- **Default**: not set (no tool restriction).
+- Emitted as `--allowedTools <list>` / `--disallowedTools <list>` to the CLI.
+- **Fail-closed**: if the caller passes either flag and the installed CLI does not advertise support, the wrapper throws `ERR_TOOL_FLAG_UNSUPPORTED` and exits 2. The harness never silently drops a caller-supplied restriction.
+
+### `--permission-mode <mode>`
+
+Override the permission mode for this run. Accepted values: `default`, `acceptEdits`, `plan`, `auto`, `dontAsk`.
+
+- **Default**: not set — existing defaults apply (`--scout` → `plan`, edit jobs → `auto`). An explicit `--permission-mode` wins over both.
+- `acceptEdits` is the tighter choice for jobs that only edit files and need no shell access; it auto-approves file edits but prompts on shell commands.
+- **`bypassPermissions` is explicitly rejected** with exit 2 and a message pointing at rule.md. The harness must never enable full bypass.
+
+### `--max-budget-usd <n>`
+
+Cap the run's spend. Must be a finite number ≥ 0.05 (the ~$0.05 system-prompt cache minimum). Values below 0.05 are rejected with exit 2.
+
+- **Default**: not set (no budget cap).
+- Emitted as `--max-budget-usd <n>`.
+- Capability flag: `hasMaxBudgetUsd`.
+
+### `--json-schema <file-or-inline-json>`
+
+Pass a JSON schema to the CLI. If the value is the path of an existing readable file, the wrapper reads it and passes its contents; otherwise the value is passed verbatim.
+
+- **Default**: not set.
+- Emitted as `--json-schema <value>`.
+- **Fail-closed**: exits 2 with `ERR_JSON_SCHEMA_UNSUPPORTED` when requested but unsupported.
+
+### `--fork-session`
+
+Boolean flag. Must be used together with `--conversation-id`; if used alone, the wrapper exits 2 with a clear message. When both are present, emitted as `--resume <id> --fork-session`.
+
+- **Default**: not set.
+- **Fail-closed**: exits 2 with `ERR_FORK_SESSION_UNSUPPORTED` when requested but unsupported.
+- **Requires `--conversation-id`**: using `--fork-session` without `--conversation-id` exits 2.
+
+### `--fallback-model <id>`
+
+Opt-in fallback model ID. There is no default; the flag is never injected.
+
+- Emitted as `--fallback-model <id>`.
+- **Fail-closed**: exits 2 with `ERR_FALLBACK_MODEL_UNSUPPORTED` when requested but unsupported.
+
+### `--add-dir <path>`
+
+Repeatable flag. Each occurrence adds an extra directory. Collected into an array and emitted as one `--add-dir <path>` pair per entry in order.
+
+- **Default**: empty (no extra directories).
+- **Fail-closed**: exits 2 with `ERR_ADD_DIR_UNSUPPORTED` when requested but unsupported.
+
+## Report fields (schemaVersion 3)
+
+`report.json` and `status.json` include the following fields added in schema version 3:
+
+| Field | Type | Notes |
+|-------|------|-------|
+| `schemaVersion` | number | Now `3` (was `2`) |
+| `totalCostUsd` | number \| null | Extracted from the `result` stream event's `total_cost_usd`; null when absent |
+| `numTurns` | number \| null | Extracted from the `result` stream event's `num_turns`; null when absent |
+| `sessionId` | string \| null | Session identifier from the `result` event; null when absent |
+
+The harness never fails because these fields are missing from the stream.
+
+## Exit codes
+
+| Code | Meaning |
+|------|---------|
+| `0`  | The child process completed. NOT success — you must still check `reportValid` and `workerStatus`. |
+| `1`  | Spawn or runtime failure: probe error, child died, or any error carrying no `exitCode`. |
+| `2`  | Caller precondition or capability failure; nothing was spawned. Missing `--model`, invalid flag values, and any requested capability the installed CLI does not advertise (including the worker-contract append flags). |

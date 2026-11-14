@@ -23,7 +23,7 @@ import { fileURLToPath } from "node:url";
 import { randomBytes } from "node:crypto";
 import assert from "node:assert";
 
-const SCHEMA_VERSION = 2;
+const SCHEMA_VERSION = 3;
 const SKILL_DIR = dirname(fileURLToPath(import.meta.url));
 const WORKER_CONTRACT = join(SKILL_DIR, "worker-contract.md");
 const HEARTBEAT_MS = 2000;
@@ -107,6 +107,8 @@ function takeValue(args, i, flag) {
   return args[i + 1];
 }
 
+const VALID_PERMISSION_MODES = ["default", "acceptEdits", "plan", "auto", "dontAsk"];
+
 function parseArgs(argv) {
   const out = {
     name: null,
@@ -120,6 +122,15 @@ function parseArgs(argv) {
     runId: null,
     selfTest: false,
     promptArgs: [],
+    // New opt-in flags
+    allowedTools: null,
+    disallowedTools: null,
+    permissionMode: null,
+    maxBudgetUsd: null,
+    jsonSchema: null,
+    forkSession: false,
+    fallbackModel: null,
+    addDir: [],
   };
   const args = argv.slice(2);
   for (let i = 0; i < args.length; i++) {
@@ -138,6 +149,16 @@ function parseArgs(argv) {
     else if (a === "--timeout") out.timeoutMs = parseTimeoutMs(takeValue(args, i++, "--timeout"));
     else if (a === "--conversation-id") out.conversationId = takeValue(args, i++, "--conversation-id");
     else if (a === "--run-id") out.runId = takeValue(args, i++, "--run-id");
+    // New opt-in flags (space form)
+    else if (a === "--allowed-tools") out.allowedTools = takeValue(args, i++, "--allowed-tools");
+    else if (a === "--disallowed-tools") out.disallowedTools = takeValue(args, i++, "--disallowed-tools");
+    else if (a === "--permission-mode") out.permissionMode = takeValue(args, i++, "--permission-mode");
+    else if (a === "--max-budget-usd") out.maxBudgetUsd = takeValue(args, i++, "--max-budget-usd");
+    else if (a === "--json-schema") out.jsonSchema = takeValue(args, i++, "--json-schema");
+    else if (a === "--fork-session") out.forkSession = true;
+    else if (a === "--fallback-model") out.fallbackModel = takeValue(args, i++, "--fallback-model");
+    else if (a === "--add-dir") out.addDir.push(takeValue(args, i++, "--add-dir"));
+    // Existing = forms
     else if (a.startsWith("--name=")) out.name = a.slice(7);
     else if (a.startsWith("--cwd=")) out.cwd = a.slice(6);
     else if (a.startsWith("--model=")) out.model = a.slice(8);
@@ -145,6 +166,14 @@ function parseArgs(argv) {
     else if (a.startsWith("--timeout=")) out.timeoutMs = parseTimeoutMs(a.slice(10));
     else if (a.startsWith("--conversation-id=")) out.conversationId = a.slice(18);
     else if (a.startsWith("--run-id=")) out.runId = a.slice(9);
+    // New opt-in flags (= form)
+    else if (a.startsWith("--allowed-tools=")) out.allowedTools = a.slice(16);
+    else if (a.startsWith("--disallowed-tools=")) out.disallowedTools = a.slice(19);
+    else if (a.startsWith("--permission-mode=")) out.permissionMode = a.slice(18);
+    else if (a.startsWith("--max-budget-usd=")) out.maxBudgetUsd = a.slice(17);
+    else if (a.startsWith("--json-schema=")) out.jsonSchema = a.slice(14);
+    else if (a.startsWith("--fallback-model=")) out.fallbackModel = a.slice(17);
+    else if (a.startsWith("--add-dir=")) out.addDir.push(a.slice(10));
     else out.promptArgs.push(a);
   }
 
@@ -224,6 +253,14 @@ function probeClaudeCapabilities(bin = (process.env.SPECKIT_CLAUDE_BIN || "claud
     hasPermissionMode: helpText.includes("--permission-mode"),
     hasPrint: helpText.includes("-p") || helpText.includes("--print"),
     hasModel: helpText.includes("--model"),
+    // New opt-in capability flags
+    hasAllowedTools: helpText.includes("--allowedTools") || helpText.includes("--allowed-tools"),
+    hasDisallowedTools: helpText.includes("--disallowedTools") || helpText.includes("--disallowed-tools"),
+    hasMaxBudgetUsd: helpText.includes("--max-budget-usd"),
+    hasJsonSchema: helpText.includes("--json-schema"),
+    hasForkSession: helpText.includes("--fork-session"),
+    hasFallbackModel: helpText.includes("--fallback-model"),
+    hasAddDir: helpText.includes("--add-dir"),
   };
 }
 
@@ -242,6 +279,117 @@ function buildClaudeArgs(opts, capabilities = null) {
     }
   }
 
+  // Fail-closed: validate new opt-in flags before assembling argv
+
+  // 1. Tool allow/deny lists — fail closed if requested and unsupported
+  if (opts.allowedTools != null && caps.hasHelp && !caps.hasAllowedTools) {
+    const err = new Error(
+      "fail-closed: --allowed-tools was requested but the installed claude does not advertise --allowedTools support; refusing to silently drop a caller-supplied restriction",
+    );
+    err.code = "ERR_TOOL_FLAG_UNSUPPORTED";
+    err.exitCode = 2;
+    throw err;
+  }
+  if (opts.disallowedTools != null && caps.hasHelp && !caps.hasDisallowedTools) {
+    const err = new Error(
+      "fail-closed: --disallowed-tools was requested but the installed claude does not advertise --disallowedTools support; refusing to silently drop a caller-supplied restriction",
+    );
+    err.code = "ERR_TOOL_FLAG_UNSUPPORTED";
+    err.exitCode = 2;
+    throw err;
+  }
+
+  // 2. Permission mode override — validate value; reject bypassPermissions
+  if (opts.permissionMode != null) {
+    if (opts.permissionMode === "bypassPermissions") {
+      const err = new Error(
+        "--permission-mode bypassPermissions is refused by design; see rule.md. Use 'auto', 'acceptEdits', 'plan', 'default', or 'dontAsk'.",
+      );
+      err.code = "ERR_BYPASS_PERMISSIONS_REFUSED";
+      err.exitCode = 2;
+      throw err;
+    }
+    if (!VALID_PERMISSION_MODES.includes(opts.permissionMode)) {
+      const err = new Error(
+        `--permission-mode '${opts.permissionMode}' is not valid; accepted values: ${VALID_PERMISSION_MODES.join(", ")}`,
+      );
+      err.code = "ERR_INVALID_PERMISSION_MODE";
+      err.exitCode = 2;
+      throw err;
+    }
+  }
+
+  // 3. Budget cap — validate
+  if (opts.maxBudgetUsd != null) {
+    const n = Number(opts.maxBudgetUsd);
+    if (!Number.isFinite(n) || n < 0.05) {
+      const err = new Error(
+        `--max-budget-usd must be a finite number >= 0.05 (the ~$0.05 system-prompt cache minimum); got: ${opts.maxBudgetUsd}`,
+      );
+      err.code = "ERR_INVALID_BUDGET";
+      err.exitCode = 2;
+      throw err;
+    }
+    if (caps.hasHelp && !caps.hasMaxBudgetUsd) {
+      const err = new Error(
+        "fail-closed: --max-budget-usd was requested but the installed claude does not advertise --max-budget-usd support",
+      );
+      err.code = "ERR_BUDGET_UNSUPPORTED";
+      err.exitCode = 2;
+      throw err;
+    }
+  }
+
+  // 4. JSON schema — fail closed if requested and unsupported
+  if (opts.jsonSchema != null && caps.hasHelp && !caps.hasJsonSchema) {
+    const err = new Error(
+      "fail-closed: --json-schema was requested but the installed claude does not advertise --json-schema support",
+    );
+    err.code = "ERR_JSON_SCHEMA_UNSUPPORTED";
+    err.exitCode = 2;
+    throw err;
+  }
+
+  // 5. Fork session — requires --conversation-id; fail closed if unsupported
+  if (opts.forkSession) {
+    if (!opts.conversationId) {
+      const err = new Error(
+        "--fork-session requires --conversation-id; pass both together",
+      );
+      err.code = "ERR_FORK_SESSION_NO_ID";
+      err.exitCode = 2;
+      throw err;
+    }
+    if (caps.hasHelp && !caps.hasForkSession) {
+      const err = new Error(
+        "fail-closed: --fork-session was requested but the installed claude does not advertise --fork-session support",
+      );
+      err.code = "ERR_FORK_SESSION_UNSUPPORTED";
+      err.exitCode = 2;
+      throw err;
+    }
+  }
+
+  // 6. Fallback model — fail closed if requested and unsupported
+  if (opts.fallbackModel != null && caps.hasHelp && !caps.hasFallbackModel) {
+    const err = new Error(
+      "fail-closed: --fallback-model was requested but the installed claude does not advertise --fallback-model support",
+    );
+    err.code = "ERR_FALLBACK_MODEL_UNSUPPORTED";
+    err.exitCode = 2;
+    throw err;
+  }
+
+  // 7. Extra directories — fail closed if requested and unsupported
+  if (opts.addDir && opts.addDir.length > 0 && caps.hasHelp && !caps.hasAddDir) {
+    const err = new Error(
+      "fail-closed: --add-dir was requested but the installed claude does not advertise --add-dir support",
+    );
+    err.code = "ERR_ADD_DIR_UNSUPPORTED";
+    err.exitCode = 2;
+    throw err;
+  }
+
   const args = [];
   // Invariant 1: always -p
   args.push("-p");
@@ -252,7 +400,10 @@ function buildClaudeArgs(opts, capabilities = null) {
   }
 
   // Invariant 3: permission mode
-  if (opts.scout) {
+  // Precedence: explicit --permission-mode > --scout > edit default
+  if (opts.permissionMode != null) {
+    args.push("--permission-mode", opts.permissionMode);
+  } else if (opts.scout) {
     args.push("--permission-mode", "plan");
   } else {
     args.push("--permission-mode", "auto");
@@ -275,9 +426,12 @@ function buildClaudeArgs(opts, capabilities = null) {
     }
   }
 
-  // Session persistence / resume
+  // Session persistence / resume / fork
   if (opts.conversationId) {
     args.push("--resume", opts.conversationId);
+    if (opts.forkSession) {
+      args.push("--fork-session");
+    }
   } else if (caps.hasNoSessionPersistence) {
     args.push("--no-session-persistence");
   }
@@ -293,7 +447,47 @@ function buildClaudeArgs(opts, capabilities = null) {
       "fail-closed: neither --append-system-prompt-file nor --append-system-prompt is supported by installed claude",
     );
     err.code = "ERR_APPEND_UNSUPPORTED";
+    err.exitCode = 2;
     throw err;
+  }
+
+  // New opt-in: allowed/disallowed tools
+  if (opts.allowedTools != null) {
+    args.push("--allowedTools", opts.allowedTools);
+  }
+  if (opts.disallowedTools != null) {
+    args.push("--disallowedTools", opts.disallowedTools);
+  }
+
+  // New opt-in: budget cap (emit only when CLI supports it)
+  if (opts.maxBudgetUsd != null && (!caps.hasHelp || caps.hasMaxBudgetUsd)) {
+    args.push("--max-budget-usd", String(opts.maxBudgetUsd));
+  }
+
+  // New opt-in: json schema
+  if (opts.jsonSchema != null) {
+    let schemaValue = opts.jsonSchema;
+    // If the value is a path to an existing readable file, read its contents
+    try {
+      if (existsSync(opts.jsonSchema)) {
+        schemaValue = readFileSync(opts.jsonSchema, "utf8");
+      }
+    } catch {
+      // Not a readable file path; pass verbatim
+    }
+    args.push("--json-schema", schemaValue);
+  }
+
+  // New opt-in: fallback model
+  if (opts.fallbackModel != null) {
+    args.push("--fallback-model", opts.fallbackModel);
+  }
+
+  // New opt-in: extra directories (repeatable)
+  if (opts.addDir && opts.addDir.length > 0) {
+    for (const dir of opts.addDir) {
+      args.push("--add-dir", dir);
+    }
   }
 
   // Positional prompt args (job prompt after --)
@@ -332,6 +526,8 @@ function emptyState(meta) {
     parseErrors: 0,
     lastError: null,
     sessionId: null,
+    totalCostUsd: null,
+    numTurns: null,
     exitCode: null,
     signal: null,
     timedOut: false,
@@ -400,6 +596,10 @@ function applyEvent(state, ev) {
 
   if (ev.type === "result") {
     setCurrent(state, null);
+    // Extract cost/turn/session fields from result event (never fail if absent)
+    if (ev.total_cost_usd != null) state.totalCostUsd = ev.total_cost_usd;
+    if (ev.num_turns != null) state.numTurns = ev.num_turns;
+    if (ev.session_id != null) state.sessionId = ev.session_id;
     return "flush";
   }
 
@@ -504,6 +704,9 @@ function buildReport(state, extra = {}) {
     reportValid,
     errorMessage: clip(errorMessage, ERROR_MAX),
     stderrTail: extra.stderrTail ? clip(extra.stderrTail, STDERR_TAIL_MAX) : null,
+    totalCostUsd: state.totalCostUsd ?? null,
+    numTurns: state.numTurns ?? null,
+    sessionId: state.sessionId ?? null,
   };
 }
 
@@ -577,7 +780,9 @@ async function runJob(opts) {
     writeStatus();
     writeAtomic(paths.report, buildReport(state, { spawnError: err.message }));
     process.stdout.write(`RUN_DIR=${runDir}\nSTATUS_FILE=${paths.status}\nLIFECYCLE=failed\nREPORT_FILE=${paths.report}\n`);
-    return 1;
+    const errLine = err.code ? `${err.code}: ${err.message}` : err.message;
+    process.stderr.write(`${errLine}\n`);
+    return err.exitCode === 2 ? 2 : 1;
   }
 
   let stdoutText = "";
@@ -967,6 +1172,185 @@ function selfTest() {
   // SIGINT-then-SIGTERM-then-SIGKILL order encoded in timeout helper fields
   assert.deepStrictEqual(TIMEOUT_KILL_SIGNALS, ["SIGINT", "SIGTERM", "SIGKILL"], "signal sequence is SIGINT then SIGTERM then SIGKILL");
 
+  // --- New opt-in flag tests ---
+
+  // NT-1: allowedTools emission
+  const atOpts = parseArgs([
+    "node", "claude-spawn.mjs",
+    "--name", "at-job", "--model", "sonnet",
+    "--allowed-tools", "Read,Edit",
+    "--",  "hi",
+  ]);
+  assert(atOpts.allowedTools === "Read,Edit", "allowedTools parsed");
+  const atCaps = { ...dummyCaps, hasAllowedTools: true, hasDisallowedTools: true,
+    hasMaxBudgetUsd: true, hasJsonSchema: true, hasForkSession: true,
+    hasFallbackModel: true, hasAddDir: true };
+  const atArgs = buildClaudeArgs(atOpts, atCaps);
+  assert(atArgs.includes("--allowedTools") && atArgs[atArgs.indexOf("--allowedTools") + 1] === "Read,Edit", "allowedTools emitted as --allowedTools");
+
+  // NT-2: fail-closed on unsupported tool flag
+  const noToolCaps = { ...atCaps, hasAllowedTools: false };
+  let toolFail = false;
+  let toolFailCode = null;
+  try {
+    buildClaudeArgs(atOpts, noToolCaps);
+  } catch (err) {
+    toolFail = true;
+    toolFailCode = err.code;
+  }
+  assert(toolFail, "fail-closed when allowedTools requested but unsupported");
+  assert(toolFailCode === "ERR_TOOL_FLAG_UNSUPPORTED", "fail code ERR_TOOL_FLAG_UNSUPPORTED");
+
+  // NT-3: bypassPermissions rejection
+  const bpOpts = parseArgs([
+    "node", "claude-spawn.mjs",
+    "--name", "bp-job", "--model", "sonnet",
+    "--permission-mode", "bypassPermissions",
+    "--", "hi",
+  ]);
+  let bpFail = false;
+  let bpCode = null;
+  try {
+    buildClaudeArgs(bpOpts, atCaps);
+  } catch (err) {
+    bpFail = true;
+    bpCode = err.code;
+  }
+  assert(bpFail, "bypassPermissions rejected");
+  assert(bpCode === "ERR_BYPASS_PERMISSIONS_REFUSED", "bypass code ERR_BYPASS_PERMISSIONS_REFUSED");
+
+  // NT-4: --fork-session without --conversation-id rejected
+  const fsOpts = parseArgs([
+    "node", "claude-spawn.mjs",
+    "--name", "fs-job", "--model", "sonnet",
+    "--fork-session",
+    "--", "hi",
+  ]);
+  let fsFail = false;
+  let fsCode = null;
+  try {
+    buildClaudeArgs(fsOpts, atCaps);
+  } catch (err) {
+    fsFail = true;
+    fsCode = err.code;
+  }
+  assert(fsFail, "--fork-session without --conversation-id rejected");
+  assert(fsCode === "ERR_FORK_SESSION_NO_ID", "fork session no id code");
+
+  // NT-5: --max-budget-usd 0.01 rejected
+  const mbOpts = parseArgs([
+    "node", "claude-spawn.mjs",
+    "--name", "mb-job", "--model", "sonnet",
+    "--max-budget-usd", "0.01",
+    "--", "hi",
+  ]);
+  let mbFail = false;
+  try {
+    buildClaudeArgs(mbOpts, atCaps);
+  } catch (err) {
+    mbFail = true;
+  }
+  assert(mbFail, "--max-budget-usd 0.01 rejected (below 0.05 minimum)");
+
+  // NT-5b: capability-gated flags each throw exitCode===2 when hasHelp===true and capability===false
+
+  // base caps: hasHelp true but all new opt-in caps false
+  const capGateBase = { ...dummyCaps, hasAllowedTools: false, hasDisallowedTools: false,
+    hasMaxBudgetUsd: false, hasJsonSchema: false, hasForkSession: false,
+    hasFallbackModel: false, hasAddDir: false };
+
+  // helper: call buildClaudeArgs with given opts and caps, return the thrown error (or null)
+  function tryBuild(o, caps) {
+    try { buildClaudeArgs(o, caps); return null; }
+    catch (e) { return e; }
+  }
+
+  // --allowed-tools → ERR_TOOL_FLAG_UNSUPPORTED, exitCode 2
+  const atOptsGate = parseArgs(["node","claude-spawn.mjs","--name","g1","--model","sonnet","--allowed-tools","Read","--","hi"]);
+  const atGateErr = tryBuild(atOptsGate, capGateBase);
+  assert(atGateErr !== null, "allowed-tools unsupported: throws");
+  assert(atGateErr.code === "ERR_TOOL_FLAG_UNSUPPORTED", "allowed-tools unsupported: code ERR_TOOL_FLAG_UNSUPPORTED");
+  assert(atGateErr.exitCode === 2, "allowed-tools unsupported: exitCode 2");
+
+  // --disallowed-tools → ERR_TOOL_FLAG_UNSUPPORTED, exitCode 2
+  const dtOptsGate = parseArgs(["node","claude-spawn.mjs","--name","g2","--model","sonnet","--disallowed-tools","Bash","--","hi"]);
+  const dtGateErr = tryBuild(dtOptsGate, capGateBase);
+  assert(dtGateErr !== null, "disallowed-tools unsupported: throws");
+  assert(dtGateErr.code === "ERR_TOOL_FLAG_UNSUPPORTED", "disallowed-tools unsupported: code ERR_TOOL_FLAG_UNSUPPORTED");
+  assert(dtGateErr.exitCode === 2, "disallowed-tools unsupported: exitCode 2");
+
+  // --json-schema → ERR_JSON_SCHEMA_UNSUPPORTED, exitCode 2
+  const jsOptsGate = parseArgs(["node","claude-spawn.mjs","--name","g3","--model","sonnet","--json-schema","{}","--","hi"]);
+  const jsGateErr = tryBuild(jsOptsGate, capGateBase);
+  assert(jsGateErr !== null, "json-schema unsupported: throws");
+  assert(jsGateErr.code === "ERR_JSON_SCHEMA_UNSUPPORTED", "json-schema unsupported: code ERR_JSON_SCHEMA_UNSUPPORTED");
+  assert(jsGateErr.exitCode === 2, "json-schema unsupported: exitCode 2");
+
+  // --fork-session with --conversation-id → ERR_FORK_SESSION_UNSUPPORTED, exitCode 2
+  const fkOptsGate = parseArgs(["node","claude-spawn.mjs","--name","g4","--model","sonnet","--conversation-id","sess-x","--fork-session","--","hi"]);
+  const fkGateErr = tryBuild(fkOptsGate, capGateBase);
+  assert(fkGateErr !== null, "fork-session unsupported: throws");
+  assert(fkGateErr.code === "ERR_FORK_SESSION_UNSUPPORTED", "fork-session unsupported: code ERR_FORK_SESSION_UNSUPPORTED");
+  assert(fkGateErr.exitCode === 2, "fork-session unsupported: exitCode 2");
+
+  // --fallback-model → ERR_FALLBACK_MODEL_UNSUPPORTED, exitCode 2
+  const fbOptsGate = parseArgs(["node","claude-spawn.mjs","--name","g5","--model","sonnet","--fallback-model","haiku","--","hi"]);
+  const fbGateErr = tryBuild(fbOptsGate, capGateBase);
+  assert(fbGateErr !== null, "fallback-model unsupported: throws");
+  assert(fbGateErr.code === "ERR_FALLBACK_MODEL_UNSUPPORTED", "fallback-model unsupported: code ERR_FALLBACK_MODEL_UNSUPPORTED");
+  assert(fbGateErr.exitCode === 2, "fallback-model unsupported: exitCode 2");
+
+  // --add-dir → ERR_ADD_DIR_UNSUPPORTED, exitCode 2
+  const adOptsGate = parseArgs(["node","claude-spawn.mjs","--name","g6","--model","sonnet","--add-dir","/tmp","--","hi"]);
+  const adGateErr = tryBuild(adOptsGate, capGateBase);
+  assert(adGateErr !== null, "add-dir unsupported: throws");
+  assert(adGateErr.code === "ERR_ADD_DIR_UNSUPPORTED", "add-dir unsupported: code ERR_ADD_DIR_UNSUPPORTED");
+  assert(adGateErr.exitCode === 2, "add-dir unsupported: exitCode 2");
+
+  // --max-budget-usd (valid amount) → ERR_BUDGET_UNSUPPORTED, exitCode 2
+  const buOptsGate = parseArgs(["node","claude-spawn.mjs","--name","g7","--model","sonnet","--max-budget-usd","2","--","hi"]);
+  const buGateErr = tryBuild(buOptsGate, capGateBase);
+  assert(buGateErr !== null, "max-budget-usd unsupported: throws");
+  assert(buGateErr.code === "ERR_BUDGET_UNSUPPORTED", "max-budget-usd unsupported: code ERR_BUDGET_UNSUPPORTED");
+  assert(buGateErr.exitCode === 2, "max-budget-usd unsupported: exitCode 2");
+
+  // ERR_APPEND_UNSUPPORTED has exitCode===2 (capability failure)
+  const appendGateErr = tryBuild(printOpts, noAppendCaps);
+  assert(appendGateErr !== null, "append-unsupported still throws");
+  assert(appendGateErr.code === "ERR_APPEND_UNSUPPORTED", "append-unsupported: code preserved");
+  assert(appendGateErr.exitCode === 2, "append-unsupported: exitCode is 2 (capability failure)");
+
+  // NT-6: cost extraction from result event fixture
+  const costState = emptyState({ jobName: "cost-test", runId: "r3", runDir: "/tmp" });
+  const costFixtureLine = JSON.stringify({ type: "result", total_cost_usd: 0.42, num_turns: 3, session_id: "abc" });
+  const costEv = JSON.parse(costFixtureLine);
+  applyEvent(costState, costEv);
+  assert(costState.totalCostUsd === 0.42, `totalCostUsd should be 0.42, got ${costState.totalCostUsd}`);
+  assert(costState.numTurns === 3, `numTurns should be 3, got ${costState.numTurns}`);
+  assert(costState.sessionId === "abc", `sessionId should be "abc", got ${costState.sessionId}`);
+  const costReport = buildReport(costState, {});
+  assert(costReport.totalCostUsd === 0.42, "buildReport includes totalCostUsd");
+  assert(costReport.numTurns === 3, "buildReport includes numTurns");
+  assert(costReport.sessionId === "abc", "buildReport includes sessionId");
+  assert(costReport.schemaVersion === 3, "schemaVersion is 3");
+
+  // NT-7: default edit-job argv still has --permission-mode auto and none of the new flags
+  const defaultEditOpts = parseArgs([
+    "node", "claude-spawn.mjs",
+    "--name", "edit-job", "--model", "sonnet",
+    "--", "do stuff",
+  ]);
+  const defaultEditArgs = buildClaudeArgs(defaultEditOpts, atCaps);
+  const pmIdx = defaultEditArgs.indexOf("--permission-mode");
+  assert(pmIdx !== -1 && defaultEditArgs[pmIdx + 1] === "auto", "default edit-job has --permission-mode auto");
+  assert(!defaultEditArgs.includes("--allowedTools"), "default edit-job has no --allowedTools");
+  assert(!defaultEditArgs.includes("--disallowedTools"), "default edit-job has no --disallowedTools");
+  assert(!defaultEditArgs.includes("--max-budget-usd"), "default edit-job has no --max-budget-usd");
+  assert(!defaultEditArgs.includes("--json-schema"), "default edit-job has no --json-schema");
+  assert(!defaultEditArgs.includes("--fork-session"), "default edit-job has no --fork-session");
+  assert(!defaultEditArgs.includes("--fallback-model"), "default edit-job has no --fallback-model");
+  assert(!defaultEditArgs.includes("--add-dir"), "default edit-job has no --add-dir");
+
   console.log("SELFTEST: ok");
 }
 
@@ -982,7 +1366,7 @@ if (opts.selfTest) {
 } else {
   if (!opts.name) {
     console.error(
-      "usage: claude-spawn.mjs --name <job> --model <id> [--cwd dir] [--print] [--scout] [--effort <level>] [--timeout <sec|Nms>] [--conversation-id <id>] -- <prompt>",
+      "usage: claude-spawn.mjs --name <job> --model <id> [--cwd dir] [--print] [--scout] [--effort <level>] [--timeout <sec|Nms>] [--conversation-id <id>] [--permission-mode <mode>] [--allowed-tools <list>] [--disallowed-tools <list>] [--max-budget-usd <n>] [--json-schema <file-or-json>] [--fork-session] [--fallback-model <id>] [--add-dir <path>]... -- <prompt>",
     );
     process.exit(2);
   }
@@ -997,6 +1381,28 @@ if (opts.selfTest) {
   } catch (err) {
     console.error(err.message);
     process.exit(err.exitCode || 2);
+  }
+  // Early validation of new opt-in flags (no-probe checks)
+  if (opts.permissionMode != null) {
+    if (opts.permissionMode === "bypassPermissions") {
+      console.error("--permission-mode bypassPermissions is refused by design; see rule.md. Use 'auto', 'acceptEdits', 'plan', 'default', or 'dontAsk'.");
+      process.exit(2);
+    }
+    if (!VALID_PERMISSION_MODES.includes(opts.permissionMode)) {
+      console.error(`--permission-mode '${opts.permissionMode}' is not valid; accepted values: ${VALID_PERMISSION_MODES.join(", ")}`);
+      process.exit(2);
+    }
+  }
+  if (opts.maxBudgetUsd != null) {
+    const n = Number(opts.maxBudgetUsd);
+    if (!Number.isFinite(n) || n < 0.05) {
+      console.error(`--max-budget-usd must be a finite number >= 0.05 (the ~$0.05 system-prompt cache minimum); got: ${opts.maxBudgetUsd}`);
+      process.exit(2);
+    }
+  }
+  if (opts.forkSession && !opts.conversationId) {
+    console.error("--fork-session requires --conversation-id; pass both together");
+    process.exit(2);
   }
   if (!existsSync(WORKER_CONTRACT)) {
     console.error(`missing worker contract: ${WORKER_CONTRACT}`);
