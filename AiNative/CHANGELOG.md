@@ -7,6 +7,11 @@
 - `SERVER-READINESS.md` report contract with evidence, open ports, rollback, and a project-layer handoff checklist; the setup knowledge page and retrieval indexes link the new agent.
 - `antigravity-harness` browser-less sign-in runbook (`setup-headless-signin.md`): install, OAuth mode selection, headless verification, and troubleshooting for hosts without a browser or keyring.
 - `antigravity-harness` `scripts/agy-auth-pty.py`: drives the interactive login in a pty, captures the authorization URL, and submits a code returned through a file so the credential never enters a chat transcript.
+- `claude-harness` **opt-in flags**: `--allowed-tools`, `--disallowed-tools`, `--permission-mode`, `--max-budget-usd`, `--json-schema`, `--fork-session`, `--fallback-model`, `--add-dir` — all additive, with fail-closed capability checks (`ERR_*_UNSUPPORTED`, exit 2). `report.json` and `status.json` gain `totalCostUsd`, `numTurns`, `sessionId` (`schemaVersion` 3). `antigravity-harness` gains `--allow-command` (per-job `permissions.allow` rules) and `--allow-bypass`, plus `permissionWarning` / `autoDenied` report fields.
+
+### Changed
+- `antigravity-harness` edit jobs no longer pass `--dangerously-skip-permissions` by default: `--mode accept-edits` alone, with shell access granted per job via `--allow-command <target>` and blanket bypass only behind an explicit `--allow-bypass`. A scoped rule matches direct invocations only — redirects, pipes and `&&` still require the bypass.
+- `claude-harness` exit-code taxonomy documented and unified: `ERR_APPEND_UNSUPPORTED` now exits 2 (was 1), matching every other capability-gated precondition, so a missing CLI feature can no longer be mistaken for a runtime crash.
 
 ## [0.8.0] - 2026-11-06
 
