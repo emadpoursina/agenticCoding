@@ -25,6 +25,7 @@ Each agent is a folder with three core files tuned for one job.
 | [ready](./ready/) | Per-card gate | Branch + worktree + Spec Kit preflight before every card; returns `READY: ok\|blocked` with `WORKTREE` ([feature-loop.md](../systems/feature-loop.md)) |
 | [route-work](./route-work/) | Per-card router | Decides `feature\|change\|job` after `ready`; returns `ROUTE` + job `SKILL_PATH` |
 | [speckit-orchestrate](./speckit-orchestrate/) | Cursor parent only | Cursor implementation of the feature-loop graph; Hermes implements the same graph via dispatch |
+| [speckit-phases](./speckit-phases/) | Editor hosts only | Runs a phased PRD end to end: PRD + plan PR, then one `speckit-orchestrate` phase run per fresh session, in order, after each merge; Hermes uses one card per phase instead |
 | [speckit-ready](./speckit-ready/) | Shared gate impl | Same body/script as `ready/` (Cursor stage name); canonical script `scripts/ready-check.sh` |
 | [pi-harness](./pi-harness/) | Worker backend | Delegates one bounded job to Pi (required `--model`); `pi-spawn.mjs` + `worker-contract.md` |
 | [antigravity-harness](./antigravity-harness/) | Worker backend | Delegates one bounded job to the official Antigravity CLI (required `--model`); `agy-spawn.py` + `worker-contract.md` |

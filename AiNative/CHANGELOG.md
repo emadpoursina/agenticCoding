@@ -3,6 +3,7 @@
 ## [Unreleased]
 
 ### Added
+- `speckit-phases` agent: editor-host driver for a phased PRD. Gets the PRD and phase plan merged, then runs `/speckit-orchestrate phase: <plan>#<N>` for each unmerged phase in order, each in a fresh session (Claude Code desktop) or a pasted command in a new chat (other hosts), and starts the next phase only after the previous PR is merged and its worktree and branches are gone. Stateless: re-invoking it resumes from the base branch.
 - `server-setup` agent for a project-agnostic Ubuntu VPS baseline: phased SSH, UFW, patching, fail2ban, time/swap/logging, and generic-tools workflow; a read-only `server-audit.sh`; and reviewed templates for `du_setup`, `sshd`, fail2ban, auto-upgrades, sysctl, and UFW.
 - `SERVER-READINESS.md` report contract with evidence, open ports, rollback, and a project-layer handoff checklist; the setup knowledge page and retrieval indexes link the new agent.
 - `antigravity-harness` browser-less sign-in runbook (`setup-headless-signin.md`): install, OAuth mode selection, headless verification, and troubleshooting for hosts without a browser or keyring.
