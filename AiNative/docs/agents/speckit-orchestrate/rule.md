@@ -13,7 +13,7 @@
   the parent never edits the phase plan or the PRD, and never starts a phase that
   ready blocked on `phase-order`.
 - Every stage runs in a worker (Pi via `pi-harness`, Antigravity CLI via
-  `antigravity-harness`, or Claude Code CLI via `claude-harness` for Worker-profile stages, per the Worker execution's
+  `antigravity-harness`, Claude Code CLI via `claude-harness`, or Cursor SDK via `cursor-harness` for Worker-profile stages, per the Worker execution's
   `provider` (`SPECKIT_WORKER` / `speckit.worker` holds that value); host Task for Reasoning- and Validation-profile stages — Cursor
   `generalPurpose` Task, OpenCode subagent equivalent, or Hermes worker
   session). Never omit `model`. Never pass `inherit` on Tasks.

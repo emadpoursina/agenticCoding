@@ -1,0 +1,12 @@
+{
+  "name": "ainative-cursor-harness",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22.13.0"
+  },
+  "dependencies": {
+    "@cursor/sdk": "^1.2.0",
+    "zod": "^3.25.0"
+  }
+}

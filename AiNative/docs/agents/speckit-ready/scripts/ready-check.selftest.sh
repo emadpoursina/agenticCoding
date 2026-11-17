@@ -731,5 +731,79 @@ run_check_phase "$REPO40" flow_selftest_40 no-phase none
 expect_rc 0 "case40 (no phase)"
 expect_not_contains "phase-order" "case40"
 
+# --- Case 41: cursor worker without Node -> worker-runtime fail --------------
+REPO41="$TMP/repo41"
+make_fixture "$REPO41"
+CASE41_HOME="$TMP/case41-home"
+mkdir -p "$CASE41_HOME"
+OUT="$(env -u SPECKIT_NODE_BIN -u SPECKIT_CURSOR_SDK_DIR -u CURSOR_API_KEY HOME="$CASE41_HOME" PATH="$STUB_BIN:/usr/bin:/bin" SPECKIT_WORKER=cursor "$CHECK" "$REPO41" flow_selftest_41 worker-cursor-no-node 2>&1)" && RC=0 || RC=$?
+expect_rc 1 "case41 (cursor node missing)"
+expect_contains "READY: blocked" "case41"
+expect_contains "WORKER: cursor" "case41"
+expect_contains "worker-runtime: fail" "case41"
+expect_contains "node not on PATH" "case41"
+expect_contains "Node.js 22.13" "case41"
+
+# --- Case 42: Node present, @cursor/sdk not installed -> fail -----------------
+NODE_BIN_DIR="$TMP/node-bin"
+mkdir -p "$NODE_BIN_DIR"
+cat > "$NODE_BIN_DIR/node" <<'EOF'
+#!/bin/sh
+if [ "$1" = "-v" ] || [ "$1" = "--version" ]; then
+  echo v22.13.0
+  exit 0
+fi
+exit 0
+EOF
+chmod +x "$NODE_BIN_DIR/node"
+REPO42="$TMP/repo42"
+make_fixture "$REPO42"
+CASE42_HOME="$TMP/case42-home"
+mkdir -p "$CASE42_HOME"
+EMPTY_HARNESS="$TMP/empty-cursor-harness"
+mkdir -p "$EMPTY_HARNESS"
+OUT="$(env -u CURSOR_API_KEY HOME="$CASE42_HOME" PATH="$NODE_BIN_DIR:$STUB_BIN:/usr/bin:/bin" SPECKIT_CURSOR_SDK_DIR="$EMPTY_HARNESS" SPECKIT_WORKER=cursor "$CHECK" "$REPO42" flow_selftest_42 worker-cursor-sdk-missing 2>&1)" && RC=0 || RC=$?
+expect_rc 1 "case42 (cursor sdk missing)"
+expect_contains "READY: blocked" "case42"
+expect_contains "worker-runtime: fail" "case42"
+expect_contains "@cursor/sdk not installed" "case42"
+expect_contains "npm install" "case42"
+
+# --- Case 43: SDK installed, no auth -> fail ---------------------------------
+SDK_HARNESS="$TMP/sdk-harness"
+mkdir -p "$SDK_HARNESS/node_modules/@cursor/sdk"
+printf '{}\n' > "$SDK_HARNESS/node_modules/@cursor/sdk/package.json"
+REPO43="$TMP/repo43"
+make_fixture "$REPO43"
+CASE43_HOME="$TMP/case43-home"
+mkdir -p "$CASE43_HOME"
+OUT="$(env -u CURSOR_API_KEY HOME="$CASE43_HOME" PATH="$NODE_BIN_DIR:$STUB_BIN:/usr/bin:/bin" SPECKIT_CURSOR_SDK_DIR="$SDK_HARNESS" SPECKIT_WORKER=cursor "$CHECK" "$REPO43" flow_selftest_43 worker-cursor-auth-missing 2>&1)" && RC=0 || RC=$?
+expect_rc 1 "case43 (cursor auth missing)"
+expect_contains "READY: blocked" "case43"
+expect_contains "unattended auth not detected" "case43"
+expect_contains "CURSOR_API_KEY" "case43"
+
+# --- Case 44: SDK installed and CURSOR_API_KEY -> pass -----------------------
+REPO44="$TMP/repo44"
+make_fixture "$REPO44"
+OUT="$(env CURSOR_API_KEY="test-token" HOME="$CASE43_HOME" PATH="$NODE_BIN_DIR:$STUB_BIN:/usr/bin:/bin" SPECKIT_CURSOR_SDK_DIR="$SDK_HARNESS" SPECKIT_WORKER=cursor "$CHECK" "$REPO44" flow_selftest_44 worker-cursor-auth-env 2>&1)" && RC=0 || RC=$?
+expect_rc 0 "case44 (cursor auth env pass)"
+expect_contains "READY: ok" "case44"
+expect_contains "WORKER: cursor" "case44"
+expect_contains "worker-runtime: pass" "case44"
+expect_contains "unattended auth verified" "case44"
+
+# --- Case 45: cursor-sdk alias and stored auth.json -> pass ------------------
+REPO45="$TMP/repo45"
+make_fixture "$REPO45"
+CASE45_HOME="$TMP/case45-home"
+mkdir -p "$CASE45_HOME/.cursor/sdk"
+printf '{}\n' > "$CASE45_HOME/.cursor/sdk/auth.json"
+OUT="$(env -u CURSOR_API_KEY HOME="$CASE45_HOME" PATH="$NODE_BIN_DIR:$STUB_BIN:/usr/bin:/bin" SPECKIT_CURSOR_SDK_DIR="$SDK_HARNESS" SPECKIT_WORKER=cursor-sdk "$CHECK" "$REPO45" flow_selftest_45 worker-cursor-sdk-alias 2>&1)" && RC=0 || RC=$?
+expect_rc 0 "case45 (cursor-sdk alias)"
+expect_contains "WORKER: cursor" "case45"
+expect_contains "worker-runtime: pass" "case45"
+expect_contains "auth.json" "case45"
+
 echo "SELFTEST: ok"
 exit 0

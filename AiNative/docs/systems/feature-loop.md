@@ -45,7 +45,7 @@ report.
 
 1. **AiNative agents** — folders under `docs/agents/`. Target required states: Ready,
    route-work, critic, and tester. `pi-harness` is the Pi worker backend; `antigravity-harness` is the
-   Google Antigravity CLI worker backend; `claude-harness` is the Claude Code CLI worker backend. Ready selects one via
+   Google Antigravity CLI worker backend; `claude-harness` is the Claude Code CLI worker backend; `cursor-harness` is the Cursor TypeScript SDK (`@cursor/sdk`) worker backend. Ready selects one via
    `SPECKIT_WORKER` / `speckit.worker` (default `antigravity`) and checks that
    runtime only. All require `--model` (no harness default). `scout` (read-only brief / Repo Q&A)
    and `legacy-system-assessment-agent` (standalone assessment) are on-hand tools

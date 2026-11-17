@@ -46,6 +46,8 @@ AiNative/
 │   │   ├── speckit-ready/
 │   │   ├── pi-harness/
 │   │   ├── antigravity-harness/
+│   │   ├── claude-harness/
+│   │   ├── cursor-harness/
 │   │   ├── change/
 │   │   ├── plan-reviewer/
 │   │   ├── critic/

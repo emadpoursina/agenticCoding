@@ -12,7 +12,7 @@ Cursor `speckit-orchestrate` 2026-10-13). Symlinked into Cursor
 references the same graph via `personalAgent` dispatch rather than copying
 it — all link `feature-loop.md`. Workers are stage-dumb in every runtime
 (host Task, Pi via `pi-harness`, Antigravity CLI via `antigravity-harness`,
-or Claude Code CLI via `claude-harness`
+Claude Code CLI via `claude-harness`, or Cursor SDK via `cursor-harness`
 here; the same worker backends under Hermes there).
 Model values are never pinned here; each runtime resolves them per run (see
 SKILL.md Model resolution). Editor hosts persist defaults in

@@ -902,6 +902,60 @@ case "$worker_lc" in
       worker_note="agy on PATH; CLI authenticated (agy models) (${worker_source})"
     fi
     ;;
+  cursor|cursor-agent|cursor-cli|cursor-sdk)
+    worker="cursor"
+    node_bin="${SPECKIT_NODE_BIN:-node}"
+    if ! command -v "$node_bin" >/dev/null 2>&1; then
+      worker_fail=1
+      worker_note="node not on PATH (${worker_source})"
+      worker_fix="install Node.js 22.13 or newer and put 'node' on PATH, then re-run."
+    else
+      node_ver="$("$node_bin" -v 2>/dev/null | tr -d 'v\n')"
+      node_ok="$(printf '%s' "$node_ver" | awk -F. '{
+        maj=$1+0; min=$2+0; pat=$3+0;
+        if (maj>22 || (maj==22 && min>13) || (maj==22 && min==13 && pat>=0)) print "ok";
+      }')"
+      if [ "$node_ok" != "ok" ]; then
+        worker_fail=1
+        worker_note="node ${node_ver:-unknown} is older than 22.13 (${worker_source})"
+        worker_fix="upgrade Node.js to 22.13 or newer, then re-run."
+      else
+        here="$(cd "$(dirname "$0")" && pwd)"
+        sdk_root="${SPECKIT_CURSOR_SDK_DIR:-${SPECKIT_CURSOR_HARNESS_DIR:-}}"
+        if [ -z "$sdk_root" ]; then
+          if [ -f "$here/../../cursor-harness/package.json" ]; then
+            sdk_root="$(cd "$here/../../cursor-harness" && pwd)"
+          elif [ -f "$HOME/.cursor/skills/cursor-harness/package.json" ]; then
+            sdk_root="$HOME/.cursor/skills/cursor-harness"
+          else
+            sdk_root="$here/../../cursor-harness"
+          fi
+        fi
+        if [ ! -f "$sdk_root/node_modules/@cursor/sdk/package.json" ]; then
+          worker_fail=1
+          worker_note="@cursor/sdk not installed in cursor-harness (${worker_source})"
+          worker_fix="from the cursor-harness skill folder run 'npm install' (installs @cursor/sdk; do not invoke a model), then re-run."
+        else
+          auth_found=0
+          auth_source=""
+          if [ -n "${CURSOR_API_KEY:-}" ]; then
+            auth_found=1
+            auth_source="CURSOR_API_KEY"
+          elif [ -s "$HOME/.cursor/sdk/auth.json" ]; then
+            auth_found=1
+            auth_source="~/.cursor/sdk/auth.json"
+          fi
+          if [ "$auth_found" -eq 1 ]; then
+            worker_note="cursor SDK ready (node ${node_ver}; @cursor/sdk); unattended auth verified (${auth_source}) (${worker_source})"
+          else
+            worker_fail=1
+            worker_note="cursor SDK installed but unattended auth not detected (${worker_source})"
+            worker_fix="set CURSOR_API_KEY or create a non-empty ~/.cursor/sdk/auth.json, then re-run. Do not invoke a model."
+          fi
+        fi
+      fi
+    fi
+    ;;
   claude|claude-code|anthropic)
     worker="claude"
     claude_bin="${SPECKIT_CLAUDE_BIN:-claude}"
@@ -950,7 +1004,7 @@ case "$worker_lc" in
     worker="$worker_lc"
     worker_fail=1
     worker_note="unknown worker backend '$worker_raw' (${worker_source})"
-    worker_fix="set SPECKIT_WORKER or git config speckit.worker to 'pi', 'antigravity', or 'claude', then re-run."
+    worker_fix="set SPECKIT_WORKER or git config speckit.worker to 'pi', 'antigravity', 'claude', or 'cursor', then re-run."
     ;;
 esac
 

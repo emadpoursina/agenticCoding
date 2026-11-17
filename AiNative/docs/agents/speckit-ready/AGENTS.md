@@ -20,7 +20,7 @@ skill body and script; see [`../ready/`](../ready/).
 
 ## Outputs
 
-- `READY: ok|blocked`, `FLOW_ID`, `BRANCH`, `WORKER` (`pi`, `antigravity`, or `claude`), `WORKTREE`, `CHECKS` (includes `worker-runtime`; `phase-order` when `PHASE_REF` is set; plus `worktree-copy` and `worktree-setup` when a feature worktree was selected), `FIXES`
+- `READY: ok|blocked`, `FLOW_ID`, `BRANCH`, `WORKER` (`pi`, `antigravity`, `claude`, or `cursor`), `WORKTREE`, `CHECKS` (includes `worker-runtime`; `phase-order` when `PHASE_REF` is set; plus `worktree-copy` and `worktree-setup` when a feature worktree was selected), `FIXES`
 
 ## Worktree local files (optional)
 

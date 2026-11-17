@@ -4,7 +4,7 @@
   work branch required by the Hermes preflight.
 - A stable `READY: blocked` is never retried by the orchestrator; report the
   fix in `FIXES` and stop.
-- Check only the selected worker backend (`pi`, `antigravity`, or `claude`).
+- Check only the selected worker backend (`pi`, `antigravity`, `claude`, or `cursor`).
   Do not require every runtime. Resolve backend via `SPECKIT_WORKER`, then
   `git config speckit.worker`, then
   `~/.config/ainative/harness-models.yaml` (`SPECKIT_HARNESS` section else

@@ -23,7 +23,7 @@ content, `specs/`, `spec.md`, or `feature.json`.
   (`phase: <plan-path>#<N>`), else `none`. If the parent does not pass it,
   take it from a `phase:` line in `FEATURE_DESCRIPTION`. See
   [feature-loop.md § Phased PRD](../../systems/feature-loop.md#phased-prd).
-- Worker backend — `SPECKIT_WORKER` or `git config speckit.worker` (`antigravity` default, `pi`, or `claude`)
+- Worker backend — `SPECKIT_WORKER` or `git config speckit.worker` (`antigravity` default, `pi`, `claude`, or `cursor`)
 
 ## What to do
 
@@ -103,7 +103,7 @@ Check only the backend this run will use (do not require all):
 
 1. `SPECKIT_WORKER` for a one-run override.
 2. This repository's local Git setting `speckit.worker`
-   (`git -C <repo> config speckit.worker pi|antigravity|claude`).
+   (`git -C <repo> config speckit.worker pi|antigravity|claude|cursor`).
 3. Active harness models file
    (`$SPECKIT_HARNESS_MODELS` or `~/.config/ainative/harness-models.yaml`):
    section from `SPECKIT_HARNESS` (`cursor`|`opencode`|`claude`), else
@@ -112,6 +112,7 @@ Check only the backend this run will use (do not require all):
 
 Aliases for Antigravity: `antigravity`, `agy`, `google-antigravity`.
 Aliases for Claude: `claude`, `claude-code`, `anthropic`.
+Aliases for Cursor: `cursor`, `cursor-sdk`, `cursor-agent`, `cursor-cli`.
 
 - **pi** — `pi` is on PATH (`SPECKIT_PI_BIN` overrides the binary name).
 - **antigravity** — `agy` is on PATH and authenticated (`agy models` exits 0).
@@ -119,8 +120,9 @@ Aliases for Claude: `claude`, `claude-code`, `anthropic`.
   FIXES tell the operator to install/put `agy` on PATH or authenticate the CLI
   (never `pip install google-antigravity`).
 - **claude** — `claude` is on PATH (`SPECKIT_CLAUDE_BIN` overrides the binary name) and unattended authentication evidence exists (`ANTHROPIC_API_KEY`, `CLAUDE_CODE_OAUTH_TOKEN`, `ANTHROPIC_AUTH_TOKEN`, `apiKeyHelper` in settings JSON, or non-empty `.credentials.json`). SDK packages are neither required nor sufficient. Do not invoke a model. FIXES tell the operator to install Claude Code CLI and put `claude` on PATH or authenticate the CLI (never `pip install claude-agent-sdk` / `npm install @anthropic-ai/claude-agent-sdk`).
+- **cursor** — Node.js >= 22.13 is on PATH, `@cursor/sdk` is installed in the `cursor-harness` skill folder (`npm install` there), and unattended authentication evidence exists (`CURSOR_API_KEY` or a non-empty `~/.cursor/sdk/auth.json`). Do not invoke a model. The `agent` TUI and `@cursor/agent-sdk` (bots-as-code) are neither required nor sufficient. FIXES tell the operator to upgrade Node, run `npm install` in `cursor-harness`, or set `CURSOR_API_KEY`.
 
-The compact report includes `WORKER: pi|antigravity|claude` and a
+The compact report includes `WORKER: pi|antigravity|claude|cursor` and a
 `worker-runtime` check line.
 
 ### Phase order (required when `PHASE_REF` is set)
@@ -213,7 +215,7 @@ unresolved base branch). `tcp` /
 READY: ok | blocked
 FLOW_ID: <flow_id>
 BRANCH: <branch-name-created-or-reused>
-WORKER: pi | antigravity | claude
+WORKER: pi | antigravity | claude | cursor
 WORKTREE: <absolute feature worktree path>
 CHECKS:
 - [required] git-branch-state: pass|fail — <note>

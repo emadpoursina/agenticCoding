@@ -1,0 +1,10 @@
+- Cursor the editor (or Hermes) is the orchestrator. The Cursor SDK agent is the worker. Never invert that.
+- Spawn through `cursor-spawn.mjs`. Never call `Agent.create` or `Agent.prompt` from the parent, and never launch the `agent` CLI TUI.
+- Always pass `--model`. There is no harness default. `auto-smart` also requires `--model-param optimize_for=<cost|balanced|intelligence>`.
+- Local runtime only. Do not pass a cloud repo, `autoCreatePR`, or a bridge adapter from this harness.
+- Do not set `systemPrompt`. That replaces Cursor's coding prompt. The wrapper prepends `worker-contract.md` to the user message.
+- Default local runs load `project`, `user`, and `plugins` settings so skills and project config apply. Do not add inline MCP servers unless the prompt asked for them.
+- Default edit jobs use the SDK's headless tool execution (no approval prompt). `--scout` is plan mode with only `read`, `grep`, `glob`, and `ls`.
+- `--auto-review` and `--sandbox` are opt-in. Do not enable a permission bypass flag; the SDK has none, and this harness must not invent one.
+- After exit, read `report.json`. Process `lifecycle=completed` is not worker success; require `reportValid` and `workerStatus`.
+- Do not install packages, paste API keys, or run `Cursor.auth.login()` from a job. If Node is older than 22.13, `@cursor/sdk` is missing, or unattended auth is missing, stop.
