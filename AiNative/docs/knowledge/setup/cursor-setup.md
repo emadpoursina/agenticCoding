@@ -29,6 +29,8 @@ Skip `template/` (copy starter, not an agent). Library skills under
 
 Cursor-only extra (not an AiNative agent): `~/.cursor/skills/pr-generate/`.
 `/speckit-orchestrate` ship uses that skill’s `template.md`.
+`handoff-speckit` is an AiNative agent (launch block only; does not run
+orchestrate).
 
 ## Cursor commands
 
@@ -48,10 +50,9 @@ Platform aliases (Cursor name ≠ skill folder):
 |---------|----------------|
 | `/pr-review` | `pr-reviewer` |
 | `/pr-generate` | Cursor-only `pr-generate` (no OpenCode/Claude skill) |
-| `/handoff-speckit` | Cursor-only launch-block helper (does not run `/speckit-orchestrate`). No skill behind it; the command file is the workflow, the one exception to the rule above. |
 
 Skills with `disable-model-invocation: true` will not auto-load; use the slash
-command (or attach the skill) — `/speckit-orchestrate`, `/change`, `/critic`,
+command (or attach the skill) — `/speckit-orchestrate`, `/handoff-speckit`, `/change`, `/critic`,
 `/tester`, `/pr-reviewer`, `/route-work`, `/pi-harness`, `/antigravity-harness`, `/claude-harness`, `/cursor-harness`,
 `/speckit-ready`.
 

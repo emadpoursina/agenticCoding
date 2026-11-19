@@ -3,6 +3,7 @@
 ## [Unreleased]
 
 ### Added
+- `handoff-speckit` agent: paste-ready `/speckit-orchestrate` launch block from the current chat (does not run orchestrate). Same skill on Cursor, OpenCode, and Claude Code; Cursor `/handoff-speckit` is now a thin wrapper, not a Cursor-only command file.
 - `cursor-harness`: fourth Spec Kit Worker backend (`SPECKIT_WORKER=cursor`, aliases `cursor-sdk`, `cursor-agent`, `cursor-cli`) wrapping the official TypeScript SDK (`@cursor/sdk`) via `cursor-spawn.mjs`. Required `--model`; local `Agent.create` only (no cloud agent, no `agent` TUI). Ready checks Node >= 22.13, `@cursor/sdk` installed in the skill folder, and unattended auth (`CURSOR_API_KEY` or `~/.cursor/sdk/auth.json`) without invoking a model.
 - `speckit-phases` agent: editor-host driver for a phased PRD. Gets the PRD and phase plan merged, then runs `/speckit-orchestrate phase: <plan>#<N>` for each unmerged phase in order, each in a fresh session (Claude Code desktop) or a pasted command in a new chat (other hosts), and starts the next phase only after the previous PR is merged and its worktree and branches are gone. Stateless: re-invoking it resumes from the base branch.
 - `server-setup` agent for a project-agnostic Ubuntu VPS baseline: phased SSH, UFW, patching, fail2ban, time/swap/logging, and generic-tools workflow; a read-only `server-audit.sh`; and reviewed templates for `du_setup`, `sshd`, fail2ban, auto-upgrades, sysctl, and UFW.
