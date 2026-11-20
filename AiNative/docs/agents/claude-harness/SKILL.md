@@ -155,6 +155,19 @@ unless status is not enough.
 
 Do not pass MCP servers unless the user asked.
 
+### Learn jobs
+
+A [`learn`](../learn/SKILL.md) card's appetite maps onto this wrapper's
+limits for `STEP: build` only (the parent computes them; see
+`speckit-orchestrate` § Learn job):
+
+- Time: `--timeout <seconds until DEADLINE>`. `lifecycle=timed_out` here is
+  the learn circuit breaker, not a crash: the parent asks the operator for a
+  decision on what exists instead of retrying.
+- Cost: `--max-budget-usd <n>` only when the card's `## Appetite` names a
+  cost cap. Below 0.05 is rejected (exit 2); round up to 0.05 and say so.
+- `STEP: finding` is a short job: `--timeout 900`, no budget cap.
+
 
 ## Opt-in flags
 

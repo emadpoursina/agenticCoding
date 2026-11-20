@@ -627,6 +627,44 @@ flowchart TD
    and resume or relaunch the worker with the answers. If the worker reports
    the task is really a code change, stop and tell the user; do not switch
    paths on your own.
+
+   **Learn job** (`SKILL: learn`, a card with `## Mode: learn: spike|demo`;
+   [scoping.md](../../systems/scoping.md)). Two worker launches, not one:
+
+   - **Before the first launch**, mint once and reuse for both steps:
+     `DEADLINE` = now (UTC) + the card's `## Appetite` time, as ISO 8601;
+     `FINDING_SLUG` = `<today YYYY-MM-DD>-<kebab slug of the card title, ≤ 5 words>`.
+     If `## Appetite` has no readable time, stop and ask the user; never
+     invent a budget.
+   - **`STEP: build`** — pass `STEP`, `DEADLINE`, `FINDING_SLUG`, `REPO_ROOT`,
+     `FLOW_ID`, `BRANCH`, and the card as `TASK_DESCRIPTION`. Enforce the
+     appetite with the backend's own limits (see **Learn limits** below). It
+     returns `STATUS: blocked` with `NEEDS_HUMAN`: show that text to the user
+     as-is and wait. The decision (go / rework / kill) is the user's; `skip`
+     does not apply to it, and never answer it yourself. A backend timeout
+     at `DEADLINE` is the circuit breaker, not a failure: tell the user the
+     appetite ran out and ask for the decision on what exists.
+   - **`STEP: finding`** — a **new** worker launch with the same inputs, plus
+     the build report (or, after a timeout, `BREAKER: tripped` and the
+     backend's lifecycle line) and the user's answers verbatim. Short job: no
+     appetite limit, a 15-minute timeout.
+   - **Guard before ship**: `git -C <WORKTREE> status --porcelain` lists
+     exactly `docs/learn/<FINDING_SLUG>.md` and `docs/learn/<FINDING_SLUG>.patch`.
+     Anything else → `SHIP: blocked`, report the stray paths; do not clean
+     them yourself.
+   - Learn returns its own report ([learn § Report](../learn/SKILL.md#report)),
+     not the generic job report. Ship commit:
+     `docs(learn): record <spike|demo> finding for <card title>`. The PR
+     `## Walkthrough` is: read the finding; the decision is already in it.
+
+   **Learn limits** per worker backend, for `STEP: build` only. Seconds to
+   `DEADLINE` = `DEADLINE` − now, recomputed at launch.
+
+   | Backend | Time | Cost cap (only when `## Appetite` names one) |
+   |---|---|---|
+   | `claude-harness` | `--timeout <seconds to DEADLINE>` | `--max-budget-usd <n>` |
+   | other backends | their timeout flag, if any; otherwise the worker's own `DEADLINE` check | none; tell the user the cap is not enforced |
+
 4. **Ship** — after named skill `STATUS: ok`, run the shared **Ship / UAT** procedure
    below automatically (no confirmation prompt), unless the operator passed
    `keep-local` (alias `no-ship`). For jobs, after named skill `STATUS: ok` → ship
