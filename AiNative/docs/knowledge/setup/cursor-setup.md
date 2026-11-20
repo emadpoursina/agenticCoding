@@ -53,7 +53,7 @@ Platform aliases (Cursor name ≠ skill folder):
 
 Skills with `disable-model-invocation: true` will not auto-load; use the slash
 command (or attach the skill) — `/speckit-orchestrate`, `/handoff-speckit`, `/change`, `/critic`,
-`/tester`, `/pr-reviewer`, `/route-work`, `/pi-harness`, `/antigravity-harness`, `/claude-harness`, `/cursor-harness`,
+`/tester`, `/pr-reviewer`, `/route-work`, `/learn`, `/pi-harness`, `/antigravity-harness`, `/claude-harness`, `/cursor-harness`,
 `/speckit-ready`.
 
 ## Per-harness model defaults

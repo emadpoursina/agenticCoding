@@ -663,6 +663,7 @@ flowchart TD
    | Backend | Time | Cost cap (only when `## Appetite` names one) |
    |---|---|---|
    | `claude-harness` | `--timeout <seconds to DEADLINE>` | `--max-budget-usd <n>` |
+   | `cursor-harness` | `--timeout <seconds to DEADLINE>` | none; tell the user the cap is not enforced (`totalCostUsd` is observed only) |
    | other backends | their timeout flag, if any; otherwise the worker's own `DEADLINE` check | none; tell the user the cap is not enforced |
 
 4. **Ship** — after named skill `STATUS: ok`, run the shared **Ship / UAT** procedure

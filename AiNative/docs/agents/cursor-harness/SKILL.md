@@ -161,6 +161,20 @@ node "$HOME/.cursor/skills/cursor-harness/cursor-spawn.mjs" \
 
 Wrapper stdout is a few lines (`RUN_DIR=`, `STATUS_FILE=`, then `LIFECYCLE=` / `REPORT_FILE=` on exit). Do not read `events.jsonl` unless status is not enough.
 
+### Learn jobs
+
+A [`learn`](../learn/SKILL.md) card's appetite maps onto this wrapper's
+`--timeout` for `STEP: build` only (the parent computes it; see
+`speckit-orchestrate` § Learn job):
+
+- Time: `--timeout <seconds until DEADLINE>`. `lifecycle=timed_out` here is
+  the learn circuit breaker, not a crash: the parent asks the operator for a
+  decision on what exists instead of retrying.
+- Cost: this harness has no `--max-budget-usd`. `totalCostUsd` is observed
+  after the run. If `## Appetite` names a cost cap, tell the user it is not
+  enforced here.
+- `STEP: finding` is a short job: `--timeout 900`, no cost cap.
+
 ## Opt-in flags
 
 ### `--allowed-tools <list>` / `--disallowed-tools <list>`

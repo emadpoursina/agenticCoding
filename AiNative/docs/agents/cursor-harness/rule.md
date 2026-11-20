@@ -7,4 +7,5 @@
 - Default edit jobs use the SDK's headless tool execution (no approval prompt). `--scout` is plan mode with only `read`, `grep`, `glob`, and `ls`.
 - `--auto-review` and `--sandbox` are opt-in. Do not enable a permission bypass flag; the SDK has none, and this harness must not invent one.
 - After exit, read `report.json`. Process `lifecycle=completed` is not worker success; require `reportValid` and `workerStatus`.
+- Learn `STEP: build`: pass `--timeout` as seconds until `DEADLINE`. `lifecycle=timed_out` is the circuit breaker, not a crash. There is no cost-cap flag. Learn `STEP: finding`: `--timeout 900`.
 - Do not install packages, paste API keys, or run `Cursor.auth.login()` from a job. If Node is older than 22.13, `@cursor/sdk` is missing, or unattended auth is missing, stop.
