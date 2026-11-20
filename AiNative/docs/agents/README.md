@@ -23,7 +23,7 @@ Each agent is a folder with three core files tuned for one job.
 | Agent | Hermes use | Purpose |
 |-------|------------|---------|
 | [ready](./ready/) | Per-card gate | Branch + worktree + Spec Kit preflight before every card; returns `READY: ok\|blocked` with `WORKTREE` ([feature-loop.md](../systems/feature-loop.md)) |
-| [route-work](./route-work/) | Per-card router | Decides `feature\|change\|job` after `ready`; returns `ROUTE` + job `SKILL_PATH` |
+| [route-work](./route-work/) | Per-card router | Decides `feature\|change\|job` after `ready` (`## Mode: learn` → `job` + `learn`); returns `ROUTE` + job `SKILL_PATH` |
 | [speckit-orchestrate](./speckit-orchestrate/) | Cursor parent only | Cursor implementation of the feature-loop graph; Hermes implements the same graph via dispatch |
 | [speckit-phases](./speckit-phases/) | Editor hosts only | Runs a phased PRD end to end: PRD + plan PR, then one `speckit-orchestrate` phase run per fresh session, in order, after each merge; Hermes uses one card per phase instead |
 | [speckit-ready](./speckit-ready/) | Shared gate impl | Same body/script as `ready/` (Cursor stage name); canonical script `scripts/ready-check.sh` |
@@ -32,6 +32,7 @@ Each agent is a folder with three core files tuned for one job.
 | [claude-harness](./claude-harness/) | Worker backend | Delegates one bounded job to the official Claude Code CLI (required `--model`); `claude-spawn.mjs` + `worker-contract.md` |
 | [cursor-harness](./cursor-harness/) | Worker backend | Delegates one bounded job to a local Cursor agent via `@cursor/sdk` (required `--model`); `cursor-spawn.mjs` + `worker-contract.md` |
 | [change](./change/) | `change` path worker | Thin inspect→edit→tester path; stops with `SCOPE: feature` when underspecified |
+| [learn](./learn/) | `job` worker for `learn` cards | Time-boxed throwaway spike or demo; parks once for the operator's go/rework/kill, then ships only a finding and a reference patch ([scoping](../systems/scoping.md)) |
 | [critic](./critic/) | Feature-loop Validation | Adversarial review after converge ([feature-loop.md](../systems/feature-loop.md)) |
 | [tester](./tester/) | Feature-loop Validation | Proves flows and runs project `validation_commands` ([feature-loop.md](../systems/feature-loop.md)) |
 | [e2e-testing](./e2e-testing/) | On-demand tool | Plans, implements, executes, debugs, and maintains E2E tests across web, iOS, Android, and React Native; honest Passed/Failed/Blocked reporting with human handoff on retry exhaustion |

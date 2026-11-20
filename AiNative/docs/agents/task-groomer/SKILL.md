@@ -3,7 +3,7 @@ name: task-groomer
 description: >-
   Turn a rough request into a confirmed Hermes kanban task. Use when the
   operator says "new task: ..." or needs a task made dispatcher-ready.
-version: 1.2.0
+version: 1.3.0
 platforms: [linux, macos, windows]
 metadata:
   hermes:
@@ -66,6 +66,23 @@ OUTPUT:
    If the PRD is too big for one card and has no phase plan yet, propose a
    `prd-writer` job to write one first.
 
+   **Learn mode** ([scoping.md](../../systems/scoping.md)). If the operator
+   wrote `learn`, `spike`, `demo`, `prototype`, or `try it first`, or the
+   request's *what* is plainly still a guess (nobody knows whether it can be
+   done, or whether anyone wants it), propose a learn card next to the build
+   card and let the operator pick. Never make a card learn mode on your own.
+   A learn card:
+   - carries `## Mode` (`learn: spike` for feasibility, `learn: demo` for
+     value or usability), `## Question` (one sentence, answerable yes / no /
+     "yes, if …"), `## Appetite` (time, plus a cost cap if the operator gave
+     one; propose ≤ 1 day for a spike, ≤ 3 days for a demo), `## Exit
+     Evidence`, and `## Out of Scope`;
+   - has exactly one Acceptance Criterion:
+     `- [ ] Finding in docs/learn/ is merged with a go, rework, or kill decision`;
+   - omits `## Path` and `## Skill`: route sends it to the `learn` skill;
+   - covers one risk only. A question about both feasibility and value is
+     two cards, spike first, the demo depending on it.
+
 2. For software tasks, require a project name. Resolve it against
    `hermes project list` by exact name or slug. If there are multiple matches,
    show them and ask the operator to choose; never guess. If there is no match,
@@ -91,8 +108,9 @@ OUTPUT:
    - human `change`: small scoped edit. Standalone, or child of a feature with
      `## Parent` set to exactly one feature card id (never self, never a
      path-like id).
-   - human `job`: only with `## Skill` set to exactly `prd-writer` or
-     `project-bootstrapper`. No other skill dispatches.
+   - human `job`: only with `## Skill` set to exactly `prd-writer`,
+     `project-bootstrapper`, or `learn` (`learn` also needs the learn
+     sections from step 1). No other skill dispatches.
    After card creation the dispatcher owns routing and always runs `ready` for
    worktree preflight then `route-work`, honoring `REQUESTED_PATH` without
    second-guessing when present and inferring `feature|change|job` from the task
@@ -126,11 +144,26 @@ P0 | P1 | P2 | P3
 ## Technical Notes
 (only if inferred from input; otherwise "TBD in planning")
 
+## Mode
+(learn: spike | learn: demo — confirmed learn card only, delete section otherwise)
+
+## Question
+(learn card only, delete section otherwise)
+
+## Appetite
+(learn card only, delete section otherwise)
+
+## Exit Evidence
+(learn card only, delete section otherwise)
+
+## Out of Scope
+(learn card only, delete section otherwise)
+
 ## Path
 (feature | change | job — human override only, delete section otherwise)
 
 ## Skill
-(prd-writer | project-bootstrapper — human job override only, delete section otherwise)
+(prd-writer | project-bootstrapper | learn — human job override only, delete section otherwise)
 
 ## Parent
 (<single feature card id> — human child change override only, delete section otherwise)

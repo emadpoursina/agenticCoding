@@ -4,10 +4,13 @@ How much to build before something is decided. Applies to a new project
 and to a feature in an existing one, the same way.
 
 > **Status: target methodology — not wired into the current install.**
-> The `learn` mode below has no route, skill, or harness enforcement yet.
-> How a harness enforces an appetite is that harness's business, not this
-> file's. Related: [feature-loop.md](./feature-loop.md),
-> [prd-writer](../agents/prd-writer/SKILL.md).
+> Like the rest of the [feature loop](./feature-loop.md). Learn cards are
+> groomed by [task-groomer](../agents/task-groomer/SKILL.md), routed by
+> [route-work](../agents/route-work/SKILL.md) to the `job` path, and run by
+> the [learn](../agents/learn/SKILL.md) worker. How a harness enforces an
+> appetite (timeouts, cost caps) is that harness's business, not this
+> file's: the parent passes a `DEADLINE` and the worker stops at it.
+> Related: [prd-writer](../agents/prd-writer/SKILL.md).
 
 ## The problem it solves
 
@@ -68,14 +71,19 @@ is waste.
 
 ### Where learn output lives
 
-- **Code** stays on a `learn/<slug>` branch. It is never merged into the
-  base branch and never promoted. If the answer is *go*, the build is
-  redone through `build` mode; with agents, rebuilding is cheaper than
-  living with prototype code.
-- **The finding** is the only thing that reaches the base branch: one file,
+- **The finding** is what reaches the base branch: one file,
   `docs/learn/<YYYY-MM-DD>-<slug>.md` in the project, with the question,
-  the answer, the evidence, what surprised us, and the decision. It ships
-  like any `job` output.
+  the answer, the evidence, what was faked, what surprised us, and the
+  decision. It ships like any `job` output.
+- **Code** is never merged as code. Before the finding ships, the worker
+  saves the prototype as `docs/learn/<YYYY-MM-DD>-<slug>.patch` next to the
+  finding and reverts it from the worktree, so the PR holds only those two
+  files. The patch is reference, never applied. If the answer is *go*, the
+  build is redone through `build` mode; with agents, rebuilding is cheaper
+  than living with prototype code.
+- **The run** is two worker steps on the `job` path: `build` (prototype,
+  evidence, one park for the operator's verdict and decision) and `finding`
+  (patch, revert, write the finding). See [learn](../agents/learn/SKILL.md).
 
 ### Circuit breaker
 
@@ -91,9 +99,12 @@ Every finding ends with one human decision:
 
 | Decision | Next |
 |---|---|
-| **Go** | The finding becomes input to `build`: a PRD (new product or large feature) or a `feature` card. The `learn/<slug>` branch is deleted. |
+| **Go** | The finding becomes input to `build`: a PRD (new product or large feature) or a `feature` card that cites it. |
 | **Rework** | A new `learn` card with a changed question or approach. |
-| **Kill** | The finding records why. The branch is deleted. Nothing else happens. |
+| **Kill** | The finding records why. Nothing else happens. |
+
+The decision is recorded in the finding, so the finding's PR merges on
+every outcome: a killed idea is a result worth keeping.
 
 The decision is the operator's. An agent may recommend; it never decides.
 

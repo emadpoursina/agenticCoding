@@ -4,3 +4,4 @@
 - Never invent a job skill; `ROUTE: job` with `SKILL: none` stops and names the missing skill.
 - Never pick a Spec Kit command or `speckit-*` skill as the job skill.
 - When unsure between `feature` and `change`, pick `feature`.
+- A card with `## Mode: learn: spike|demo` (and no explicit path) is always `ROUTE: job`, `SKILL: learn`. Never infer learn mode from a card that does not name it.

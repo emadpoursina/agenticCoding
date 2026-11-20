@@ -35,7 +35,11 @@ it means machine-infer below.
 2. Otherwise, if the task carries a `phase: <plan-path>#<N>` line, pick
    `feature`: a phase of a phased PRD is always a feature run
    ([Phased PRD](../../systems/feature-loop.md#phased-prd)).
-3. Otherwise (absent path) read the task, glance at the repo (README, layout, the files the
+3. Otherwise, if the task carries `## Mode` set to `learn: spike` or
+   `learn: demo`, pick `job` with `SKILL: learn`: learn work is never a
+   feature or change run ([scoping.md](../../systems/scoping.md)). A `## Mode`
+   of `build`, or none, changes nothing.
+4. Otherwise (absent path) read the task, glance at the repo (README, layout, the files the
    task names), and pick one:
 
 | Path | Pick it when |
@@ -44,7 +48,7 @@ it means machine-infer below.
 | `change` | A small code edit that is already fully specified: clear expected result, a few files, no architectural decision, no new dependency. A bug fix with a known cause, a copy tweak, a config value, a small refactor. |
 | `job` | The output is not a code change: write a PRD or a phase plan for one, research, documentation, analysis, a report, project bootstrap from a PRD. |
 
-4. When unsure between `feature` and `change`, pick `feature`. When unsure
+5. When unsure between `feature` and `change`, pick `feature`. When unsure
    whether a named skill fits, pick `feature` or `change` instead of `job`.
 
 ## Resolve the job skill (job only)
@@ -65,7 +69,9 @@ Legacy fallbacks (honored, not canonical): `REPO_ROOT/.cursor/skills/<name>/SKIL
 
 Match the task to a skill by its `description`. Examples: a PRD →
 `prd-writer`; a phase plan for an existing PRD → `prd-writer`; bootstrap
-from a PRD → `project-bootstrapper`. If no skill
+from a PRD → `project-bootstrapper`; a `learn` mode card → `learn`.
+Route never picks `learn` for a card without `## Mode: learn …`: whether
+to try before building is the operator's call, not route's. If no skill
 fits, return `ROUTE: job`, `SKILL: none`, and say what kind of skill is
 missing. Do not pick a near miss.
 

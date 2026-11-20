@@ -129,7 +129,7 @@ means a default — it means machine-infer by `route-work`.
 |---|---|---|
 | `feature` | A desired product outcome that needs a spec, plan, and review | The graph below (`ready → route → specify → clarify → plan → tasks → [analyze] → implement ↔ converge → critic → tester → ship → pr-review → uat`); planning creates child Task Cards |
 | `change` | A small code edit already specified by the card | `ready` → `route` → one worker → `tester` → `ship` → `pr-review` → `uat` (no critic, no converge, no `tasks.md`) |
-| `job` | Work that is not a code change (write a PRD, bootstrap from a PRD) | `ready` → `route` → one worker for the named skill. It may park for a human. Workers never ship. After the named skill reports `STATUS: ok` the parent automatically ships (commit, push branch, open PR; `keep-local` opts out); after named skill `STATUS: ok` → ship (or declined); MUST NOT run pr-reviewer; UAT is not a job-path stage. The job path skips **pr-review and UAT only**: after ship the card stays open until the human merges its PR; the parent then verifies `MERGED`, syncs the base branch, removes the worktree and branches, and only then completes, so cards with `parents=[job card]` release on merge. It does not enter the feature graph |
+| `job` | Work that is not a code change (write a PRD, bootstrap from a PRD, run a `learn` card to a finding) | `ready` → `route` → one worker for the named skill. It may park for a human. Workers never ship. After the named skill reports `STATUS: ok` the parent automatically ships (commit, push branch, open PR; `keep-local` opts out); after named skill `STATUS: ok` → ship (or declined); MUST NOT run pr-reviewer; UAT is not a job-path stage. The job path skips **pr-review and UAT only**: after ship the card stays open until the human merges its PR; the parent then verifies `MERGED`, syncs the base branch, removes the worktree and branches, and only then completes, so cards with `parents=[job card]` release on merge. It does not enter the feature graph |
 
 Downstream stages MUST use `FEATURE_DIR` / `.specify/feature.json` (basename e.g. `002-agentic-validation`) and MUST NOT infer the spec directory from git `BRANCH` (`agentic-validation` may differ).
 
@@ -152,7 +152,11 @@ and reports that. It does not promote itself onto the feature graph.
 **Mode.** The paths above are `build` mode: they ship decided behavior. A
 card whose *what* is not decided yet belongs in `learn` mode (a time-boxed
 `spike` or `demo` whose code is never merged and whose only shipped output
-is a finding). `learn` mode is target methodology with no route yet; see
+is a finding). A card with `## Mode: learn: spike|demo` routes to `job` with
+the [`learn`](../agents/learn/SKILL.md) skill: a `build` step that parks once
+for the operator's verdict and decision (`STATUS: blocked`, never `ok`, so
+nothing ships early), then a `finding` step whose `STATUS: ok` ships a PR
+holding only the finding and a reference patch. See
 [scoping.md](./scoping.md).
 
 `change` does not run specify, clarify, plan, tasks, analyze,
