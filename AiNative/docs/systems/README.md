@@ -18,6 +18,7 @@ Generic AI templates shared across agents — not task-specific.
 |------|---------|
 | [agentic-system.md](./agentic-system.md) | Five-part model — Harness, Model, Context, Tools, Agents |
 | [feature-loop.md](./feature-loop.md) | Target feature loop — Hermes graph and gates; not wired into the current install |
+| [scoping.md](./scoping.md) | How much to build before it is decided — `learn` (spike, demo) vs `build` mode, appetite and circuit breaker, pre-/post-MVP; target, not wired |
 | [agentic-coding.md](./agentic-coding.md) | Historical PIV methodology |
 | [jev/](./jev/) | Jev judgment decisions: pattern, spec format, evaluation gate |
 | [validation-layer.md](./validation-layer.md) | Validation phase architecture — multi-agent workflow, quality gates, diamond testing model |

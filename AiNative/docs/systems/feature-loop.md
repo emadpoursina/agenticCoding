@@ -149,6 +149,12 @@ see the CI re-proof and evidence-hygiene guidance in
 A `change` or `job` worker that finds the card is really a feature stops
 and reports that. It does not promote itself onto the feature graph.
 
+**Mode.** The paths above are `build` mode: they ship decided behavior. A
+card whose *what* is not decided yet belongs in `learn` mode (a time-boxed
+`spike` or `demo` whose code is never merged and whose only shipped output
+is a finding). `learn` mode is target methodology with no route yet; see
+[scoping.md](./scoping.md).
+
 `change` does not run specify, clarify, plan, tasks, analyze,
 implement/converge, or critic. `tester` runs the
 project `validation_commands`. `ready` on a `change` is branch preflight

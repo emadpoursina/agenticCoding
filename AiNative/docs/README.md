@@ -18,6 +18,7 @@ Four layers, one decision each: **systems** (how you work), **agents** (AI partn
 | Agentic system (Harness, Model, Context, Tools, Agents) | [systems/agentic-system.md](./systems/agentic-system.md) |
 | Runtime / harness | [knowledge/setup/harness.md](./knowledge/setup/harness.md) |
 | Target managed-project feature loop (not wired) | [systems/feature-loop.md](./systems/feature-loop.md) |
+| How much to build before it is decided (spike, demo, MVP) | [systems/scoping.md](./systems/scoping.md) |
 | Historical PIV methodology | [systems/agentic-coding.md](./systems/agentic-coding.md) |
 | Validation layer architecture | [systems/validation-layer.md](./systems/validation-layer.md) |
 | PIV Validation — adversarial review | [agents/critic/](./agents/critic/) |

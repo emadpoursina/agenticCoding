@@ -35,6 +35,10 @@ Treat that table as discovery **and** confirmation:
 
 Read the user's initial idea description. If it is under 3 sentences, ask one open-ended follow-up to expand: "Tell me more about who this is for and what problem it solves." Do not count this as part of the structured question set.
 
+If the project has learn findings (`docs/learn/*.md`, see [scoping.md](../../systems/scoping.md)), read the ones with a **Go** decision before asking anything. Treat their answers as decided: do not re-ask a question a finding answered, and cite the finding in the PRD where it shaped a requirement.
+
+If the idea's core value is still a guess (nobody has tried it, and the user cannot say who would use it or why), say so once and recommend a `learn: demo` card before the PRD. Continue only if the user chooses to.
+
 ### Step 2: Assess complexity
 
 | Complexity | Questions | Typical signal |
@@ -50,7 +54,7 @@ Default to medium (10–12) unless the idea is clearly trivial or clearly enterp
 Cover these domains across the question set. Order matters — start broad, narrow to specifics:
 
 1. **Problem and audience** — who, what problem, why now
-2. **Scope and MVP** — what must ship first, what can wait, and whether delivery needs more than one phase (see [Phase plan](#phase-plan))
+2. **Scope and MVP** — what must ship first, what can wait, and whether delivery needs more than one phase (see [Phase plan](#phase-plan)). The MVP line is the only scope stage the PRD draws: there is no "full product" tier, and whatever is not MVP is a later phase or Deferred ([scoping.md § Project stage](../../systems/scoping.md#project-stage)). An item whose value or feasibility is still unproven goes to Open Questions with a suggested `learn` card, not into the MVP
 3. **User personas** — primary users, secondary users, their goals
 4. **Key user journeys** — the critical path(s) through the product
 5. **Feature prioritization** — must-have vs. should-have vs. nice-to-have
