@@ -3,7 +3,7 @@ name: task-groomer
 description: >-
   Turn a rough request into a confirmed Hermes kanban task. Use when the
   operator says "new task: ..." or needs a task made dispatcher-ready.
-version: 1.3.0
+version: 1.4.0
 platforms: [linux, macos, windows]
 metadata:
   hermes:
@@ -109,8 +109,8 @@ OUTPUT:
      `## Parent` set to exactly one feature card id (never self, never a
      path-like id).
    - human `job`: only with `## Skill` set to exactly `prd-writer`,
-     `project-bootstrapper`, or `learn` (`learn` also needs the learn
-     sections from step 1). No other skill dispatches.
+     `project-bootstrapper`, `proposal-writer`, or `learn` (`learn` also
+     needs the learn sections from step 1). No other skill dispatches.
    After card creation the dispatcher owns routing and always runs `ready` for
    worktree preflight then `route-work`, honoring `REQUESTED_PATH` without
    second-guessing when present and inferring `feature|change|job` from the task
@@ -163,7 +163,7 @@ P0 | P1 | P2 | P3
 (feature | change | job — human override only, delete section otherwise)
 
 ## Skill
-(prd-writer | project-bootstrapper | learn — human job override only, delete section otherwise)
+(prd-writer | project-bootstrapper | proposal-writer | learn — human job override only, delete section otherwise)
 
 ## Parent
 (<single feature card id> — human child change override only, delete section otherwise)

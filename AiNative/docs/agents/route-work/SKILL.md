@@ -68,8 +68,9 @@ Legacy fallbacks (honored, not canonical): `REPO_ROOT/.cursor/skills/<name>/SKIL
 `~/.config/opencode/skill/<name>/SKILL.md`.
 
 Match the task to a skill by its `description`. Examples: a PRD →
-`prd-writer`; a phase plan for an existing PRD → `prd-writer`; bootstrap
-from a PRD → `project-bootstrapper`; a `learn` mode card → `learn`.
+`prd-writer`; a phase plan for an existing PRD → `prd-writer`; a client
+proposal from a PRD → `proposal-writer`; bootstrap from a PRD →
+`project-bootstrapper`; a `learn` mode card → `learn`.
 Route never picks `learn` for a card without `## Mode: learn …`: whether
 to try before building is the operator's call, not route's. If no skill
 fits, return `ROUTE: job`, `SKILL: none`, and say what kind of skill is

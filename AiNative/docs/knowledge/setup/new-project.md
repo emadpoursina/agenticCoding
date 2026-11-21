@@ -11,7 +11,7 @@ Three things with similar names — do not conflate them:
 | **Project onboarding (this file)** | Once per project; makes the repo ready for cards | Operator + Hermes CLI | Enrolled project + board + common files |
 | Per-card gate (`ready`) | Before every card; branch + Spec Kit preflight | `ready` worker | `READY: ok\|blocked` |
 
-PRD work (`prd-writer`, `project-bootstrapper`) happens **after** onboarding,
+PRD and proposal work (`prd-writer`, `project-bootstrapper`, `proposal-writer`) happens **after** onboarding,
 as cards through the [feature loop](../../systems/feature-loop.md). Onboarding
 never reads or writes a PRD. Even an empty repo is onboarded first; then a PRD
 job and a full setup loop follow.
@@ -95,7 +95,9 @@ cards during onboarding.
 
 * Empty repo: file a `job` card (`## Skill: prd-writer`) to write the PRD, then
   a `job` card (`## Skill: project-bootstrapper`) to scaffold from it. See
-  [project-bootstrapper](../../agents/project-bootstrapper/).
+  [project-bootstrapper](../../agents/project-bootstrapper/). A client
+  proposal is a later `job` (`## Skill: proposal-writer`) on that PRD, not
+  part of onboarding.
 * A PRD too big for one feature run (from `prd-writer` or any other tool) gets
   a phase plan from `prd-writer`, then one feature run per phase, in order,
   each starting only after the previous phase's PR is merged. See

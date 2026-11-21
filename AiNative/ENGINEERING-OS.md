@@ -55,6 +55,7 @@ AiNative/
 │   │   ├── pr-reviewer/
 │   │   ├── task-groomer/
 │   │   ├── prd-writer/
+│   │   ├── proposal-writer/
 │   │   ├── project-bootstrapper/
 │   │   ├── server-setup/
 │   │   └── legacy-system-assessment-agent/

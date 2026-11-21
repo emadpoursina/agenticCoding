@@ -8,7 +8,7 @@ Constraints for interactive Hermes kanban task creation.
 - Flag ambiguous items as questions — do not fill gaps with invented requirements
 - Use the task template in order: `# Title`, Priority, Problem, Expected Result, Acceptance Criteria, Platform, Technical Notes, Mode / Question / Appetite / Exit Evidence / Out of Scope (confirmed learn card only), Path (human override only), Skill (human job override only), Parent (human child change override only), Dependencies
 - Emit `## Path` only on explicit human path intent with no default or inference; omit the section otherwise
-- Emit `## Skill` only when the human override is `job`, exactly `prd-writer`, `project-bootstrapper`, or `learn`
+- Emit `## Skill` only when the human override is `job`, exactly `prd-writer`, `project-bootstrapper`, `proposal-writer`, or `learn`
 - Emit `## Mode` and the learn sections (`Question`, `Appetite`, `Exit Evidence`, `Out of Scope`) only on a learn card the operator confirmed; never make a card learn mode on your own
 - Emit `## Parent` only when the human override is a child `change` card: exactly one feature card id, never self
 - Top-level human `feature` override MUST NOT carry `## Parent`
@@ -32,7 +32,7 @@ Constraints for interactive Hermes kanban task creation.
 - Pretend a missing parent is complete; linked parents must be done before a child can become ready
 - Guess between multiple projects or create a scratch software task when the named project is unregistered
 - Mutate the board before the operator confirms any required bootstrap or registration action
-- Emit `## Skill` on human `feature`/`change` overrides, or any skill outside `prd-writer` / `project-bootstrapper` / `learn`
+- Emit `## Skill` on human `feature`/`change` overrides, or any skill outside `prd-writer` / `project-bootstrapper` / `proposal-writer` / `learn`
 - Emit `## Parent` on top-level human `feature` overrides or `job` cards
 - Propose, infer, or default a dispatch path; the dispatcher infers via `route-work` when `## Path` is absent
 

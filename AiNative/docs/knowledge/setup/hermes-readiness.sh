@@ -119,7 +119,8 @@ container_checks() {
     pass "ainative-ro" "write correctly refused"
   fi
   for f in docs/knowledge/setup/new-project.md docs/systems/feature-loop.md \
-           docs/agents/project-bootstrapper/SKILL.md docs/agents/prd-writer/SKILL.md; do
+           docs/agents/project-bootstrapper/SKILL.md docs/agents/prd-writer/SKILL.md \
+           docs/agents/proposal-writer/SKILL.md; do
     if [ -r "/opt/data/mnt/AiNative/$f" ]; then pass "ainative-file" "$f"; else gate2 "ainative-file" "unreadable: $f"; fi
   done
 

@@ -3,6 +3,9 @@
 ## [Unreleased]
 
 ### Added
+- `proposal-writer` agent: turns an existing PRD into a 1–3 page client proposal (English or Persian); pricing parks for developer approval; Persian uses `_skills/persian-formal` plus `scripts/persian-normalize.py`. Dispatchable as a `job` (`task-groomer` 1.4.0 allowlist / `route-work`).
+- `_skills/persian-formal`: formal-but-human Persian register, commercial glossary, RTL/PDF notes for client documents.
+
 - **Scoping** methodology (`docs/systems/scoping.md`, target, not wired): every card is `build` (default, today's `feature` / `change` paths) or `learn` (`spike` for feasibility, `demo` for value and usability). A learn card carries a question, an appetite (time and optional cost cap, not an estimate), exit evidence, and an out-of-scope list; it skips PRD, spec, critic, pr-review, and UAT; its code is never merged or promoted; only a `docs/learn/<date>-<slug>.md` finding and a reference patch ship. When the appetite runs out the work stops with no extension by default, and the operator decides go / rework / kill. Projects have two stages only, pre-MVP and post-MVP, read from the phase plan's `MVP complete after:` line; there is no "full product" stage. Adapted from Shape Up, SVPG, dual-track agile, Spotify, and Kent Beck's 3X.
 - `prd-writer`: reads learn findings with a **Go** decision before discovery and does not re-ask what they answered; recommends a `learn: demo` first when the idea's core value is still a guess; unproven items go to Open Questions with a suggested learn card instead of into the MVP.
 - Feature loop: a **Mode** note under card paths pointing to `scoping.md`.
