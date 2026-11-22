@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
-"""Unicode-safe Persian cleanup for Markdown. Stdlib only.
+"""Unicode-safe Persian cleanup for Markdown or HTML. Stdlib only.
 
 Fixes NFC, Arabic ye/kaf, digits, tatweel, duplicate ZWNJ, and می/نمی
-prefix spacing. Skips fenced and inline code. Does not rewrite wording.
+prefix spacing. Skips fenced/inline code, HTML tags, and style/script
+blocks. Does not rewrite wording.
 
 ponytail: prefix ZWNJ covers می/نمی only. Full suffix/punctuation cleanup
 is Virastar; add it only if this script's ceiling shows up in review.
@@ -25,6 +26,10 @@ DIGIT_MAP = str.maketrans(
 )
 FENCE_RE = re.compile(r"^(\s*)(`{3,}|~{3,})")
 INLINE_CODE_RE = re.compile(r"`+[^`]*`+")
+HTML_SKIP_RE = re.compile(
+    r"(<script\b[^>]*>.*?</script>|<style\b[^>]*>.*?</style>|<[^>]+>)",
+    re.IGNORECASE | re.DOTALL,
+)
 MI_RE = re.compile(r"(نمی|می)[\u0020\u00a0\u200c]*")
 PERSIAN_LETTER = re.compile(r"[\u0600-\u06FF]")
 
@@ -79,6 +84,25 @@ def normalize_markdown(src: str) -> str:
     return "".join(out)
 
 
+def normalize_html(src: str) -> str:
+    """Clean text nodes only; leave tags, CSS, and JS byte-for-byte."""
+    out: list[str] = []
+    last = 0
+    for m in HTML_SKIP_RE.finditer(src):
+        out.append(_cleanup_prose(src[last : m.start()]))
+        out.append(m.group(0))
+        last = m.end()
+    out.append(_cleanup_prose(src[last:]))
+    return "".join(out)
+
+
+def normalize(src: str, path: str = "") -> str:
+    lower = path.lower()
+    if lower.endswith((".html", ".htm")):
+        return normalize_html(src)
+    return normalize_markdown(src)
+
+
 def main(argv: list[str]) -> int:
     p = argparse.ArgumentParser(description=__doc__.split("\n", 1)[0])
     p.add_argument("path")
@@ -86,7 +110,7 @@ def main(argv: list[str]) -> int:
     p.add_argument("--check", action="store_true", help="exit 1 if file would change")
     args = p.parse_args(argv)
     raw = open(args.path, encoding="utf-8").read()
-    cleaned = normalize_markdown(raw)
+    cleaned = normalize(raw, args.path)
     if args.check:
         return 0 if cleaned == raw else 1
     dest = args.output or args.path
@@ -103,6 +127,17 @@ def _selfcheck() -> None:
     assert "۱۲۳" in got, got
     assert "`code 1`" in got, got
     assert "مي شود 2" in got, got  # fenced code left alone
+    html = (
+        "<p>فارسي را كمی درست تر مي نويسيم 123</p>\n"
+        "<style>.x{padding:16px}</style>\n"
+        '<a href="/proposal">لینک</a>\n'
+    )
+    hgot = normalize_html(html)
+    assert "فارسی" in hgot, hgot
+    assert "می‌نویسیم" in hgot, hgot
+    assert "۱۲۳" in hgot, hgot
+    assert "padding:16px" in hgot, hgot
+    assert 'href="/proposal"' in hgot, hgot
     print("persian-normalize selfcheck ok")
 
 

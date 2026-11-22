@@ -23,10 +23,13 @@ This file is the agent's instruction surface in the open [AGENTS.md](https://age
 
 ## Outputs
 
-- `PROPOSAL.md` at the project root, or a path the user specifies: overview,
-  solution, scope, phases and deliverables, timeline, approved investment and
-  payment terms, assumptions and exclusions, next steps
-- Persian files include `lang: fa` / `dir: rtl` and are passed through
+- `PROPOSAL.html` at the project root (or a path the user specifies): visual
+  HTML with color treatment — overview, solution, scope, phases and
+  deliverables, timeline, approved investment and payment terms, assumptions
+  and exclusions, next steps
+- If the project has an HTTP backend: a public unauthenticated GET
+  (`/proposal` or static `/proposal.html`) that serves that file
+- Persian files use `lang="fa"` / `dir="rtl"` and are passed through
   `scripts/persian-normalize.py`
 
 ## Supporting files
@@ -34,6 +37,7 @@ This file is the agent's instruction surface in the open [AGENTS.md](https://age
 | File | Purpose |
 |------|---------|
 | [SKILL.md](./SKILL.md) | Intake → analysis → pricing park → client draft |
+| [html.md](./html.md) | HTML layout, color system, public URL on existing backends |
 | [rule.md](./rule.md) | PRD-as-source-of-truth, no invented prices, stop conditions |
 | [persian.md](./persian.md) | Formal Persian register, glossary, RTL/PDF notes |
 | [scripts/persian-normalize.py](./scripts/persian-normalize.py) | Unicode-safe ye/kaf, digits, ZWNJ |

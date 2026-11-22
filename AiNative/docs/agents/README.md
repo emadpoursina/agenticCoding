@@ -41,7 +41,7 @@ Each agent is a folder with three core files tuned for one job.
 | [pr-reviewer](./pr-reviewer/) | On-demand tool | PR review after Ship on operator request; not a loop state (`SKILL.md` + `prompts.md` + `rule.md`) |
 | [project-bootstrapper](./project-bootstrapper/) | Post-onboarding `job` | Scaffolds an onboarded repo from a PRD card; onboarding itself never writes a PRD |
 | [prd-writer](./prd-writer/) | Post-onboarding `job` | Writes the PRD as a card after onboarding |
-| [proposal-writer](./proposal-writer/) | Post-onboarding `job` | Turns an existing PRD into a client proposal (EN/FA) |
+| [proposal-writer](./proposal-writer/) | Post-onboarding `job` | Turns an existing PRD into a visual HTML client proposal (EN/FA); public `/proposal` when the project has a backend |
 | [task-groomer](./task-groomer/) | Per-card helper | Turns a rough request into a dispatch-ready Hermes kanban card; not a dispatched worker |
 | [scout](./scout/) | On-hand tool | Read-only brief / Repo Q&A Hermes may call any time; not a loop state |
 | [legacy-system-assessment-agent](./legacy-system-assessment-agent/) | On-hand tool | Standalone evidence-backed assessment Hermes may call any time; not a loop state |

@@ -13,10 +13,13 @@ Constraints specific to this agent. Generic repo rules live in the project's `AG
 - Present a pricing recommendation to the developer and wait for approval
   before putting numbers in the client file (a confirmed price table in the
   card body is the approval)
-- Write Markdown, default `PROPOSAL.md` at the project root or the path the
-  user specifies
-- For Persian: follow [persian.md](./persian.md), set `lang: fa` and
-  `dir: rtl`, and run `scripts/persian-normalize.py` on the file
+- Write self-contained HTML with visual layout and color effects
+  ([html.md](./html.md)), default `PROPOSAL.html` at the project root or the
+  path the user specifies
+- If the repo already has an HTTP backend, serve the file on a public GET
+  (`/proposal` or static equivalent); if it does not, do not add a server
+- For Persian: follow [persian.md](./persian.md), set `lang="fa"` and
+  `dir="rtl"` on `<html>`, and run `scripts/persian-normalize.py` on the file
 - Keep internal analysis and unapproved prices out of the client file
 - Return `STATUS: ok` only after the quality review in [SKILL.md](./SKILL.md)
 
@@ -36,7 +39,7 @@ Constraints specific to this agent. Generic repo rules live in the project's `AG
 - No PRD in the repo, or the named path is missing — ask for the file
 - Language (English vs Persian) is unclear — ask once
 - Pricing is not yet approved — `STATUS: blocked` with the recommendation
-- `PROPOSAL.md` already exists at the target path — ask overwrite, merge, or
+- `PROPOSAL.html` already exists at the target path — ask overwrite, merge, or
   a new name
 - A gap in the PRD would change price, timeline, or scope — ask the
   developer; do not guess
@@ -45,7 +48,8 @@ Constraints specific to this agent. Generic repo rules live in the project's `AG
 
 After writing the proposal:
 
-1. Tell the developer the file path and language
+1. Tell the developer the file path, language, and public URL (`none` if
+   there is no backend)
 2. Remind them the client file contains only approved commercial terms
 3. Never commit, push, or open a PR — the parent ships the job after
    `STATUS: ok`
@@ -53,5 +57,6 @@ After writing the proposal:
 ## Related enforcement
 
 - Workflow and section list: [SKILL.md](./SKILL.md)
+- HTML and public URL: [html.md](./html.md)
 - Persian: [persian.md](./persian.md)
 - Upstream spec: [prd-writer](../prd-writer/AGENTS.md)

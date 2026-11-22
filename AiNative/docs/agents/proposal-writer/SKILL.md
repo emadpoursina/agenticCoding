@@ -96,12 +96,14 @@ Do not put unapproved commercial terms in the client proposal.
 
 ### 6. Write the proposal
 
-Default length: 1–3 pages. Include only relevant sections. Markdown.
+Default length: 1–3 screens. Include only relevant sections. **Always HTML**
+with a visual layout and color effects — follow [html.md](./html.md). Never
+ship Markdown as the client file.
 
 1. **Project Overview** — what the client wants to achieve
 2. **Proposed Solution** — what it does, in business language
 3. **Scope of Work** — bullets, consistent with the PRD
-4. **Project Phases and Deliverables** — table when useful
+4. **Project Phases and Deliverables** — cards or a table when useful
 5. **Timeline** — duration and milestones; never invent dates
 6. **Investment and Payment Terms** — approved price only; recurring costs
    explicit
@@ -112,13 +114,21 @@ Default length: 1–3 pages. Include only relevant sections. Markdown.
 Write the complete client document, not an outline, unless asked for an
 outline.
 
-Default path: `PROPOSAL.md` at the project root (or the path the user names).
+Default path: `PROPOSAL.html` at the project root (or the path the user names).
 If that file exists, ask whether to overwrite, merge, or use another name.
+
+### 6b. Public URL
+
+If this project already has an HTTP backend, publish the HTML on a **public
+GET** path (`/proposal` or the static equivalent) so the client can open a
+link. Reuse the existing stack; do not add a server. If there is no backend,
+stop at the file. Details: [html.md](./html.md).
 
 ### 7. Quality review
 
 **Client:** problem understood, value obvious, language plain, deliverables
-clear, no exaggerated promises.
+clear, no exaggerated promises. HTML reads as a designed page (hero, cards,
+accent color), not a Markdown dump.
 
 **Developer:** matches PRD, deliverables realistic, boundaries clear,
 dependencies listed, price and timeline approved.
@@ -137,7 +147,8 @@ Fix issues before `STATUS: ok`.
 - Never guarantee perfect AI accuracy, zero errors, unlimited scale, or
   unattended complete automation.
 - Skip architecture diagrams, schemas, API specs, long company intros, and
-  generic marketing unless asked.
+  generic marketing unless asked. Visual treatment is layout and color (hero,
+  cards, timeline rail, investment callout), not technical drawings.
 
 You assist the developer. Address them during analysis. Write the file for
 the client. Keep internal pricing notes out of the client file.
@@ -156,21 +167,22 @@ materials. If unclear, ask once.
 رسمی روان. After writing, run:
 
 ```bash
-python3 "$HOME/.cursor/skills/proposal-writer/scripts/persian-normalize.py" PROPOSAL.md
+python3 "$HOME/.cursor/skills/proposal-writer/scripts/persian-normalize.py" PROPOSAL.html
 ```
 
-(or the same script next to this `SKILL.md`). Put `lang: fa` and `dir: rtl`
-in the YAML frontmatter. Do not mix English and Persian except for product
-names. The chat-message skill is the wrong register for this job.
+(or the same script next to this `SKILL.md`). Set `lang="fa"` and `dir="rtl"`
+on `<html>`. Do not mix English and Persian except for product names. The
+chat-message skill is the wrong register for this job.
 
-PDF is optional and only when asked; see [persian.md](./persian.md).
+PDF is optional and only when asked; print from the HTML (see
+[persian.md](./persian.md)).
 
 ---
 
 ## Output and report
 
-Client file: Markdown, clear headings, tables for phases/timeline/price when
-useful, no internal comments.
+Client file: self-contained HTML per [html.md](./html.md), no internal
+comments. Public route when a backend exists.
 
 When parked:
 
@@ -184,6 +196,7 @@ When done:
 ```text
 STATUS: ok
 PATH: <proposal file>
+URL: </proposal | /proposal.html | none>
 LANG: en | fa
 ```
 

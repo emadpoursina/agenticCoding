@@ -87,21 +87,18 @@ project dependency; the normalize script covers the high-frequency errors.
 
 ## RTL document shape
 
-Persian Markdown needs language and direction in the YAML frontmatter:
+Persian HTML needs language and direction on the root element:
 
-```yaml
----
-lang: fa
-dir: rtl
----
+```html
+<html lang="fa" dir="rtl">
 ```
 
-Optional PDF (only if the developer asks and `pandoc` plus XeLaTeX are
-installed), with a Persian-capable font such as Vazirmatn:
+Load Vazirmatn (or another Persian-capable face) for body text. Visual
+layout still follows [html.md](./html.md).
 
-```bash
-pandoc PROPOSAL.md -o PROPOSAL.pdf --pdf-engine=xelatex -V mainfont="Vazirmatn" -V dir=rtl -V lang=fa
-```
+Optional PDF only if the developer asks: print the HTML (browser
+File → Print → Save as PDF) or an equivalent headless print. Do not convert
+from Markdown.
 
 Do not apply `letter-spacing` on Persian HTML. Do not reverse letters by
 hand; shaping belongs to the renderer.

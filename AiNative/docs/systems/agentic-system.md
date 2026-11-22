@@ -228,7 +228,7 @@ symlink is required.
 | [pr-reviewer](../agents/pr-reviewer/) | On-demand tool after Ship — PR review on operator request, never a loop state |
 | [project-bootstrapper](../agents/project-bootstrapper/) | Post-onboarding `job` — scaffolds an onboarded repo from a PRD card |
 | [prd-writer](../agents/prd-writer/) | Post-onboarding `job` — writes the PRD as a card |
-| [proposal-writer](../agents/proposal-writer/) | Post-onboarding `job` — client proposal from an existing PRD |
+| [proposal-writer](../agents/proposal-writer/) | Post-onboarding `job` — visual HTML client proposal from an existing PRD; public `/proposal` when a backend exists |
 | [task-groomer](../agents/task-groomer/) | Per-card helper — turns a rough request into a dispatch-ready Hermes kanban card |
 | [scout](../agents/scout/), [legacy-system-assessment-agent](../agents/legacy-system-assessment-agent/) | On-hand tools Hermes may call any time — not loop states, never automatic |
 | [server-setup](../agents/server-setup/) | On-hand tool — project-agnostic Ubuntu VPS baseline before deployment; not a loop state |

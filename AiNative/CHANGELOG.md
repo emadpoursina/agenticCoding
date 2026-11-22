@@ -27,6 +27,7 @@
 - Cursor: `learn` linked into `~/.cursor/skills/` (and `/learn` slash command) via `link-host-skills.sh`.
 
 ### Changed
+- `proposal-writer`: client deliverable is always self-contained visual HTML (`PROPOSAL.html`, color/layout per `html.md`); Markdown is no longer the client file. When the target project already has an HTTP backend, the HTML is served on a public unauthenticated GET (`/proposal` or static equivalent); no backend is invented. Persian normalize skips tags/CSS/JS so HTML styles stay valid.
 - `antigravity-harness` edit jobs no longer pass `--dangerously-skip-permissions` by default: `--mode accept-edits` alone, with shell access granted per job via `--allow-command <target>` and blanket bypass only behind an explicit `--allow-bypass`. A scoped rule matches direct invocations only — redirects, pipes and `&&` still require the bypass.
 - `claude-harness` exit-code taxonomy documented and unified: `ERR_APPEND_UNSUPPORTED` now exits 2 (was 1), matching every other capability-gated precondition, so a missing CLI feature can no longer be mistaken for a runtime crash.
 
