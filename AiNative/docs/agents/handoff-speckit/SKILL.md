@@ -32,10 +32,26 @@ From the thread (and extra args if any):
 - **Done when** — observable checks
 - **In / out of scope** — decisions already made here; do not drop them
 - **Constraints** — stack, files, what not to touch
+- **Host profiles** — the Reasoning, Validation and Worker profiles from the HOST configuration (see [Host profiles](#host-profiles)). Always include them; read the values, never type them from memory.
 - **Context** — branch, key paths, ruled-out bugs, APIs. Never “continue the previous chat.”
 - **Open decisions** — questions raised here but not settled, each as a question. Omit the section if none. Do not resolve them yourself; clarify answers them in its choice report.
 
 If the thread has no actionable goal, say so in one sentence and stop. Do not invent a feature.
+
+## Host profiles
+
+Read the HOST configuration on every run so the new agent gets the same model
+profiles this host uses. Read-only: never write or change the config.
+
+1. **File** — `$SPECKIT_HARNESS_MODELS` if set, else `~/.config/ainative/harness-models.yaml`.
+2. **Section** — the active harness: `$SPECKIT_HARNESS` if set, else the harness you are running in (`cursor`, `opencode`, or `claude`).
+3. **Each profile** (Reasoning, Validation, Worker) — take that section's profile. If the section or profile is missing, take the `default` section's value for that profile only. Never mix profiles.
+4. **Report** — `executionMode`, `provider`, `modelId`, and `effort` only when set. Include `fallback` only when the profile has one.
+5. **Unresolved** — if the file is missing or a profile has no usable value, write `unresolved — set in harness-models.yaml` for that profile. Do not guess a model.
+6. **Hermes** — the file does not apply. Write `managed by Hermes profile config` for each profile; do not guess values.
+
+Only config values go in. One-off keyword or env overrides are not read here;
+include one only if the user typed it in the request.
 
 ## Output
 
@@ -59,6 +75,12 @@ Out of scope:
 
 Constraints:
 - ...
+
+Host profiles (<harness> — harness-models.yaml):
+- Reasoning: <executionMode>, <provider>, <modelId>[, effort: <level>]
+  - fallback: <executionMode>, <provider>, <modelId>
+- Validation: <executionMode>, <provider>, <modelId>[, effort: <level>]
+- Worker: <executionMode>, <provider>, <modelId>[, effort: <level>]
 
 Context:
 - ...

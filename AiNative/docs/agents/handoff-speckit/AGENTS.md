@@ -26,8 +26,9 @@ Not the `handoff` agent (session files under `.agent/handoff/`).
 ## Outputs
 
 - One fenced `text` block starting with `/speckit-orchestrate` (plus `skip`
-  and/or `keep-local` when they apply), or one sentence if there is no
-  actionable goal
+  and/or `keep-local` when they apply), including a **Host profiles** section
+  read from the HOST configuration, or one sentence if there is no actionable
+  goal
 
 ## Supporting files
 

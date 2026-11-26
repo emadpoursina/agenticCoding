@@ -8,6 +8,9 @@
   new agent.
 - Include `keep-local` only when the user said not to ship, commit, push, or
   open a PR.
+- Include the **Host profiles** section (Reasoning, Validation, Worker) on
+  every run, with values read from the HOST configuration only; never from
+  memory or from these docs.
 - List unsettled questions under **Open decisions**; do not answer them here.
 - If known files or a named skill matter, put them under Context /
   Constraints, not as `path:` / `skill:` on the first line.
@@ -19,6 +22,9 @@
 - Invent a feature when the thread has no actionable goal.
 - Write files unless the user asked to save the handoff.
 - Capture session state to `.agent/handoff/` (that is the `handoff` agent).
+- Put concrete provider or model IDs in this skill, `AGENTS.md`, or `rule.md`.
+  They live in `harness-models.yaml` or Hermes profile config (see
+  `docs/systems/agentic-system.md`).
 
 ## Stop conditions
 
