@@ -63,7 +63,10 @@ SCOPE: ok | feature
 FILES: <files changed, or none>
 TESTS: <commands run and result>
 SUMMARY: <what changed and why; or why it is really a feature>
+FRICTION: <none | line per feature-loop.md § Compact reports>
 ```
+
+Every report ends with a `FRICTION:` line; grammar in `docs/systems/feature-loop.md` § Compact reports — emit exactly `FRICTION: none` when clean.
 
 ## STEP: tester
 
@@ -84,7 +87,10 @@ TESTER: PASS | FAIL
 TESTS: <commands run and result>
 FINDINGS: <none, or one line each: file | problem | fix needed>
 SUMMARY: <one paragraph>
+FRICTION: <none | line per feature-loop.md § Compact reports>
 ```
+
+Every report ends with a `FRICTION:` line; grammar in `docs/systems/feature-loop.md` § Compact reports — emit exactly `FRICTION: none` when clean.
 
 Validation remains `STEP: tester` only (no critic, no `LOOP_BACK`).
 On `TESTER: FAIL`, the parent retries the change worker with FINDINGS (three attempts then park). Never converge. Never append `tasks.md`. On `TESTER: PASS`, the parent ships unless `keep-local` was requested.

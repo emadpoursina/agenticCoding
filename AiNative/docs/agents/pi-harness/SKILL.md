@@ -28,7 +28,7 @@ One job per spawn. Include:
 - Read: file paths, or a spec/task path, that contain what Pi needs
 - Done: how to tell the job worked
 - Do not: commit, push, deploy, SSH, or widen the job, unless the user asked for that action
-- Report: `STATUS: ok` | `STATUS: stuck` | `STATUS: blocked`, SUMMARY (one paragraph), files changed
+- Report: `STATUS: ok` | `STATUS: stuck` | `STATUS: blocked`, SUMMARY (one paragraph), files changed, and a `FRICTION:` line (grammar in `docs/systems/feature-loop.md` § Compact reports — emit `FRICTION: none` when clean)
 
 You choose the job from what the user asked. Do not narrow it before handing it over.
 
@@ -218,3 +218,23 @@ A sub-agent is another wrapper process you start. Wait for the result (blocking 
 - Optional stricter scout: pair `--tools read,grep,find,ls` with `--no-mcp` by default only if callers opt in (MCP-off changes scout behavior).
 - Consume richer JSON progress fields only if `status.json` proves insufficient for a real orchestration case — do not replace status polling casually.
 - Pi has no CLI job-timeout flag in 1.2.0; wrapper `--timeout` is the supported bound.
+
+## Session bundle
+
+The optional drill-down input for the Adjust stage, mapping Pi harness executions to the six bundle parts of the neutral session bundle contract ([adjust/SKILL.md](../adjust/SKILL.md#session-bundle-contract)):
+
+1. `worker_prompt`: The exact prompt handed to the Pi worker.
+2. `worker_transcript`: Session file located under `~/.pi/agent/sessions/<cwd>/`, pointed at via `--session <path|id>` or `--session-dir <dir>`.
+3. `subagent_transcripts`: List of subagent session files under the session directory.
+4. `usage`: Tokens, cost, and turn counts from Pi `report.json`, or `unknown` where absent.
+5. `completeness`: `complete | partial | unavailable` with a one-line reason.
+6. `pointer`: Path or session id passed by the parent and cited as `transcript:<pointer>`.
+
+### Caveats
+
+- Invoking Pi with `--no-session` leaves no session file on disk, so a bundle can be unavailable by design.
+- A job run that crashes mid-execution may leave a malformed or partial session file.
+
+### Degrade rule
+
+A partial or unavailable session bundle allows Adjust to proceed using card data and reports alone, stating that the drill-down was partial; Adjust must never assert a cause from unevidenced or missing transcripts.

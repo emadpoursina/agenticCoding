@@ -855,7 +855,8 @@ prompt:
   for `before_specify` (branch/worktree creation only)
 
 Tell each worker to return its compact report in the format below (ready,
-route, change, and tester use the formats in their own skills). Workers read
+route, change, and tester use the formats in their own skills). Every worker compact
+report must end with a `FRICTION:` line (grammar in `docs/systems/feature-loop.md` § Compact reports — emit `FRICTION: none` when clean). Workers read
 specification, plan, and task files from disk; do not paste those files into
 their prompts.
 
@@ -890,6 +891,7 @@ FLOW_ID: <flow_id>
 ARTIFACTS: <paths produced or updated>
 STATUS: ok | stuck | blocked
 SUMMARY: <one paragraph>
+FRICTION: <none | line per feature-loop.md § Compact reports>
 ```
 
 Implement returns:

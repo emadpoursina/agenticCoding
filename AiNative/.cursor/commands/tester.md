@@ -1,5 +1,5 @@
 ---
-description: Executes Plan test flows via unit then system tester sub-roles and reports PASS/FAIL with evidence. Use during PIVS Validation after the critic passes, or to re-verify after an Implement loop-back.
+description: Executes Plan test flows via unit then system tester sub-roles and reports PASS/FAIL with evidence. Use during PIVSA Validation after the critic passes, or to re-verify after an Implement loop-back.
 ---
 
 # /tester

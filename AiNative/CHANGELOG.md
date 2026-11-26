@@ -3,6 +3,10 @@
 ## [Unreleased]
 
 ### Added
+- `adjust` stage and skill folder (`docs/agents/adjust/`): fifth phase of the feature loop (PIVSA), dispatches after UAT + merge and after non-merging terminal states (`blocked`, `parked`, `killed`, `abandoned`); proposes only, never edits rules, config, or the board, and never gates or delays merge or card completion.
+- Per-card `## Metrics` block definition on the card body: loop-back counts per stage (`converge`, `critic`, `tester`, `pr_review`) with return-dispatch semantics, closed UAT failure reasons, cost/token/wall-time tracking with explicit accounting boundaries, and before/after comparison rules for judging accepted changes.
+- Weekly cross-card Adjust roll-up card (`## Path: job`, `## Skill: adjust`, `STEP: rollup`): aggregates ISO-8601 UTC weeks anchored by terminal-state `closed_at`, ranks friction by target with visible counts, reports recurring unaccepted proposals without re-filing, and reports evidence gaps.
+- Harness session bundle sections across adapters: `claude-harness`, `cursor-harness`, `pi-harness`, and Hermes `docs/knowledge/setup/harness.md` document worker prompt, transcripts, usage sources, caveats, and graceful degradation for optional Adjust drill-downs.
 - `proposal-writer` agent: turns an existing PRD into a 1–3 page client proposal (English or Persian); pricing parks for developer approval; Persian uses `_skills/persian-formal` plus `scripts/persian-normalize.py`. Dispatchable as a `job` (`task-groomer` 1.4.0 allowlist / `route-work`).
 - `_skills/persian-formal`: formal-but-human Persian register, commercial glossary, RTL/PDF notes for client documents.
 
@@ -27,6 +31,9 @@
 - Cursor: `learn` linked into `~/.cursor/skills/` (and `/learn` slash command) via `link-host-skills.sh`.
 
 ### Changed
+- PIVS → PIVSA: renamed the methodology loop across system and agent documentation (`## PIVSA mapping` heading, `#pivsa-mapping` inbound links, and graph string `… → pr-review → uat → adjust`).
+- Worker report contracts: required `FRICTION:` line in every worker's compact report (`FRICTION: <target-class> | <one-sentence observation> | <evidence-reference>`) with `FRICTION: none` as clean default; grammar stated once in `feature-loop.md` § Compact reports.
+- Learnings-vs-rules separation: findings logged to `.ainative/learnings.md`; rule proposals require recurrence on ≥ 2 distinct cards and must name an existing rule merge target to rewrite or replace (additive-only rule edits rejected).
 - `proposal-writer`: client deliverable is always self-contained visual HTML (`PROPOSAL.html`, color/layout per `html.md`); Markdown is no longer the client file. When the target project already has an HTTP backend, the HTML is served on a public unauthenticated GET (`/proposal` or static equivalent); no backend is invented. Persian normalize skips tags/CSS/JS so HTML styles stay valid.
 - `antigravity-harness` edit jobs no longer pass `--dangerously-skip-permissions` by default: `--mode accept-edits` alone, with shell access granted per job via `--allow-command <target>` and blanket bypass only behind an explicit `--allow-bypass`. A scoped rule matches direct invocations only — redirects, pipes and `&&` still require the bypass.
 - `claude-harness` exit-code taxonomy documented and unified: `ERR_APPEND_UNSUPPORTED` now exits 2 (was 1), matching every other capability-gated precondition, so a missing CLI feature can no longer be mistaken for a runtime crash.

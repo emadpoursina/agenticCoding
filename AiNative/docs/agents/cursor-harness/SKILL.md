@@ -56,7 +56,7 @@ One job per spawn. Include:
 - Read: file paths, or a spec/task path, that contain what it needs
 - Done: how to tell the job worked
 - Do not: commit, push, deploy, SSH, or widen the job, unless the user asked
-- Report: `STATUS: ok` | `STATUS: stuck` | `STATUS: blocked`, SUMMARY (one paragraph), files changed
+- Report: `STATUS: ok` | `STATUS: stuck` | `STATUS: blocked`, SUMMARY (one paragraph), files changed, and a `FRICTION:` line (grammar in `docs/systems/feature-loop.md` § Compact reports — emit `FRICTION: none` when clean)
 
 You choose the job from what the user asked. Do not narrow it before handing it over.
 
@@ -216,3 +216,24 @@ Sets `local.autoReview`. Tool calls go through the Auto-review classifier. A blo
 | `0` | The run finished. Check `reportValid` and `workerStatus`. |
 | `1` | Spawn or runtime failure: SDK error, cancelled run, timeout, or dispose failure. |
 | `2` | Caller precondition. Nothing was started. Missing `--model`, bad Router params, Node older than 22.13, SDK not installed, or no unattended auth. |
+
+## Session bundle
+
+The optional drill-down input for the Adjust stage, mapping Cursor harness executions to the six bundle parts of the neutral session bundle contract ([adjust/SKILL.md](../adjust/SKILL.md#session-bundle-contract)):
+
+1. `worker_prompt`: The exact prompt passed to the Cursor agent session.
+2. `worker_transcript`: Chat session transcript stored under host `~/.cursor/chats`, resumed by `sessionId` with matching `--cwd`.
+3. `subagent_transcripts`: List of background subagent chat sessions, or empty when none.
+4. `usage`: `totalCostUsd` and turn counts from `report.json` (`agent.getUsage()`), or `unknown` when the account does not report usage.
+5. `completeness`: `complete | partial | unavailable` with a one-line reason.
+6. `pointer`: Chat session reference or `sessionId`, attached by the parent and cited as `transcript:<pointer>`.
+
+### Caveats
+
+- Background subagent stop events are unreliable, so subagent transcripts may be missing.
+- `totalCostUsd` is null when the account does not report usage.
+- Background process terminations may leave incomplete transcripts.
+
+### Degrade rule
+
+A partial or unavailable session bundle allows Adjust to proceed using card data and reports alone, stating that the drill-down was partial; Adjust must never assert a cause from unevidenced or missing transcripts.

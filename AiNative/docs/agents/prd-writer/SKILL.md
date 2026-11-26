@@ -458,17 +458,17 @@ Workers never commit, push, or open PRs. The parent ships a `job`
 automatically after `STATUS: ok` (no operator approval prompt; `keep-local`
 opts out): single commit, type `docs`, message `docs: add PRD for [product name]`
 (the phase plan, when written in the same run, goes in that commit). Phase-plan
-mode: `docs: add phase plan for [product name]`.
+mode: `docs: add phase plan for [product name]`. Every report ends with a `FRICTION:` line; grammar in `docs/systems/feature-loop.md` § Compact reports — emit exactly `FRICTION: none` when clean.
 
 ---
 
 ## Map to the loop
 
-Post-onboarding `job` through the [feature loop](../../systems/feature-loop.md#pivs-mapping).
+Post-onboarding `job` through the [feature loop](../../systems/feature-loop.md#pivsa-mapping).
 This agent runs before Plan (structured discovery and PRD generation); the PRD
 is then consumed by a `project-bootstrapper` job or by feature cards
 (`ready → specify → …`). With a phase plan, each phase is one feature run, in
 order: task input `phase: <plan-path>#1`, then `#2` once Phase 1's PR is merged
 ([Phased PRD](../../systems/feature-loop.md#phased-prd)). Validation for the built work is `critic → tester`
-([feature loop](../../systems/feature-loop.md#pivs-mapping)); `pr-reviewer` is
+([feature loop](../../systems/feature-loop.md#pivsa-mapping)); `pr-reviewer` is
 an on-demand tool after Ship, not a loop state.

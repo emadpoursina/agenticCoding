@@ -426,7 +426,10 @@ IPS: fail2ban=<active/inactive> jail=<running/not-running>
 OPEN_PORTS: <port/proto purpose; ...>
 PROJECT_LAYER: runtime, proxy/TLS, DB, backups, monitoring, deployment
 NEXT: <one action>
+FRICTION: <none | line per feature-loop.md § Compact reports>
 ```
+
+Every report ends with a `FRICTION:` line; grammar in `docs/systems/feature-loop.md` § Compact reports — emit exactly `FRICTION: none` when clean.
 
 `baseline-ready` requires zero `FAIL` in access, firewall, and patching.
 Warnings are allowed only when explained and accepted by the operator.

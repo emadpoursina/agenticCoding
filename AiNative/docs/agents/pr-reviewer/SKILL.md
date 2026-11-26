@@ -154,10 +154,12 @@ CRITICAL_COUNT: <integer>
 CRITICALS: <none, or one line each: ID | file:line | trigger | summary>
 REPORT: <path to the full markdown report>
 SUMMARY: <one paragraph>
+FRICTION: <none | line per feature-loop.md § Compact reports>
 ```
 
 - `VERDICT: REQUEST CHANGES` with `CRITICAL_COUNT: 0` is routed as APPROVE for the loop.
 - `BLOCKED` is Phase 1.5 only.
+- Every report ends with a `FRICTION:` line; grammar in `docs/systems/feature-loop.md` § Compact reports — emit exactly `FRICTION: none` when nothing slowed the step down.
 - Merge gate remains Critical-only (Warning and Suggestion never change `VERDICT`).
 - Re-review: parent passes previous `REPORT` via existing `--extra @<previous-review>.md`.
 

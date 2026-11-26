@@ -53,7 +53,7 @@ One job per spawn. Include:
 - Read: file paths, or a spec/task path, that contain what it needs
 - Done: how to tell the job worked
 - Do not: commit, push, deploy, SSH, or widen the job, unless the user asked
-- Report: `STATUS: ok` | `STATUS: stuck` | `STATUS: blocked`, SUMMARY (one paragraph), files changed
+- Report: `STATUS: ok` | `STATUS: stuck` | `STATUS: blocked`, SUMMARY (one paragraph), files changed, and a `FRICTION:` line (grammar in `docs/systems/feature-loop.md` § Compact reports — emit `FRICTION: none` when clean)
 
 You choose the job from what the user asked. Do not narrow it before handing it over.
 

@@ -198,6 +198,10 @@ STATUS: ok
 PATH: <proposal file>
 URL: </proposal | /proposal.html | none>
 LANG: en | fa
+FRICTION: <none | line per feature-loop.md § Compact reports>
+```
+
+Every report ends with a `FRICTION:` line; grammar in `docs/systems/feature-loop.md` § Compact reports — emit exactly `FRICTION: none` when clean.
 ```
 
 ---

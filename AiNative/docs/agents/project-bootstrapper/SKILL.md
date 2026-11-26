@@ -77,6 +77,7 @@ End with a compact report:
 - `MANIFESTS: <files written>`
 - `VALIDATION_COMMANDS: <declared commands>`
 - `SUMMARY: <what the operator should review in the shipped PR>`
+- `FRICTION:` every report ends with a `FRICTION:` line; grammar in `docs/systems/feature-loop.md` § Compact reports — emit exactly `FRICTION: none` when clean.
 
 If the card is really a feature (needs spec/plan/review, not a scaffold),
 report `SCOPE: feature` instead and stop — the card parks; do not promote

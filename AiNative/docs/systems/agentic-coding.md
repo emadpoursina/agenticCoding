@@ -1,9 +1,9 @@
 # Agentic coding system
 
-**The live loop is the [feature loop](./feature-loop.md#pivs-mapping) as run by
+**The live loop is the [feature loop](./feature-loop.md#pivsa-mapping) as run by
 `/speckit-orchestrate`.** This document is the older homemade PIV write-up, kept
 as historical methodology; do not use it as the live stage list. PIVS maps onto
-that loop — see the [PIVS mapping](./feature-loop.md#pivs-mapping).
+that loop — see the [PIVS mapping](./feature-loop.md#pivsa-mapping).
 
 Canonical five-part model (Harness, Model, Context, Tools, Agents): [agentic-system.md](./agentic-system.md).
 
@@ -84,4 +84,4 @@ Validation is owned by two in-house agents: [critic](../agents/critic/) (adversa
 
 ### Ship
 
-Ship commits everything, pushes the branch, and opens a PR with a step-by-step human walkthrough in the PR body. It runs after tester PASS and ends uat-ready: the operator exercises the shipped PR using the walkthrough. Loop definition: [feature loop](./feature-loop.md#pivs-mapping).
+Ship commits everything, pushes the branch, and opens a PR with a step-by-step human walkthrough in the PR body. It runs after tester PASS and ends uat-ready: the operator exercises the shipped PR using the walkthrough. Loop definition: [feature loop](./feature-loop.md#pivsa-mapping).

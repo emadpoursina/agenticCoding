@@ -6,7 +6,7 @@ Workflow context: [pr-review-system.md](../../systems/pr-review-system.md).
 
 ## When to use
 
-- Reviewing a pull request on operator request; in the target feature loop ([feature-loop.md](../../systems/feature-loop.md#pivs-mapping)) this is an on-demand tool after Ship, not a loop state
+- Reviewing a pull request on operator request; in the target feature loop ([feature-loop.md](../../systems/feature-loop.md#pivsa-mapping)) this is an on-demand tool after Ship, not a loop state
 - Feature PRs in existing subsystems — always run Phase 1.5
 - Large PRs — use diff compression first
 - After critic and tester report PASS and Ship has opened a PR — run whenever review is wanted

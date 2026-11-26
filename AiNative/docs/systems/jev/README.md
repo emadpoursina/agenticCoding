@@ -1,6 +1,6 @@
 # Jev in the feature loop
 
-Methodology for using Jev, TypeSafe's System One model, inside the PIVS loop. Jev answers typed judgments about state; code makes the decision. This page defines the pattern so more decisions can be added later without changing the method.
+Methodology for using Jev, TypeSafe's System One model, inside the PIVSA loop. Jev answers typed judgments about state; code makes the decision. This page defines the pattern so more decisions can be added later without changing the method.
 
 **Status:** one decision in evaluation: [loop-back](./loop-back.yaml). See the [evaluation record](../../records/evaluations/2026-11-jev-loop-back.md). Nothing is adopted, and the profile rule in [agentic-system.md](../agentic-system.md) has not changed.
 

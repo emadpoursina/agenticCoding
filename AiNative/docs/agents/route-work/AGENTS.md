@@ -24,6 +24,7 @@ generalized to AiNative-first + Pi enrollment). Host symlink: `~/.cursor/skills/
 Compact report (parent parses it):
 
 - `ROUTE: feature|change|job`, `SKILL`, `SKILL_PATH`, `WHY`
+- `FRICTION:` every report ends with a `FRICTION:` line; grammar in `docs/systems/feature-loop.md` § Compact reports — emit exactly `FRICTION: none` when nothing slowed the step down.
 
 ## Supporting files
 

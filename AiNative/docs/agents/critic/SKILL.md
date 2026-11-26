@@ -1,6 +1,6 @@
 ---
 name: critic
-description: Adversarial review of plan and implementation during PIVS Validation using passes A–D. Use when a plan needs an adversarial read before Implementation, when implementation is complete before tests, or when tester failures suggest a design or spec problem.
+description: Adversarial review of plan and implementation during PIVSA Validation using passes A–D. Use when a plan needs an adversarial read before Implementation, when implementation is complete before tests, or when tester failures suggest a design or spec problem.
 disable-model-invocation: true
 ---
 
@@ -117,7 +117,7 @@ Output: loop-back target (Implement | Plan) + prioritized findings + verdict.
 
 ---
 
-## Compact report (PIVS, feature path)
+## Compact report (PIVSA, feature path)
 
 The parent parses these fields from the critic report. Keep severity-grouped findings and overall PASS/FAIL. The worker MUST NOT write `tasks.md` or launch tester/ship.
 
@@ -127,9 +127,11 @@ CRITIC: PASS | FAIL
 LOOP_BACK: implement | plan | none
 FINDINGS: <none, or one line each: ID | severity | file:line | summary>
 SUMMARY: <one paragraph>
+FRICTION: <none | line per feature-loop.md § Compact reports>
 ```
 
 - `PASS` ⇒ `LOOP_BACK: none`.
 - `FAIL` ⇒ `LOOP_BACK: implement` or `plan`. If findings mix both targets, emit `plan` (parent parks).
 - Finding `ID` values are validator finding IDs (`C1`, `C2`, …).
+- Every report ends with a `FRICTION:` line; grammar in `docs/systems/feature-loop.md` § Compact reports — emit exactly `FRICTION: none` when nothing slowed the step down.
 - Critic implementation review is required after Implementation and before tester runs; FAIL on spec/plan mismatch remains. Worker MUST NOT write `tasks.md` or launch tester/ship.
