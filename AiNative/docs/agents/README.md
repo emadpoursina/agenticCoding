@@ -35,6 +35,7 @@ Each agent is a folder with three core files tuned for one job.
 | [learn](./learn/) | `job` worker for `learn` cards | Time-boxed throwaway spike or demo; parks once for the operator's go/rework/kill, then ships only a finding and a reference patch ([scoping](../systems/scoping.md)) |
 | [critic](./critic/) | Feature-loop Validation | Adversarial review after converge ([feature-loop.md](../systems/feature-loop.md)) |
 | [tester](./tester/) | Feature-loop Validation | Proves flows and runs project `validation_commands` ([feature-loop.md](../systems/feature-loop.md)) |
+| [adjust](./adjust/) | Feature-loop Adjust (after UAT + merge, and on non-merging terminal states) | Turns a finished card's numbers, reports, and `FRICTION` lines into learnings entries and evidence-backed proposals; proposes only |
 | [e2e-testing](./e2e-testing/) | On-demand tool | Plans, implements, executes, debugs, and maintains E2E tests across web, iOS, Android, and React Native; honest Passed/Failed/Blocked reporting with human handoff on retry exhaustion |
 | [handoff](./handoff/) | On-demand tool | Capture or resume session state in `.agent/handoff/`; not a loop state |
 | [handoff-speckit](./handoff-speckit/) | On-demand tool | Paste-ready `/speckit-orchestrate` launch block from this chat; does not run orchestrate; not a loop state |
@@ -95,14 +96,14 @@ Cursor slash commands live in [`../../.cursor/commands/`](../../.cursor/commands
 4. Capture agent-specific constraints in `rule.md`
 5. Add supporting prompt files if the workflow has phases
 6. Register the agent in this README table
-7. If Hermes must dispatch it, wire it to the relevant feature-loop state or named job skill in the control plane.
+7. If Hermes must dispatch it, wire it to the relevant feature-loop state or named job skill in the control plane (the loop's numbered states are `ready … uat` plus `adjust` (the final state), so a new agent that is a loop stage is wired as a state rather than a job skill).
 8. Run `docs/knowledge/setup/link-host-skills.sh --all` so Cursor, OpenCode, and Claude Code symlink this folder. Cursor gets a slash command that only points at the skill; do not fork the workflow in the command file.
 9. Tune all three files as the agent is used
 
 ## Related
 
 - Five-part model: [agentic-system.md](../systems/agentic-system.md)
-- Methodology: PIVS ([feature loop](../systems/feature-loop.md#pivs-mapping); historical write-up: [agentic-coding.md](../systems/agentic-coding.md))
+- Methodology: PIVSA ([feature loop](../systems/feature-loop.md#pivsa-mapping); historical write-up: [agentic-coding.md](../systems/agentic-coding.md))
 - Generic templates (not agents): [systems/](../systems/)
 - **Managed projects (target):** Hermes reads AiNative read-only and starts one worker per assigned state or job skill. Not wired in the current install.
 - Formats: [AGENTS.md](https://agents.md/), [Agent Skills](https://agentskills.io/specification)

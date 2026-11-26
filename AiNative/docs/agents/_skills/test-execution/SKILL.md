@@ -69,7 +69,7 @@ Write proof to disk — files produced by the executed commands, not chat prose.
 - Each run **replaces** the prior `evidence.md` and reconciles artifacts — full regeneration, including after an Implement loop-back (execution may prefer failed flows first; the written bundle represents the full run).
 - `Commit SHA`: full 40-char worktree `HEAD` immediately before the compact report.
 - API captures MUST redact credentials and `Authorization` tokens; UI traces and screenshots can contain secrets — keep evidence local/CI-only and never commit it (recommended ignores: `specs/*/evidence/` and `specs/*/evidence.md`).
-- Compact report keeps PASS/FAIL and adds `EVIDENCE: specs/<flow>/evidence.md`.
+- Compact report keeps PASS/FAIL, adds `EVIDENCE: specs/<flow>/evidence.md`, and ends with a `FRICTION:` line (grammar in `docs/systems/feature-loop.md` § Compact reports — emit `FRICTION: none` when clean).
 - Optional (not required for every flow): fail-before / pass-after — run a new flow at merge-base (expect fail), then at HEAD (expect pass); see [validation-layer.md](../../../systems/validation-layer.md).
 
 ## Rules

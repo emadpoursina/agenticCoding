@@ -42,7 +42,7 @@ One job per spawn. Include:
 - Read: file paths, or a spec/task path, that contain what it needs
 - Done: how to tell the job worked
 - Do not: commit, push, deploy, SSH, or widen the job, unless the user asked
-- Report: `STATUS: ok` | `STATUS: stuck` | `STATUS: blocked`, SUMMARY (one paragraph), files changed
+- Report: `STATUS: ok` | `STATUS: stuck` | `STATUS: blocked`, SUMMARY (one paragraph), files changed, and a `FRICTION:` line (grammar in `docs/systems/feature-loop.md` § Compact reports — emit `FRICTION: none` when clean)
 
 You choose the job from what the user asked. Do not narrow it before handing it over.
 
@@ -247,3 +247,24 @@ The harness never fails because these fields are missing from the stream.
 | `0`  | The child process completed. NOT success — you must still check `reportValid` and `workerStatus`. |
 | `1`  | Spawn or runtime failure: probe error, child died, or any error carrying no `exitCode`. |
 | `2`  | Caller precondition or capability failure; nothing was spawned. Missing `--model`, invalid flag values, and any requested capability the installed CLI does not advertise (including the worker-contract append flags). |
+
+## Session bundle
+
+The optional drill-down input for the Adjust stage, mapping Claude Code harness executions to the six bundle parts of the neutral session bundle contract ([adjust/SKILL.md](../adjust/SKILL.md#session-bundle-contract)):
+
+1. `worker_prompt`: The exact one-step prompt dispatched to `claude-spawn.mjs`.
+2. `worker_transcript`: Host session JSONL file under `~/.claude/projects/<slug>/<session>/`. Value is `unavailable` when session persistence was disabled.
+3. `subagent_transcripts`: List of subagent transcripts under `subagents/agent-*.jsonl`, discovered via the `SubagentStop` hook's `agent_transcript_path`.
+4. `usage`: Derived from `report.json` fields (`numTurns`, `totalCostUsd`), or `unknown` when absent.
+5. `completeness`: `complete | partial | unavailable` with a one-line reason.
+6. `pointer`: Session directory path or `sessionId`, attached by the parent to the Adjust dispatch and cited as `transcript:<pointer>`.
+
+### Caveats
+
+- The `SubagentStop` hook can fire before the transcript file is fully written to disk.
+- The wrapper's isolated default (`--no-session-persistence`) can leave no transcript at all, making worker transcripts unavailable by design.
+- The container runtime cannot access host `~/.claude/` without an explicit directory mount.
+
+### Degrade rule
+
+A partial or unavailable session bundle allows Adjust to proceed using card data and reports alone, stating that the drill-down was partial; Adjust must never assert a cause from unevidenced or missing transcripts.

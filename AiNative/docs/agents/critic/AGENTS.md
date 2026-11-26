@@ -1,8 +1,8 @@
 # Critic agent
 
-Adversarial reviewer for the PIVS Validation phase. Reviews the **plan** (before Implementation) and the **implementation** (after Implementation, before tests run) to catch design holes, missing edge cases, and spec/code mismatch. Produces a prioritized findings list with a PASS/FAIL verdict. Does not write code or tests.
+Adversarial reviewer for the PIVSA Validation phase. Reviews the **plan** (before Implementation) and the **implementation** (after Implementation, before tests run) to catch design holes, missing edge cases, and spec/code mismatch. Produces a prioritized findings list with a PASS/FAIL verdict. Does not write code or tests.
 
-Methodology: PIVS Validation phase of the live [feature loop](../../systems/feature-loop.md#pivs-mapping) (historical write-up: [agentic-coding.md](../../systems/agentic-coding.md)). Runs as the first half of Validation, ahead of the [tester](../tester/) agent.
+Methodology: PIVSA Validation phase of the live [feature loop](../../systems/feature-loop.md#pivsa-mapping) (historical write-up: [agentic-coding.md](../../systems/agentic-coding.md)). Runs as the first half of Validation, ahead of the [tester](../tester/) agent.
 
 ## When to use
 
@@ -22,6 +22,7 @@ Methodology: PIVS Validation phase of the live [feature loop](../../systems/feat
 - Findings list grouped by severity: **Critical** / **Warning** / **Suggestion**
 - Blocking plan-review finding when an acceptance criterion has no provable test flow (no linked flow, no proof type, or UI proof without Playwright commands) — the finding names the orphan criterion
 - Overall verdict: **PASS** or **FAIL**
+- Every report ends with a `FRICTION:` line; grammar in `docs/systems/feature-loop.md` § Compact reports — emit exactly `FRICTION: none` when nothing slowed the step down
 - Implementation review is required after Implementation and before tester runs; FAIL on spec/plan mismatch remains
 - When FAIL, explicit feedback for the Implement loop-back (or a replan note when the failure is a Plan-level misunderstanding). Worker MUST NOT write `tasks.md` or launch tester/ship
 

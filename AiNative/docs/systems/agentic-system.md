@@ -236,7 +236,7 @@ symlink is required.
 
 Agent library and file contract: [8. agents/README.md](../agents/README.md).
 
-PIVS in its detailed form is the [feature loop](./feature-loop.md#pivs-mapping). Historical write-up: [agentic-coding.md](./agentic-coding.md).
+PIVSA in its detailed form is the [feature loop](./feature-loop.md#pivsa-mapping). Historical write-up: [agentic-coding.md](./agentic-coding.md).
 
 ---
 

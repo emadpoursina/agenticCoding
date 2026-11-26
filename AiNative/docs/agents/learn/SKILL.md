@@ -146,8 +146,11 @@ BREAKER: tripped | no
 NEEDS_HUMAN: <the park text, build step only; otherwise none>
 FINDING: <repo-relative path, finding step only; otherwise none>
 DECISION: go | rework | kill | none
-SUMMARY: <one or two sentences>
+SUMMARY: <one two sentences>
+FRICTION: <none | line per feature-loop.md § Compact reports>
 ```
+
+Every report ends with a `FRICTION:` line; grammar in `docs/systems/feature-loop.md` § Compact reports — emit exactly `FRICTION: none` when clean.
 
 The parent ships after `STEP: finding` reports `STATUS: ok`: a single
 commit, `docs(learn): record <kind> finding for <short title>`, on the

@@ -1,6 +1,6 @@
 # Rules — Tester agent
 
-Constraints for the PIV Validation executor. Architecture: [validation-layer.md](../../systems/validation-layer.md).
+Constraints for the PIVSA Validation executor. Architecture: [validation-layer.md](../../systems/validation-layer.md).
 
 ## Must
 
@@ -16,6 +16,7 @@ Constraints for the PIV Validation executor. Architecture: [validation-layer.md]
 - Reflect on output before handing results to the critic (Think → Act → Observe)
 - On FAIL, provide actionable Implement loop-back feedback (expected vs actual)
 - Compact report keeps the PASS/FAIL verdict, adds `LOOP_BACK: implement | plan | none` (`PASS` ⇒ `none`; `FAIL` ⇒ `implement` or `plan`, mixed ⇒ `plan`, assertion/code defaults to `implement`), and `EVIDENCE: specs/<flow>/evidence.md` (`<flow>` from `.specify/feature.json`, never `BRANCH`)
+- End every compact report with a `FRICTION:` line; grammar in `docs/systems/feature-loop.md` § Compact reports — emit exactly `FRICTION: none` when clean
 
 ## Must not
 

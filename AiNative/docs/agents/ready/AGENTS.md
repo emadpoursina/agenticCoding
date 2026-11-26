@@ -36,6 +36,7 @@ Compact report (the parent parses it, never worker prose):
   `phase-order` when `PHASE_REF` is set; plus `worktree-copy` and
   `worktree-setup` when a feature worktree was selected)
 - `FIXES`
+- `FRICTION:` every report ends with a `FRICTION:` line; grammar in `docs/systems/feature-loop.md` § Compact reports — emit exactly `FRICTION: none` when nothing slowed the step down. The ready worker appends the line after the unwrapped `ready-check.sh` stdout as its last line.
 
 ## Worktree local files (optional)
 

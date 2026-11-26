@@ -62,6 +62,27 @@ Rules that prevent future confusion:
 - Never add a check to two gates. If a new check is needed, ask which level it
   belongs to (install / flow / card) and add it in exactly one place.
 
+## Session bundle
+
+The optional drill-down input for the Adjust stage in the Hermes control plane, mapping control plane executions to the six bundle parts of the neutral session bundle contract ([adjust/SKILL.md](../../agents/adjust/SKILL.md#session-bundle-contract)):
+
+1. `worker_prompt`: The dispatched step prompt recorded in `messages` and `worker_executions`.
+2. `worker_transcript`: Execution events and tool calls stored in `sessions`, `messages`, and `worker_executions`.
+3. `subagent_transcripts`: Child session records in `sessions` where `parent_session_id` is set.
+4. `usage`: Per-session token and cost tracking where recorded, or `unknown` otherwise.
+5. `completeness`: `complete | partial | unavailable` with a one-line reason.
+6. `pointer`: Session ID or execution ID attached by the parent to the Adjust dispatch and cited as `transcript:<pointer>`.
+
+### Caveats
+
+- `sessions.parent_session_id` is not reliably populated across all tool invocations, so worker and subagent records cannot always be reliably joined.
+- The container cannot access host-only transcript directories (e.g. host `~/.claude` or `~/.cursor`) unless explicitly mounted into the container.
+- Board store records (`task_runs`, `task_events`, `task_comments`) provide high-level history but do not duplicate worker tool streams.
+
+### Degrade rule
+
+A partial or unavailable session bundle allows Adjust to proceed using card data and reports alone, stating that the drill-down was partial; Adjust must never assert a cause from unevidenced or missing transcripts.
+
 ## Related
 
 - [harness.md](./harness.md) — what the harness is; canonical runtime facts live in the live Hermes home (`$HERMES_DATA_ROOT/state`) and `personalAgent` Compose/environment

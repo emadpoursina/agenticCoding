@@ -47,7 +47,7 @@ content, `specs/`, `spec.md`, or `feature.json`.
 
    Pass `PHASE_REF` as the fourth argument only when it is not `none`.
 
-3. Return the script's stdout as the compact report. Do not wrap it.
+3. Return the script's stdout as the compact report, appending a `FRICTION:` line as the last line (grammar in `docs/systems/feature-loop.md` § Compact reports — emit `FRICTION: none` when clean). Do not wrap it.
 
 ## Rules the script enforces
 
@@ -226,7 +226,10 @@ CHECKS:
 - [required] worktree-setup: pass|fail — <outcome; never command stdout/stderr>
 FIXES:
 - <only when blocked>
+FRICTION: <none | line per feature-loop.md § Compact reports>
 ```
+
+The ready contract in `docs/systems/feature-loop.md` § Compact reports governs; the `FRICTION:` line is appended by the ready worker after the unwrapped `ready-check.sh` stdout as its last line (with no script changes).
 
 No `FEATURE_DIR`. `BRANCH` is the git branch name only; specify owns the spec
 directory independently. `WORKTREE` is printed only on `READY: ok`: the

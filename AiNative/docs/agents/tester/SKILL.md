@@ -1,6 +1,6 @@
 ---
 name: tester
-description: Executes Plan test flows via unit then system tester sub-roles and reports PASS/FAIL with evidence. Use during PIVS Validation after the critic passes, or to re-verify after an Implement loop-back.
+description: Executes Plan test flows via unit then system tester sub-roles and reports PASS/FAIL with evidence. Use during PIVSA Validation after the critic passes, or to re-verify after an Implement loop-back.
 disable-model-invocation: true
 ---
 
@@ -73,11 +73,13 @@ LOOP_BACK: implement | plan | none
 EVIDENCE: specs/<flow>/evidence.md
 FINDINGS: <none, or one line each: flow-id | problem | fix needed>
 SUMMARY: <one paragraph>
+FRICTION: <none | line per feature-loop.md § Compact reports>
 ```
 
 - `PASS` ⇒ `LOOP_BACK: none`.
 - `FAIL` ⇒ `LOOP_BACK: implement` or `plan`. Mixed findings ⇒ `plan` (parks). Assertion/code failures default to `implement` when the field is omitted.
 - `<flow>` is the Spec Kit feature directory basename from `.specify/feature.json`, not `BRANCH`.
+- Every report ends with a `FRICTION:` line; grammar in `docs/systems/feature-loop.md` § Compact reports — emit exactly `FRICTION: none` when nothing slowed the step down.
 - Worker MUST NOT write `tasks.md` or launch ship.
 
 ### Evidence bundle

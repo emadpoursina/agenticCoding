@@ -1,8 +1,8 @@
 # Tester agent
 
-Proves the code works. Runs the test flows defined in the PIVS Plan phase through two sub-roles: **unit tester** (isolated components) and **system tester** (integration, E2E with browser automation, customer/user-flow tests). Reports concrete pass/fail per flow. Produces specific failure feedback that drives the Implement loop-back. Does not critique design (that is the [critic](../critic/)).
+Proves the code works. Runs the test flows defined in the PIVSA Plan phase through two sub-roles: **unit tester** (isolated components) and **system tester** (integration, E2E with browser automation, customer/user-flow tests). Reports concrete pass/fail per flow. Produces specific failure feedback that drives the Implement loop-back. Does not critique design (that is the [critic](../critic/)).
 
-Methodology: PIVS Validation phase of the live [feature loop](../../systems/feature-loop.md#pivs-mapping) (historical write-up: [agentic-coding.md](../../systems/agentic-coding.md)). Runs as the second half of Validation, after the [critic](../critic/) agent.
+Methodology: PIVSA Validation phase of the live [feature loop](../../systems/feature-loop.md#pivsa-mapping) (historical write-up: [agentic-coding.md](../../systems/agentic-coding.md)). Runs as the second half of Validation, after the [critic](../critic/) agent.
 
 ## When to use
 
@@ -21,6 +21,7 @@ Methodology: PIVS Validation phase of the live [feature loop](../../systems/feat
 - Evidence bundle: captures under `specs/<flow>/evidence/` plus the manifest at `specs/<flow>/evidence.md` (`<flow>` from `.specify/feature.json`, not `BRANCH`; one Markdown table; artifact paths point at command-produced files; FAIL still records every executed flow; each run replaces the prior bundle)
 - When FAIL, explicit feedback for the Implement loop-back (e.g. "function returns undefined for empty array — expected empty array")
 - Compact report: `FLOW_ID`, `TESTER: PASS | FAIL`, `LOOP_BACK: implement | plan | none`, `EVIDENCE: specs/<flow>/evidence.md`, `FINDINGS`, `SUMMARY` (`PASS` ⇒ `none`; `FAIL` defaults assertion/code to `implement`, mixed to `plan`). Worker MUST NOT write `tasks.md` or launch ship
+- Every report ends with a `FRICTION:` line; grammar in `docs/systems/feature-loop.md` § Compact reports — emit exactly `FRICTION: none` when nothing slowed the step down
 
 ## Supporting files
 

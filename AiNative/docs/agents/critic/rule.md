@@ -1,6 +1,6 @@
 # Rules — Critic agent
 
-Constraints for the PIV Validation evaluator. Architecture: [validation-layer.md](../../systems/validation-layer.md).
+Constraints for the PIVSA Validation evaluator. Architecture: [validation-layer.md](../../systems/validation-layer.md).
 
 ## Must
 
@@ -11,6 +11,7 @@ Constraints for the PIV Validation evaluator. Architecture: [validation-layer.md
 - Give an overall PASS/FAIL verdict per review pass and include `LOOP_BACK: implement | plan | none` in the compact report (`PASS` ⇒ `none`; `FAIL` with mixed implement+plan findings ⇒ `plan`)
 - Fail plan review (**blocking**) when an acceptance criterion has no linked test flow, a linked flow has no proof type (UI \| API \| CLI/job \| logic), or a flow is labeled UI but its commands are not Playwright — the finding MUST name the orphan criterion id or quote. Applies to change-path Plans for every listed criterion
 - On FAIL, specify loop-back target: **implement** (fixable) or **plan** (misunderstanding)
+- End every compact report with a `FRICTION:` line; grammar in `docs/systems/feature-loop.md` § Compact reports — emit exactly `FRICTION: none` when clean
 - Keep implementation review after Implementation and before tester (required; FAIL on spec/plan mismatch remains)
 - Review executor output without executing code yourself
 
